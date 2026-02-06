@@ -34,8 +34,7 @@ GoThermo is a modern, real-time enterprise team chat desktop application designe
 ### Backend (Go)
 - Wails v2 framework
 - Native Go performance
-- SQLite/PostgreSQL for data storage
-- Gorilla WebSocket for real-time communication
+- WebSocket for real-time communication
 - JWT-based authentication
 - Concurrent message processing
 - Cross-platform system integration
@@ -43,48 +42,57 @@ GoThermo is a modern, real-time enterprise team chat desktop application designe
 ## 📁 Project Structure
 ```
 GoThermo/
+├── build/
+│   └── assets/              # Build assets and resources
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
+│   │   ├── assets/          # Images, fonts, static files
+│   │   ├── components/      # React components
+│   │   │   ├── ChannelModal.tsx
+│   │   │   ├── ChannelSidebar.tsx
+│   │   │   ├── ChatHeader.tsx
 │   │   │   ├── Login.tsx
-│   │   │   ├── ChatWindow.tsx
-│   │   │   ├── Sidebar.tsx
-│   │   │   └── ...
-│   │   ├── services/
-│   │   │   └── wailsApi.ts
-│   │   ├── styles/
-│   │   ├── App.tsx
-│   │   └── main.tsx
+│   │   │   ├── MessageComposer.tsx
+│   │   │   ├── MessageList.tsx
+│   │   │   └── UserPanel.tsx
+│   │   ├── hooks/           # Custom React hooks
+│   │   │   └── useWebSocket.ts
+│   │   ├── services/        # API services
+│   │   │   └── api.ts
+│   │   ├── types/           # TypeScript type definitions
+│   │   │   └── index.ts
+│   │   ├── App.css          # Main styles
+│   │   ├── App.tsx          # Main App component
+│   │   ├── main.tsx         # Entry point
+│   │   └── style.css        # Global styles
+│   ├── index.html
 │   ├── package.json
-│   └── wailsjs/
-│       ├── go/
-│       └── runtime/
-├── backend/
-│   ├── app.go
-│   ├── main.go
-│   ├── internal/
-│   │   ├── auth/
-│   │   │   └── auth.go
-│   │   ├── chat/
-│   │   │   ├── chat.go
-│   │   │   └── message.go
-│   │   ├── database/
-│   │   │   └── db.go
-│   │   ├── models/
-│   │   │   ├── user.go
-│   │   │   ├── chat.go
-│   │   │   └── message.go
-│   │   └── websocket/
-│   │       └── hub.go
-│   ├── pkg/
-│   │   ├── config/
-│   │   └── utils/
-│   └── go.mod
-├── build/
-│   ├── windows/
-│   ├── darwin/
-│   └── linux/
-├── wails.json
+│   ├── package-lock.json
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite-env.d.ts
+├── wailsjs/                 # Auto-generated Wails bindings
+│   ├── go/                  # Go to JS bindings
+│   └── runtime/             # Wails runtime
+├── go/
+│   ├── main/
+│   │   ├── app.go           # Main application logic
+│   │   └── main.go          # Entry point
+│   ├── models/              # Data models
+│   ├── runtime/             # Runtime configuration
+│   ├── go.mod
+│   ├── go.sum
+│   ├── wails.json
+│   └── wails.go
+├── app.go                   # App initialization
+├── go.mod                   # Go module file
+├── go.sum                   # Go dependencies
+├── main.go                  # Application entry
+├── models.go                # Data models
+├── redis.go                 # Redis integration
+├── users.go                 # User management
+├── wails.go                 # Wails configuration
+├── wails.json               # Wails project config
 └── README.md
 ```
 
@@ -154,10 +162,11 @@ APP_NAME=GoThermo
 APP_VERSION=1.0.0
 ENVIRONMENT=development
 
-# Database
-DATABASE_PATH=./data/gothermo.db
-# Or for PostgreSQL
-# DATABASE_URL=postgres://user:password@localhost:5432/gothermo
+# Redis Configuration
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
 
 # Security
 JWT_SECRET=your_jwt_secret_here
@@ -224,20 +233,20 @@ wails build -platform windows/amd64,darwin/amd64,darwin/arm64,linux/amd64
 ### First Launch
 
 1. Launch GoThermo application
-2. On first run, you'll see the welcome screen
-3. Sign in with your work email and password
-4. Or register for a new account
+2. On first run, you'll see the login screen
+3. Enter your work email and password
+4. Click "Sign In" to access the application
 
 ### Starting a Chat
 
-1. Click on a team member from the sidebar
-2. Type your message in the input field
+1. Click on a team member or channel from the sidebar
+2. Type your message in the MessageComposer
 3. Press Enter or click Send
 
 ### Creating Channels
 
-1. Click on "New Channel" button
-2. Enter channel name
+1. Click on the "+" button in ChannelSidebar
+2. Enter channel name and description
 3. Add team members
 4. Click Create
 
@@ -247,63 +256,98 @@ wails build -platform windows/amd64,darwin/amd64,darwin/arm64,linux/amd64
 - `Ctrl/Cmd + K` - Quick search
 - `Ctrl/Cmd + ,` - Settings
 - `Ctrl/Cmd + Q` - Quit application
-- `Esc` - Close current dialog
+- `Esc` - Close current modal/dialog
 
-## 🔌 API Documentation
+## 🔌 Component Structure
 
-### Go Backend Methods (Exposed to Frontend)
+### Frontend Components
 
-#### Authentication
+#### Core Components
+```typescript
+// Login.tsx - Authentication component
+interface LoginProps {
+  onLogin: (username: string, password: string) => void;
+}
+
+// ChannelSidebar.tsx - Channel list and navigation
+interface ChannelSidebarProps {
+  channels: Channel[];
+  onChannelSelect: (channelId: string) => void;
+}
+
+// ChatHeader.tsx - Chat header with channel info
+interface ChatHeaderProps {
+  channel: Channel;
+  onSettingsClick: () => void;
+}
+
+// MessageList.tsx - Display chat messages
+interface MessageListProps {
+  messages: Message[];
+  currentUser: User;
+}
+
+// MessageComposer.tsx - Message input component
+interface MessageComposerProps {
+  onSendMessage: (content: string) => void;
+  placeholder?: string;
+}
+
+// UserPanel.tsx - User profile panel
+interface UserPanelProps {
+  user: User;
+  onLogout: () => void;
+}
+```
+
+### Backend API Methods
+
+#### User Management
 ```go
 // Login authenticates user
 func (a *App) Login(email, password string) (*User, error)
 
-// Register creates new user account
-func (a *App) Register(email, password, name string) (*User, error)
-
-// Logout ends user session
-func (a *App) Logout() error
-```
-
-#### Chat Operations
-```go
-// GetChats retrieves all user chats
-func (a *App) GetChats() ([]*Chat, error)
-
-// CreateChat creates a new chat
-func (a *App) CreateChat(name string, participants []string) (*Chat, error)
-
-// GetMessages retrieves messages for a chat
-func (a *App) GetMessages(chatID string, limit int) ([]*Message, error)
-
-// SendMessage sends a new message
-func (a *App) SendMessage(chatID, content string) (*Message, error)
-```
-
-#### User Operations
-```go
-// GetCurrentUser returns current logged-in user
+// GetCurrentUser returns logged-in user info
 func (a *App) GetCurrentUser() (*User, error)
 
-// GetUsers retrieves all users
-func (a *App) GetUsers() ([]*User, error)
-
-// UpdateProfile updates user profile
-func (a *App) UpdateProfile(name, avatar string) error
+// UpdateUserStatus updates user online status
+func (a *App) UpdateUserStatus(status string) error
 ```
 
-### Frontend Usage Example
+#### Channel Operations
+```go
+// GetChannels retrieves all channels
+func (a *App) GetChannels() ([]*Channel, error)
+
+// CreateChannel creates a new channel
+func (a *App) CreateChannel(name, description string) (*Channel, error)
+
+// JoinChannel adds user to channel
+func (a *App) JoinChannel(channelId string) error
+```
+
+#### Message Operations
+```go
+// GetMessages retrieves messages for a channel
+func (a *App) GetMessages(channelId string, limit int) ([]*Message, error)
+
+// SendMessage sends a new message
+func (a *App) SendMessage(channelId, content string) (*Message, error)
+
+// DeleteMessage deletes a message
+func (a *App) DeleteMessage(messageId string) error
+```
+
+### WebSocket Integration
 ```typescript
-import { Login, GetChats, SendMessage } from '../wailsjs/go/main/App';
-
-// Login
-const user = await Login(email, password);
-
-// Get chats
-const chats = await GetChats();
-
-// Send message
-const message = await SendMessage(chatId, content);
+// useWebSocket.ts - Custom hook for WebSocket
+export const useWebSocket = (url: string) => {
+  const [isConnected, setIsConnected] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  
+  // Connect, disconnect, send message handlers
+  // Real-time message updates
+};
 ```
 
 ## 🤝 Contributing
@@ -334,6 +378,7 @@ We welcome contributions to GoThermo! Please follow these steps:
 - Use functional components
 - Implement proper error handling
 - Write meaningful commit messages
+- Use CSS Modules for component styling
 
 ### Testing
 ```bash
@@ -349,15 +394,6 @@ npm test
 
 # Run Wails doctor to check setup
 wails doctor
-```
-
-### Building Documentation
-```bash
-# Generate Go documentation
-godoc -http=:6060
-
-# Generate API documentation
-wails generate module
 ```
 
 ## 🐛 Troubleshooting
@@ -393,10 +429,10 @@ sudo xcodebuild -license accept
 sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev
 ```
 
-**Database connection errors**
-- Check DATABASE_PATH or DATABASE_URL in .env
-- Ensure data directory exists and has write permissions
-- Verify SQLite/PostgreSQL is properly installed
+**Redis connection errors**
+- Ensure Redis server is running: `redis-cli ping`
+- Check REDIS_HOST and REDIS_PORT in .env
+- Verify firewall settings
 
 **WebSocket connection issues**
 - Check WS_SERVER_URL configuration
@@ -412,37 +448,50 @@ sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev
 
 - Check the [issues](https://github.com/yourusername/gothermo/issues) section
 - Visit [Wails Documentation](https://wails.io/docs/introduction)
-- Join our community Discord
 - Create a new issue with detailed description
+- Include error logs and system information
 
 ## 🏗️ Architecture
 
 GoThermo uses a modern desktop application architecture:
-
-- **Frontend (React + TypeScript)**: User interface with Wails runtime integration
-- **Backend (Go)**: Business logic, database operations, WebSocket management
-- **Communication**: Direct Go ↔ React binding via Wails runtime
-- **Data Storage**: SQLite for local storage, optional PostgreSQL for enterprise
-- **Real-time**: WebSocket connections for live updates
+```
+┌─────────────────────────────────────────┐
+│         Frontend (React + TS)           │
+│  ┌─────────────────────────────────┐   │
+│  │ Components (Login, Chat, etc)   │   │
+│  │ Hooks (useWebSocket)            │   │
+│  │ Services (API)                  │   │
+│  └─────────────────────────────────┘   │
+└──────────────┬──────────────────────────┘
+               │ Wails Runtime
+┌──────────────┴──────────────────────────┐
+│         Backend (Go)                    │
+│  ┌─────────────────────────────────┐   │
+│  │ App Logic (app.go, main.go)     │   │
+│  │ Models (User, Channel, Message) │   │
+│  │ WebSocket Hub                   │   │
+│  │ Redis Integration               │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
+```
 
 ### Data Flow
-```
-User Interface (React)
-        ↓↑
-   Wails Runtime
-        ↓↑
-  Go Backend (App)
-        ↓↑
-   Database Layer
-```
+
+1. User interacts with React UI
+2. Component calls Wails-bound Go function
+3. Go processes request (auth, data fetch, etc.)
+4. Redis stores/retrieves data
+5. WebSocket pushes real-time updates
+6. UI updates automatically
 
 ## 📊 Performance
 
 - Native performance with Go backend
 - Small binary size (~20-30MB compressed)
 - Fast startup time (<1 second)
-- Low memory footprint
+- Low memory footprint (~50-100MB)
 - Efficient concurrent message processing
+- Redis for fast data access
 - Local-first architecture for offline support
 
 ## 📦 Distribution
@@ -487,8 +536,9 @@ signtool sign /f cert.pfx /p password build/bin/GoThermo.exe
 ## 🔐 Security
 
 - JWT-based authentication
-- Encrypted local database
+- Secure password hashing
 - Secure WebSocket connections (WSS)
+- Redis for session management
 - No credentials stored in plain text
 - Regular security updates
 
@@ -499,25 +549,33 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [Wails](https://wails.io/) - Amazing Go + Web framework
+- [Redis](https://redis.io/) - In-memory data store
 - Built with modern web and native technologies
-- Inspired by popular team collaboration tools
+- Inspired by Slack, Discord, and Microsoft Teams
 - Thanks to all contributors and testers
 - Go and React communities
 
 ## 📧 Contact
 
-**Project Maintainer:** [Your Name]
+**Project Maintainer:** [Max Chernikov]
 
-- Email: your.email@example.com
-- GitHub: [@yourusername](https://github.com/yourusername)
-- Website: https://gothermo.io
+- Email: maksikos973@gmail.com
+- GitHub: [@Maksikos-ctrl](https://github.com/Maksikos-ctrl)
+- Website: https://maksymchernikovportfolio.vercel.app/
 
 ## 🗺️ Roadmap
 
+- [x] Basic authentication and login
+- [x] Real-time messaging with WebSocket
+- [x] Channel management
+- [x] User presence indicators
 - [ ] End-to-end encryption
 - [ ] Voice and video calls
 - [ ] Screen sharing
 - [ ] File sharing with drag & drop
+- [ ] Message search and history
+- [ ] Custom emoji and reactions
+- [ ] Thread replies
 - [ ] Mobile companion app
 - [ ] Plugin system
 - [ ] Custom themes
