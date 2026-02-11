@@ -7,6 +7,7 @@ interface ChatHeaderProps {
   messagesCount: number;
   onStartVideoCall: () => void;
   onStartAudioCall: () => void;
+  onShowMembers?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -15,37 +16,45 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   messagesCount,
   onStartVideoCall,
   onStartAudioCall,
+  onShowMembers,
 }) => {
-  const currentChannelData = channels.find(ch => ch.name === currentChannel);
-  const membersCount = currentChannelData?.members.length || 0;
+  const channel = channels.find(ch => ch.name === currentChannel);
 
   return (
     <div className="chat-header">
-      <div className="channel-header">
+      <div className="channel-info">
         <div className="channel-title">
-          <span className="channel-hashtag">#</span>
-          <h3>{currentChannel}</h3>
+          <h2># {currentChannel}</h2>
+          {channel?.description && (
+            <span className="channel-description-badge">{channel.description}</span>
+          )}
         </div>
-        <div className="channel-meta">
-          <span className="meta-item">
-            {membersCount} members
-          </span>
-          <span className="meta-divider">•</span>
-          <span className="meta-item">
-            {messagesCount} {messagesCount === 1 ? 'message' : 'messages'}
-          </span>
+        <div className="channel-stats">
+          <span className="messages-count">{messagesCount} messages</span>
         </div>
       </div>
-
+      
       <div className="header-actions">
-        <button className="action-btn" onClick={onStartVideoCall} title="Video call">
-          <span className="icon">📹</span>
+        <button 
+          className="members-btn" 
+          onClick={onShowMembers}
+          title="Show channel members"
+        >
+          👥
         </button>
-        <button className="action-btn" onClick={onStartAudioCall} title="Audio call">
-          <span className="icon">📞</span>
+        <button 
+          className="call-btn audio-call-btn" 
+          onClick={onStartAudioCall} 
+          title="Voice call"
+        >
+          📞
         </button>
-        <button className="action-btn" title="Add people">
-          <span className="icon">👥</span>
+        <button 
+          className="call-btn video-call-btn" 
+          onClick={onStartVideoCall} 
+          title="Video call"
+        >
+          📹
         </button>
       </div>
     </div>

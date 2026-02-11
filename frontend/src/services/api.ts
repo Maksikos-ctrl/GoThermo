@@ -3,6 +3,7 @@ import {
   SendPost, 
   GetMessages, 
   Login, 
+  Register,
   AddReaction,
   CreateChannel,
   GetChannels,
@@ -15,6 +16,7 @@ import {
 export const api = {
   auth: {
     login: Login,
+    register: Register
   },
   users: {
     getAll: GetUsers,

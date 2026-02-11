@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var globalHub *Hub
+
 type Client struct {
 	ID       string
 	Username string
@@ -43,12 +45,17 @@ type ChannelMessage struct {
 }
 
 func NewHub() *Hub {
-	return &Hub{
+	hub := &Hub{
 		clients:    make(map[string]*Client),
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
+
+	// ✅ ДОБАВЬТЕ ЭТУ СТРОКУ
+	globalHub = hub
+
+	return hub
 }
 
 func (h *Hub) Run() {
@@ -68,6 +75,24 @@ func (h *Hub) Run() {
 			}
 			data, _ := json.Marshal(welcomeMsg)
 			client.Send <- data
+
+			users := userManager.GetAllUsers()
+			usersListMsg := WSMessage{
+				Type:    "users_list",
+				Payload: users,
+			}
+			usersData, _ := json.Marshal(usersListMsg)
+			client.Send <- usersData
+
+			statusMsg := WSMessage{
+				Type: "status_update",
+				Payload: StatusUpdate{
+					Username: client.Username,
+					Status:   "online",
+				},
+			}
+			statusData, _ := json.Marshal(statusMsg)
+			h.broadcastMessage(statusData, client.Username)
 
 		case client := <-h.unregister:
 			h.mutex.Lock()
@@ -288,16 +313,13 @@ func (c *Client) readPump() {
 func (c *Client) handleMessage(msg WSMessage) {
 	switch msg.Type {
 	case "ping":
-
 		pongMsg := WSMessage{Type: "pong"}
 		pongData, _ := json.Marshal(pongMsg)
 		c.Send <- pongData
 
 	case "subscribe_channel":
-
 		if channel, ok := msg.Payload.(string); ok {
 			c.Hub.AddChannelToClient(c.Username, channel)
-
 			response := WSMessage{
 				Type: "subscribed",
 				Payload: map[string]interface{}{
@@ -310,9 +332,31 @@ func (c *Client) handleMessage(msg WSMessage) {
 		}
 
 	case "unsubscribe_channel":
-
 		if channel, ok := msg.Payload.(string); ok {
 			c.Hub.RemoveChannelFromClient(c.Username, channel)
+		}
+
+	case "status_change":
+
+		payloadBytes, err := json.Marshal(msg.Payload)
+		if err != nil {
+			log.Printf("Ошибка маршалинга payload: %v", err)
+			return
+		}
+
+		var statusPayload struct {
+			Status string `json:"status"`
+		}
+		if err := json.Unmarshal(payloadBytes, &statusPayload); err != nil {
+			log.Printf("Ошибка парсинга status_change: %v", err)
+			return
+		}
+
+		if userManager.UpdateUserStatus(c.Username, statusPayload.Status) {
+
+			c.Hub.BroadcastStatusUpdate(c.Username, statusPayload.Status)
+			log.Printf("🔄 Статус изменен через WebSocket: %s -> %s",
+				c.Username, statusPayload.Status)
 		}
 	}
 }

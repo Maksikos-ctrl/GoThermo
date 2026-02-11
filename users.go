@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
@@ -35,11 +33,27 @@ func generateID() string {
 	return uuid.New().String()
 }
 
+// ✅ ДОБАВЛЕНО - сброс всех статусов в offline при старте
+func (um *UserManager) ResetAllStatusesToOffline() {
+	um.mu.Lock()
+	defer um.mu.Unlock()
+
+	for _, user := range um.users {
+		user.Status = "offline"
+		user.IsOnline = false
+		user.LastSeen = time.Now().Format(time.RFC3339)
+		go SaveUserToRedis(user)
+	}
+
+	log.Printf("✓ Все статусы сброшены в offline (%d пользователей)", len(um.users))
+}
+
 func (um *UserManager) RegisterUser(username, email string) *User {
 	um.mu.Lock()
 	defer um.mu.Unlock()
 
 	if existingUser, exists := um.users[username]; exists {
+		log.Printf("🔄 Обновляем существующего пользователя: %s", username)
 		existingUser.IsOnline = true
 		existingUser.Status = "online"
 		existingUser.LastSeen = time.Now().Format(time.RFC3339)
@@ -58,10 +72,10 @@ func (um *UserManager) RegisterUser(username, email string) *User {
 	}
 
 	um.users[username] = user
+	log.Printf("✅ Создан новый пользователь в памяти: %s (ID: %s)", username, user.ID)
 
 	go SaveUserToRedis(user)
 
-	log.Printf("User registered: %s (%s)", username, email)
 	return user
 }
 
@@ -146,7 +160,7 @@ func (um *UserManager) RemoveUserToken(token string) {
 	delete(um.userTokens, token)
 }
 
-// Wails
+// Wails API
 
 func (a *App) GetUsers() []User {
 	return userManager.GetAllUsers()
@@ -164,23 +178,14 @@ func (a *App) UpdateUserStatus(username, status string) bool {
 		return false
 	}
 
-	return userManager.UpdateUserStatus(username, status)
-}
+	success := userManager.UpdateUserStatus(username, status)
 
-func (a *App) Login(email, password string) (User, error) {
-	log.Printf("🔐 Попытка входа: %s", email)
-
-	if !strings.Contains(email, "@") {
-		return User{}, fmt.Errorf("неверный формат email")
+	// Broadcast через WebSocket
+	if success && globalHub != nil {
+		globalHub.BroadcastStatusUpdate(username, status)
 	}
 
-	username := strings.Split(email, "@")[0]
-
-	user := userManager.RegisterUser(username, email)
-
-	log.Printf("✓ Пользователь вошел: %s", username)
-
-	return *user, nil
+	return success
 }
 
 func (a *App) CheckAuth(token string) (string, error) {
@@ -197,11 +202,15 @@ func (a *App) CheckAuth(token string) (string, error) {
 	return string(userJSON), nil
 }
 
-// Logout выходит из системы
 func (a *App) Logout(token string) bool {
 	user, exists := userManager.GetUserByToken(token)
 	if exists {
 		userManager.UpdateUserStatus(user.Username, "offline")
+
+		// Broadcast через WebSocket
+		if globalHub != nil {
+			globalHub.BroadcastStatusUpdate(user.Username, "offline")
+		}
 	}
 	userManager.RemoveUserToken(token)
 	return true

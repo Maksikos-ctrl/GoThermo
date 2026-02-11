@@ -12,6 +12,8 @@ interface UserPanelProps {
   onStartDirectMessage: (username: string) => void;
   onStartVideoCall: () => void;
   onStartAudioCall: () => void;
+  // ✅ Добавляем проп для WebSocket
+  onChangeStatusViaWS?: (status: StatusType) => void;
 }
 
 export const UserPanel: React.FC<UserPanelProps> = ({
@@ -24,25 +26,49 @@ export const UserPanel: React.FC<UserPanelProps> = ({
   onStartDirectMessage,
   onStartVideoCall,
   onStartAudioCall,
+  onChangeStatusViaWS, // ✅ Добавляем
 }) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
-  const otherUsers = users.filter(user => user.username !== currentUser);
+  // ✅ Убираем дубликаты пользователей
+  const uniqueUsersMap = new Map<string, User>();
+  users.forEach(user => {
+    uniqueUsersMap.set(user.username, user);
+  });
+  const uniqueUsers = Array.from(uniqueUsersMap.values());
+
+  const otherUsers = uniqueUsers.filter(user => user.username !== currentUser);
   const onlineUsers = otherUsers.filter(user => user.status === 'online');
   const awayUsers = otherUsers.filter(user => user.status === 'away');
   const offlineUsers = otherUsers.filter(user => user.status === 'offline');
 
   const handleStatusChange = async (status: StatusType) => {
     try {
+      // 1. Обновляем через API
       const success = await api.users.updateStatus(currentUser, status);
       if (success) {
         onStatusChange(status);
+        
+        // 2. Отправляем через WebSocket для мгновенной синхронизации
+        if (onChangeStatusViaWS) {
+          onChangeStatusViaWS(status);
+        }
       }
     } catch (error) {
       console.error('Ошибка обновления статуса:', error);
     }
     setShowStatusMenu(false);
+  };
+
+  // ✅ Иконки статусов
+  const getStatusIcon = (status: string) => {
+    switch(status) {
+      case 'online': return '🟢';
+      case 'away': return '🟡';
+      case 'offline': return '🔴';
+      default: return '⚪';
+    }
   };
 
   if (!showUserPanel) {
@@ -82,7 +108,11 @@ export const UserPanel: React.FC<UserPanelProps> = ({
         <div className="user-avatar large">{currentUser.charAt(0).toUpperCase()}</div>
         <div className="user-details">
           <div className="user-name">{currentUser}</div>
-          <div className="user-status" onClick={() => setShowStatusMenu(!showStatusMenu)}>
+          <div 
+            className="user-status" 
+            onClick={() => setShowStatusMenu(!showStatusMenu)}
+            style={{ cursor: 'pointer' }}
+          >
             <span className={`status-dot ${currentUserStatus}`}></span>
             <span>{STATUS_OPTIONS.find(s => s.value === currentUserStatus)?.label}</span>
             <span className="status-arrow">▼</span>
@@ -99,6 +129,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
               >
                 <span className="status-dot" style={{ backgroundColor: status.color }}></span>
                 <span>{status.label}</span>
+                {currentUserStatus === status.value && <span style={{ marginLeft: '8px' }}>✓</span>}
               </div>
             ))}
           </div>
@@ -114,13 +145,13 @@ export const UserPanel: React.FC<UserPanelProps> = ({
           <div className="users-list">
             {onlineUsers.map(user => (
               <div 
-                key={user.id} 
+                key={user.id || user.username} 
                 className="user-item"
                 onClick={() => onStartDirectMessage(user.username)}
               >
                 <div className="user-avatar small">{user.username.charAt(0).toUpperCase()}</div>
                 <div className="user-name">{user.username}</div>
-                <span className={`status-dot ${user.status}`}></span>
+                <span className="status-icon">{getStatusIcon(user.status || 'online')}</span>
               </div>
             ))}
           </div>
@@ -136,13 +167,13 @@ export const UserPanel: React.FC<UserPanelProps> = ({
           <div className="users-list">
             {awayUsers.map(user => (
               <div 
-                key={user.id} 
+                key={user.id || user.username} 
                 className="user-item"
                 onClick={() => onStartDirectMessage(user.username)}
               >
                 <div className="user-avatar small">{user.username.charAt(0).toUpperCase()}</div>
                 <div className="user-name">{user.username}</div>
-                <span className={`status-dot ${user.status}`}></span>
+                <span className="status-icon">{getStatusIcon(user.status || 'away')}</span>
               </div>
             ))}
           </div>
@@ -158,13 +189,13 @@ export const UserPanel: React.FC<UserPanelProps> = ({
           <div className="users-list">
             {offlineUsers.map(user => (
               <div 
-                key={user.id} 
+                key={user.id || user.username} 
                 className="user-item offline"
                 onClick={() => onStartDirectMessage(user.username)}
               >
                 <div className="user-avatar small">{user.username.charAt(0).toUpperCase()}</div>
                 <div className="user-name">{user.username}</div>
-                <span className={`status-dot ${user.status}`}></span>
+                <span className="status-icon">{getStatusIcon(user.status || 'offline')}</span>
               </div>
             ))}
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { 
   Message, 
@@ -15,6 +15,7 @@ import { ChannelModal } from './components/ChannelModal';
 import { ChatHeader } from './components/ChatHeader';
 import { MessagesList } from './components/MessagesList';
 import { MessageComposer } from './components/MessageComposer';
+import { ChannelMembers } from './components/ChannelMembers';
 
 function App() {
   // Состояние авторизации
@@ -36,13 +37,14 @@ function App() {
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [isPostMode, setIsPostMode] = useState(false);
   const [newMessage, setNewMessage] = useState('');
+  const [showMembersPanel, setShowMembersPanel] = useState(false);
 
   // Состояние drag & drop
   const [isDragging, setIsDragging] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 
   // WebSocket
-  const { isConnected, subscribeToChannel } = useWebSocket(
+  const { isConnected, subscribeToChannel, changeStatus } = useWebSocket(
     currentUser,
     handleStatusUpdate,
     handleNewMessage
@@ -101,19 +103,41 @@ function App() {
   const loadUsers = async () => {
     try {
       const usersData = await api.users.getAll();
-      const typedUsers = (usersData || []).map((user: any) => ({
-        ...user,
-        status: (['online', 'away', 'offline'].includes(user.status) 
-          ? user.status 
-          : 'offline') as StatusType,
-        isOnline: user.status === 'online' || user.status === 'away'
-      }));
-      setUsers(typedUsers);
+      
+      const uniqueUsersMap = new Map<string, User>();
+      
+      (usersData || []).forEach((user: any) => {
+        const typedUser = {
+          ...user,
+          status: (['online', 'away', 'offline'].includes(user.status) 
+            ? user.status 
+            : 'offline') as StatusType,
+          isOnline: user.status === 'online' || user.status === 'away'
+        };
+       
+        uniqueUsersMap.set(user.username, typedUser);
+      });
+      
+      setUsers(Array.from(uniqueUsersMap.values()));
     } catch (error) {
       console.error('Ошибка загрузки пользователей:', error);
       setUsers([]);
     }
   };
+
+  // ✅ Функция для получения участников канала
+  const getChannelMembers = useCallback(() => {
+    const messageUsers = new Map<string, User>();
+    
+    messages.forEach(msg => {
+      const user = users.find(u => u.username === msg.user);
+      if (user) {
+        messageUsers.set(user.username, user);
+      }
+    });
+    
+    return Array.from(messageUsers.values());
+  }, [messages, users]);
 
   // Эффекты
   useEffect(() => {
@@ -318,6 +342,7 @@ function App() {
         onStartDirectMessage={startDirectMessage}
         onStartVideoCall={startVideoCall}
         onStartAudioCall={startAudioCall}
+        onChangeStatusViaWS={changeStatus}
       />
 
       <ChannelSidebar
@@ -353,6 +378,7 @@ function App() {
           messagesCount={messages.length}
           onStartVideoCall={startVideoCall}
           onStartAudioCall={startAudioCall}
+          onShowMembers={() => setShowMembersPanel(true)} 
         />
 
         <MessagesList
@@ -371,6 +397,16 @@ function App() {
           onTogglePostMode={() => setIsPostMode(!isPostMode)}
         />
       </div>
+
+      {/* ✅ Панель участников перемещена сюда */}
+      {showMembersPanel && (
+        <ChannelMembers
+          channel={channels.find(ch => ch.name === currentChannel) || null}
+          users={getChannelMembers()}
+          currentChannel={currentChannel}
+          onClose={() => setShowMembersPanel(false)}
+        />
+      )}
     </div>
   );
 }

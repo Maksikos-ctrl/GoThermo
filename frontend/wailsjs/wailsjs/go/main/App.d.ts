@@ -22,8 +22,6 @@ export function Login(arg1:string,arg2:string):Promise<main.User>;
 
 export function Logout(arg1:string):Promise<boolean>;
 
-export function Register(arg1:string,arg2:string):Promise<main.User>;
-
 export function SendMessage(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function SendPost(arg1:string,arg2:string,arg3:string):Promise<string>;

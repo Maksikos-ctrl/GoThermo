@@ -1563,7 +1563,7 @@ textarea:focus-visible {
   height: 20px;
   z-index: 10000;
   font-size: 12px;
-  opacity: 0.7;
+  opacity: 0;
 }
 
 .ws-status.online {
@@ -1572,4 +1572,419 @@ textarea:focus-visible {
 
 .ws-status.offline {
   color: #ed4245;
+}
+
+/* Статусы */
+.status-dot.online {
+  background-color: #3ba55d;
+}
+
+.status-dot.away {
+  background-color: #faa81a;
+}
+
+.status-dot.offline {
+  background-color: #747f8d; /* Серый, не красный */
+}
+
+.status-icon.online {
+  color: #3ba55d;
+}
+
+.status-icon.away {
+  color: #faa81a;
+}
+
+.status-icon.offline {
+  color: #747f8d; /* Серый */
+}
+
+.channel-members-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 280px;
+  height: 100vh;
+  background: #1a1e24;
+  border-left: 1px solid #2a2f38;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.channel-members-header {
+  padding: 20px;
+  border-bottom: 1px solid #2a2f38;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.channel-members-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 16px;
+}
+
+.members-count {
+  color: #a0a8b4;
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+.close-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #a0a8b4;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.close-btn:hover {
+  color: #fff;
+}
+
+.members-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.member-item:hover {
+  background: #2a2f38;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #5865f2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 12px;
+}
+
+.member-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.member-name {
+  color: #fff;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.member-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #a0a8b4;
+}
+
+.status-text.online { color: #3ba55d; }
+.status-text.away { color: #faa81a; }
+.status-text.offline { color: #747f8d; }
+
+.no-members {
+  text-align: center;
+  color: #a0a8b4;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+/* Кнопка участников в хедере */
+.members-btn {
+  background: none;
+  border: none;
+  color: #a0a8b4;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.members-btn:hover {
+  background: #2a2f38;
+  color: #fff;
+}
+
+.members-btn .count {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Панель участников */
+.channel-members-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100vh;
+  background: #1e2229;
+  border-left: 1px solid #2a2f38;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  animation: slideIn 0.2s ease;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.channel-members-header {
+  padding: 20px;
+  border-bottom: 1px solid #2a2f38;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.channel-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.channel-info h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.channel-description {
+  color: #a0a8b4;
+  font-size: 13px;
+  background: #2a2f38;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.members-stats {
+  display: flex;
+  gap: 12px;
+  color: #a0a8b4;
+  font-size: 13px;
+}
+
+.online-count, .total-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: #a0a8b4;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.close-btn:hover {
+  color: #fff;
+}
+
+.members-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.members-section {
+  margin-bottom: 24px;
+}
+
+.section-label {
+  color: #a0a8b4;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-bottom: 2px;
+}
+
+.member-item:hover {
+  background: #2a2f38;
+}
+
+.member-item.offline {
+  opacity: 0.7;
+}
+
+.member-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 12px;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.member-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.member-name {
+  color: #fff;
+  font-weight: 500;
+  font-size: 15px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.member-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.member-status .status-text {
+  color: #a0a8b4;
+  text-transform: capitalize;
+}
+
+.member-status.online .status-text { color: #3ba55d; }
+.member-status.away .status-text { color: #faa81a; }
+.member-status.offline .status-text { color: #747f8d; }
+
+.channel-members-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #2a2f38;
+  color: #a0a8b4;
+  font-size: 12px;
+}
+
+.channel-created {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.created-date {
+  color: #5e6775;
+}
+
+.no-members {
+  text-align: center;
+  color: #a0a8b4;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .channel-members-panel {
+    width: 100%;
+  }
+}
+
+/* Кнопки звонков */
+.call-btn, .video-call-btn, .audio-call-btn {
+  background: none;
+  border: none;
+  color: #a0a8b4;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.call-btn:hover, .video-call-btn:hover, .audio-call-btn:hover {
+  background: #2a2f38;
+  color: #fff;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Кнопка участников */
+.members-btn {
+  background: none;
+  border: none;
+  color: #a0a8b4;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.members-btn:hover {
+  background: #2a2f38;
+  color: #fff;
+}
+
+.members-btn .count {
+  font-size: 13px;
+  font-weight: 500;
+  background: #2a2f38;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 4px;
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -174,7 +176,6 @@ func GetUserFromRedis(email string) (*User, error) {
 
 // Получаем всех пользователей из Redis
 func GetAllUsersFromRedis() ([]User, error) {
-	// Получаем все ключи пользователей
 	keys, err := redisClient.Keys(ctx, "user:*").Result()
 	if err != nil {
 		return nil, err
@@ -182,6 +183,19 @@ func GetAllUsersFromRedis() ([]User, error) {
 
 	var users []User
 	for _, key := range keys {
+		// Пропускаем ключи с :password
+		if strings.Contains(key, ":password") {
+			continue
+		}
+		// Пропускаем ключи с :token
+		if strings.Contains(key, ":token") {
+			continue
+		}
+		// Пропускаем если это не email формат (admin без @)
+		if !strings.Contains(key, "@") {
+			continue
+		}
+
 		data, err := redisClient.Get(ctx, key).Result()
 		if err != nil {
 			continue
@@ -193,5 +207,18 @@ func GetAllUsersFromRedis() ([]User, error) {
 		}
 	}
 
+	log.Printf("📊 Загружено %d пользователей из Redis", len(users))
 	return users, nil
+}
+
+// SaveUserPasswordToRedis сохраняет хешированный пароль
+func SaveUserPasswordToRedis(email, hashedPassword string) error {
+	key := fmt.Sprintf("user:%s:password", email)
+	return redisClient.Set(ctx, key, hashedPassword, 0).Err()
+}
+
+// GetUserPasswordFromRedis получает хешированный пароль
+func GetUserPasswordFromRedis(email string) (string, error) {
+	key := fmt.Sprintf("user:%s:password", email)
+	return redisClient.Get(ctx, key).Result()
 }
