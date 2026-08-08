@@ -52,7 +52,7 @@ func NewHub() *Hub {
 		unregister: make(chan *Client),
 	}
 
-	// ✅ ДОБАВЬТЕ ЭТУ СТРОКУ
+	
 	globalHub = hub
 
 	return hub
@@ -65,7 +65,7 @@ func (h *Hub) Run() {
 			h.mutex.Lock()
 			h.clients[client.Username] = client
 			h.mutex.Unlock()
-			log.Printf("✓ WebSocket клиент подключен: %s", client.Username)
+			log.Printf("✓ WebSocket client connected: %s", client.Username)
 
 			welcomeMsg := WSMessage{
 				Type: "connected",
@@ -99,7 +99,7 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client.Username]; ok {
 				delete(h.clients, client.Username)
 				close(client.Send)
-				log.Printf("✗ WebSocket клиент отключен: %s", client.Username)
+				log.Printf("✗ WebSocket client disconnected: %s", client.Username)
 
 				statusMsg := WSMessage{
 					Type: "status_update",
@@ -142,11 +142,11 @@ func (h *Hub) BroadcastToChannel(channel string, msg Message) {
 
 	data, err := json.Marshal(channelMsg)
 	if err != nil {
-		log.Printf("Ошибка маршалинга сообщения для канала: %v", err)
+		log.Printf("Error marshaling message for channel: %v", err)
 		return
 	}
 
-	log.Printf("📢 Вещаем в канал #%s: %s", channel, truncateText(msg.Text, 50))
+	log.Printf("📢 Broadcasting to channel #%s: %s", channel, truncateText(msg.Text, 50))
 
 	sentCount := 0
 	for username, client := range h.clients {
@@ -162,7 +162,7 @@ func (h *Hub) BroadcastToChannel(channel string, msg Message) {
 		}
 	}
 
-	log.Printf("✓ Сообщение отправлено %d клиентам в канале #%s", sentCount, channel)
+	log.Printf("✓ Message sent to %d clients in channel #%s", sentCount, channel)
 }
 
 func (h *Hub) AddChannelToClient(username, channel string) {
@@ -172,7 +172,7 @@ func (h *Hub) AddChannelToClient(username, channel string) {
 	if client, exists := h.clients[username]; exists {
 		if !contains(client.Channels, channel) {
 			client.Channels = append(client.Channels, channel)
-			log.Printf("✅ Клиент %s подписан на канал #%s", username, channel)
+			log.Printf("✅ Client %s subscribed to channel #%s", username, channel)
 		}
 	}
 }
@@ -185,7 +185,7 @@ func (h *Hub) RemoveChannelFromClient(username, channel string) {
 		for i, ch := range client.Channels {
 			if ch == channel {
 				client.Channels = append(client.Channels[:i], client.Channels[i+1:]...)
-				log.Printf("❌ Клиент %s отписан от канала #%s", username, channel)
+				log.Printf("❌ Client %s unsubscribed from channel #%s", username, channel)
 				break
 			}
 		}
@@ -203,7 +203,7 @@ func (h *Hub) BroadcastStatusUpdate(username, status string) {
 
 	data, err := json.Marshal(statusMsg)
 	if err != nil {
-		log.Printf("Ошибка маршалинга статуса: %v", err)
+		log.Printf("Error marshaling status: %v", err)
 		return
 	}
 
@@ -219,7 +219,7 @@ func (h *Hub) BroadcastStatusUpdate(username, status string) {
 		}
 	}
 
-	log.Printf("📢 Статус обновлен: %s -> %s (отправлено %d клиентам)",
+	log.Printf("📢 Status updated: %s -> %s (sent to %d clients)",
 		username, status, len(h.clients))
 }
 
@@ -270,7 +270,7 @@ func (h *Hub) autoSubscribeChannels(username string) {
 
 	channels, err := GetAllChannels()
 	if err != nil {
-		log.Printf("Ошибка получения каналов для автоматической подписки: %v", err)
+		log.Printf("Error fetching channels for automatic subscription: %v", err)
 		return
 	}
 
@@ -298,7 +298,7 @@ func (c *Client) readPump() {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Ошибка чтения WebSocket: %v", err)
+				log.Printf("Error reading WebSocket message: %v", err)
 			}
 			break
 		}
@@ -340,7 +340,7 @@ func (c *Client) handleMessage(msg WSMessage) {
 
 		payloadBytes, err := json.Marshal(msg.Payload)
 		if err != nil {
-			log.Printf("Ошибка маршалинга payload: %v", err)
+			log.Printf("Error marshaling payload: %v", err)
 			return
 		}
 
@@ -348,14 +348,14 @@ func (c *Client) handleMessage(msg WSMessage) {
 			Status string `json:"status"`
 		}
 		if err := json.Unmarshal(payloadBytes, &statusPayload); err != nil {
-			log.Printf("Ошибка парсинга status_change: %v", err)
+			log.Printf("Error parsing status_change: %v", err)
 			return
 		}
 
 		if userManager.UpdateUserStatus(c.Username, statusPayload.Status) {
 
 			c.Hub.BroadcastStatusUpdate(c.Username, statusPayload.Status)
-			log.Printf("🔄 Статус изменен через WebSocket: %s -> %s",
+			log.Printf("🔄 Status changed via WebSocket: %s -> %s",
 				c.Username, statusPayload.Status)
 		}
 	}

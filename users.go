@@ -33,7 +33,7 @@ func generateID() string {
 	return uuid.New().String()
 }
 
-// ✅ ДОБАВЛЕНО - сброс всех статусов в offline при старте
+
 func (um *UserManager) ResetAllStatusesToOffline() {
 	um.mu.Lock()
 	defer um.mu.Unlock()
@@ -45,7 +45,7 @@ func (um *UserManager) ResetAllStatusesToOffline() {
 		go SaveUserToRedis(user)
 	}
 
-	log.Printf("✓ Все статусы сброшены в offline (%d пользователей)", len(um.users))
+	log.Printf("✓ All statuses reset to offline (%d users)", len(um.users))
 }
 
 func (um *UserManager) RegisterUser(username, email string) *User {
@@ -53,7 +53,7 @@ func (um *UserManager) RegisterUser(username, email string) *User {
 	defer um.mu.Unlock()
 
 	if existingUser, exists := um.users[username]; exists {
-		log.Printf("🔄 Обновляем существующего пользователя: %s", username)
+		log.Printf("🔄 Updating existing user: %s", username)
 		existingUser.IsOnline = true
 		existingUser.Status = "online"
 		existingUser.LastSeen = time.Now().Format(time.RFC3339)
@@ -72,7 +72,7 @@ func (um *UserManager) RegisterUser(username, email string) *User {
 	}
 
 	um.users[username] = user
-	log.Printf("✅ Создан новый пользователь в памяти: %s (ID: %s)", username, user.ID)
+	log.Printf("✅ Created new user in memory: %s (ID: %s)", username, user.ID)
 
 	go SaveUserToRedis(user)
 
@@ -160,7 +160,7 @@ func (um *UserManager) RemoveUserToken(token string) {
 	delete(um.userTokens, token)
 }
 
-// Wails API
+
 
 func (a *App) GetUsers() []User {
 	return userManager.GetAllUsers()
@@ -180,7 +180,7 @@ func (a *App) UpdateUserStatus(username, status string) bool {
 
 	success := userManager.UpdateUserStatus(username, status)
 
-	// Broadcast через WebSocket
+	
 	if success && globalHub != nil {
 		globalHub.BroadcastStatusUpdate(username, status)
 	}
@@ -207,7 +207,7 @@ func (a *App) Logout(token string) bool {
 	if exists {
 		userManager.UpdateUserStatus(user.Username, "offline")
 
-		// Broadcast через WebSocket
+		
 		if globalHub != nil {
 			globalHub.BroadcastStatusUpdate(user.Username, "offline")
 		}

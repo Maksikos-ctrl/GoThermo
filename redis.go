@@ -22,9 +22,9 @@ func initRedis() {
 
 	_, err := redisClient.Ping(ctx).Result()
 	if err != nil {
-		fmt.Println("Не удалось подключиться к Redis:", err)
+		fmt.Println("Error connecting to Redis:", err)
 	} else {
-		fmt.Println("✓ Успешно подключено к Redis")
+		fmt.Println("✓ Successfully connected to Redis")
 	}
 }
 
@@ -146,7 +146,7 @@ func UpdateMessage(channel string, updatedMsg Message) error {
 		}
 	}
 
-	return fmt.Errorf("сообщение с ID %s не найдено", updatedMsg.ID)
+	return fmt.Errorf("message with ID %s not found", updatedMsg.ID)
 }
 
 func SaveUserToRedis(user *User) error {
@@ -174,7 +174,7 @@ func GetUserFromRedis(email string) (*User, error) {
 	return &user, nil
 }
 
-// Получаем всех пользователей из Redis
+
 func GetAllUsersFromRedis() ([]User, error) {
 	keys, err := redisClient.Keys(ctx, "user:*").Result()
 	if err != nil {
@@ -183,15 +183,15 @@ func GetAllUsersFromRedis() ([]User, error) {
 
 	var users []User
 	for _, key := range keys {
-		// Пропускаем ключи с :password
+		
 		if strings.Contains(key, ":password") {
 			continue
 		}
-		// Пропускаем ключи с :token
+		
 		if strings.Contains(key, ":token") {
 			continue
 		}
-		// Пропускаем если это не email формат (admin без @)
+		
 		if !strings.Contains(key, "@") {
 			continue
 		}
@@ -207,17 +207,17 @@ func GetAllUsersFromRedis() ([]User, error) {
 		}
 	}
 
-	log.Printf("📊 Загружено %d пользователей из Redis", len(users))
+	log.Printf("📊 Loaded %d users from Redis", len(users))
 	return users, nil
 }
 
-// SaveUserPasswordToRedis сохраняет хешированный пароль
+
 func SaveUserPasswordToRedis(email, hashedPassword string) error {
 	key := fmt.Sprintf("user:%s:password", email)
 	return redisClient.Set(ctx, key, hashedPassword, 0).Err()
 }
 
-// GetUserPasswordFromRedis получает хешированный пароль
+
 func GetUserPasswordFromRedis(email string) (string, error) {
 	key := fmt.Sprintf("user:%s:password", email)
 	return redisClient.Get(ctx, key).Result()

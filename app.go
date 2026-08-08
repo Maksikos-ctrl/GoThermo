@@ -20,7 +20,7 @@ func NewApp() *App {
 	go hub.Run()
 	userManager.LoadUsersFromRedis()
 
-	// ✅ ДОБАВЛЕНО - сбрасываем все статусы в offline при старте
+	
 	userManager.ResetAllStatusesToOffline()
 
 	return &App{hub: hub}
@@ -29,17 +29,17 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.initDefaultChannels()
-	log.Println("✓ GoThermo запущен")
+	log.Println("✓ GoThermo application started successfully")
 }
 
 func (a *App) initDefaultChannels() {
 	channels, err := GetAllChannels()
 	if err != nil {
-		log.Printf("Ошибка получения каналов: %v", err)
+		log.Printf("Error fetching channels: %v", err)
 		return
 	}
 	if len(channels) > 0 {
-		log.Printf("✓ Найдено %d каналов", len(channels))
+		log.Printf("✓ Found %d channels", len(channels))
 		return
 	}
 	defaultChannels := []Channel{
@@ -49,20 +49,20 @@ func (a *App) initDefaultChannels() {
 	}
 	for _, channel := range defaultChannels {
 		if err := SaveChannel(channel); err != nil {
-			log.Printf("Ошибка создания канала %s: %v", channel.Name, err)
+			log.Printf("Error creating channel %s: %v", channel.Name, err)
 		} else {
-			log.Printf("✓ Канал создан: #%s", channel.Name)
+			log.Printf("✓ Channel created: #%s", channel.Name)
 		}
 	}
 }
 
 func (a *App) SendMessage(user, text, channel string) (string, error) {
 	if text == "" {
-		return "", fmt.Errorf("сообщение не может быть пустым")
+		return "", fmt.Errorf("message cannot be empty")
 	}
 	msg := Message{ID: uuid.New().String(), User: user, Text: text, Channel: channel, Timestamp: time.Now(), Reactions: make(map[string][]string), IsPost: false}
 	if err := SaveMessage(msg); err != nil {
-		return "", fmt.Errorf("не удалось сохранить сообщение: %v", err)
+		return "", fmt.Errorf("error saving message: %v", err)
 	}
 	a.hub.BroadcastToChannel(channel, msg)
 	log.Printf("📨 %s -> #%s: %s", user, channel, truncate(text, 50))
@@ -71,21 +71,21 @@ func (a *App) SendMessage(user, text, channel string) (string, error) {
 
 func (a *App) SendPost(user, text, channel string) (string, error) {
 	if text == "" {
-		return "", fmt.Errorf("пост не может быть пустым")
+		return "", fmt.Errorf("post cannot be empty")
 	}
 	msg := Message{ID: uuid.New().String(), User: user, Text: text, Channel: channel, Timestamp: time.Now(), Reactions: make(map[string][]string), IsPost: true}
 	if err := SaveMessage(msg); err != nil {
-		return "", fmt.Errorf("не удалось сохранить пост: %v", err)
+		return "", fmt.Errorf("error saving post: %v", err)
 	}
 	a.hub.BroadcastToChannel(channel, msg)
-	log.Printf("📌 %s создал пост в #%s: %s", user, channel, truncate(text, 50))
+	log.Printf("📌 %s created a post in #%s: %s", user, channel, truncate(text, 50))
 	return msg.ID, nil
 }
 
 func (a *App) GetMessages(channel string) ([]Message, error) {
 	messages, err := GetMessages(channel, 100)
 	if err != nil {
-		log.Printf("Ошибка получения сообщений из #%s: %v", channel, err)
+		log.Printf("Error fetching messages from #%s: %v", channel, err)
 		return []Message{}, nil
 	}
 	return messages, nil
@@ -94,7 +94,7 @@ func (a *App) GetMessages(channel string) ([]Message, error) {
 func (a *App) AddReaction(messageID, emoji, username, channel string) error {
 	messages, err := GetMessages(channel, 1000)
 	if err != nil {
-		return fmt.Errorf("не удалось получить сообщения: %v", err)
+		return fmt.Errorf("error fetching messages: %v", err)
 	}
 	var foundMsg *Message
 	for _, msg := range messages {
@@ -104,7 +104,7 @@ func (a *App) AddReaction(messageID, emoji, username, channel string) error {
 		}
 	}
 	if foundMsg == nil {
-		return fmt.Errorf("сообщение не найдено")
+		return fmt.Errorf("message not found")
 	}
 	if foundMsg.Reactions == nil {
 		foundMsg.Reactions = make(map[string][]string)
@@ -128,7 +128,7 @@ func (a *App) AddReaction(messageID, emoji, username, channel string) error {
 		foundMsg.Reactions[emoji] = newUsers
 	}
 	if err = UpdateMessage(channel, *foundMsg); err != nil {
-		return fmt.Errorf("не удалось обновить сообщение: %v", err)
+		return fmt.Errorf("error updating message: %v", err)
 	}
 	a.hub.BroadcastToChannel(channel, *foundMsg)
 	return nil
@@ -136,24 +136,24 @@ func (a *App) AddReaction(messageID, emoji, username, channel string) error {
 
 func (a *App) CreateChannel(name, description, createdBy string) (Channel, error) {
 	if name == "" {
-		return Channel{}, fmt.Errorf("имя канала не может быть пустым")
+		return Channel{}, fmt.Errorf("channel name cannot be empty")
 	}
 	existingChannel, err := GetChannel(name)
 	if err == nil && existingChannel != nil {
-		return Channel{}, fmt.Errorf("канал #%s уже существует", name)
+		return Channel{}, fmt.Errorf("channel #%s already exists", name)
 	}
 	channel := Channel{ID: uuid.New().String(), Name: name, Description: description, Members: []string{createdBy}, CreatedBy: createdBy, CreatedAt: time.Now(), IsPrivate: false}
 	if err = SaveChannel(channel); err != nil {
-		return Channel{}, fmt.Errorf("не удалось создать канал: %v", err)
+		return Channel{}, fmt.Errorf("failed to create channel: %v", err)
 	}
-	log.Printf("📢 Канал #%s создан пользователем %s", name, createdBy)
+	log.Printf("📢 Channel #%s created by %s", name, createdBy)
 	return channel, nil
 }
 
 func (a *App) GetChannels() ([]Channel, error) {
 	channels, err := GetAllChannels()
 	if err != nil {
-		log.Printf("Ошибка получения каналов: %v", err)
+		log.Printf("Error fetching channels: %v", err)
 		return []Channel{}, nil
 	}
 	return channels, nil
@@ -162,26 +162,26 @@ func (a *App) GetChannels() ([]Channel, error) {
 func (a *App) DeleteChannel(name, username string) error {
 	channel, err := GetChannel(name)
 	if err != nil {
-		return fmt.Errorf("канал не найден")
+		return fmt.Errorf("channel not found")
 	}
 	if channel.CreatedBy != username && channel.CreatedBy != "system" {
-		return fmt.Errorf("только создатель канала может его удалить")
+		return fmt.Errorf("only the channel creator can delete it")
 	}
 	systemChannels := map[string]bool{"general": true, "random": true, "dev-team": true}
 	if systemChannels[name] {
-		return fmt.Errorf("нельзя удалить системный канал")
+		return fmt.Errorf("cannot delete system channel")
 	}
 	if err = DeleteChannel(name); err != nil {
-		return fmt.Errorf("не удалось удалить канал: %v", err)
+		return fmt.Errorf("failed to delete channel: %v", err)
 	}
-	log.Printf("🗑️ Канал #%s удален пользователем %s", name, username)
+	log.Printf("🗑️ Channel #%s deleted by %s", name, username)
 	return nil
 }
 
 func (a *App) JoinChannel(channelName, username string) error {
 	channel, err := GetChannel(channelName)
 	if err != nil {
-		return fmt.Errorf("канал не найден")
+		return fmt.Errorf("channel not found")
 	}
 	for _, member := range channel.Members {
 		if member == username {
@@ -190,9 +190,9 @@ func (a *App) JoinChannel(channelName, username string) error {
 	}
 	channel.Members = append(channel.Members, username)
 	if err = SaveChannel(*channel); err != nil {
-		return fmt.Errorf("не удалось присоединиться к каналу: %v", err)
+		return fmt.Errorf("failed to join channel: %v", err)
 	}
-	log.Printf("✅ %s присоединился к #%s", username, channelName)
+	log.Printf("✅ %s joined #%s", username, channelName)
 	return nil
 }
 
