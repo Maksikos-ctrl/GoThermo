@@ -22,8 +22,16 @@ export function GetChannels() {
   return window['go']['main']['App']['GetChannels']();
 }
 
+export function GetDMChannels(arg1) {
+  return window['go']['main']['App']['GetDMChannels'](arg1);
+}
+
 export function GetMessages(arg1) {
   return window['go']['main']['App']['GetMessages'](arg1);
+}
+
+export function GetOrCreateDMChannel(arg1, arg2) {
+  return window['go']['main']['App']['GetOrCreateDMChannel'](arg1, arg2);
 }
 
 export function GetUsers() {

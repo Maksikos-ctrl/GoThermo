@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,7 +22,6 @@ func NewApp() *App {
 	go hub.Run()
 	userManager.LoadUsersFromRedis()
 
-	
 	userManager.ResetAllStatusesToOffline()
 
 	return &App{hub: hub}
@@ -138,6 +139,10 @@ func (a *App) CreateChannel(name, description, createdBy string) (Channel, error
 	if name == "" {
 		return Channel{}, fmt.Errorf("channel name cannot be empty")
 	}
+
+	if strings.HasPrefix(name, "dm_") {
+		return Channel{}, fmt.Errorf("invalid channel name")
+	}
 	existingChannel, err := GetChannel(name)
 	if err == nil && existingChannel != nil {
 		return Channel{}, fmt.Errorf("channel #%s already exists", name)
@@ -150,13 +155,80 @@ func (a *App) CreateChannel(name, description, createdBy string) (Channel, error
 	return channel, nil
 }
 
+// TODO: CHANGED now returns only public channels, consider adding a parameter to fetch private channels for the users
 func (a *App) GetChannels() ([]Channel, error) {
 	channels, err := GetAllChannels()
 	if err != nil {
 		log.Printf("Error fetching channels: %v", err)
 		return []Channel{}, nil
 	}
-	return channels, nil
+
+	publicChannels := make([]Channel, 0, len(channels))
+	for _, channel := range channels {
+		if !channel.IsPrivate {
+			publicChannels = append(publicChannels, channel)
+		}
+	}
+	return publicChannels, nil
+}
+
+func (a *App) GetDMChannels(username string) ([]Channel, error) {
+	channels, err := GetAllChannels()
+	if err != nil {
+		log.Printf("Error fetching channels: %v", err)
+		return []Channel{}, nil
+	}
+
+	dmChannels := make([]Channel, 0)
+	for _, channel := range channels {
+		if !channel.IsPrivate && strings.HasPrefix(channel.Name, "dm_") {
+			continue
+		}
+		for _, member := range channel.Members {
+			if member == username {
+				dmChannels = append(dmChannels, channel)
+				break
+			}
+		}
+	}
+	return dmChannels, nil
+}
+
+func (a *App) GetOrCreateDMChannel(user1, user2 string) (Channel, error) {
+	if user1 == user2 {
+		return Channel{}, fmt.Errorf("cannot create a DM channel with yourself")
+	}
+	if user1 == "" || user2 == "" {
+		return Channel{}, fmt.Errorf("usernames cannot be empty")
+	}
+
+	// Sort usernames to ensure consistent channel naming
+	// nevertheless, we can sort them to ensure the channel name is consistent regardless of the order of users
+	pair := []string{user1, user2}
+	sort.Strings(pair)
+	dmName := fmt.Sprintf("dm_%s_%s", pair[0], pair[1])
+
+	existingChannel, err := GetChannel(dmName)
+	if err == nil && existingChannel != nil {
+		return *existingChannel, nil
+	}
+
+	channel := Channel{
+		ID:          uuid.New().String(),
+		Name:        dmName,
+		Description: fmt.Sprintf("Direct message between %s and %s", user1, user2),
+		Members:     []string{user1, user2},
+		CreatedBy:   "system",
+		CreatedAt:   time.Now(),
+		IsPrivate:   true,
+	}
+
+	if err = SaveChannel(channel); err != nil {
+		return Channel{}, fmt.Errorf("failed to create DM channel: %v", err)
+	}
+	log.Printf("📩 DM channel #%s created between %s and %s", dmName, user1, user2)
+	return channel, nil
+
 }
 
 func (a *App) DeleteChannel(name, username string) error {

@@ -18,18 +18,18 @@ import { MessageComposer } from './components/MessageComposer';
 import { ChannelMembers } from './components/ChannelMembers';
 
 function App() {
-  // Состояние авторизации
+  
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState('');
   const [currentUserStatus, setCurrentUserStatus] = useState<StatusType>('online');
 
-  // Состояние данных
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [currentChannel, setCurrentChannel] = useState('general');
 
-  // Состояние UI
+ 
   const [showUserPanel, setShowUserPanel] = useState(true);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
@@ -39,18 +39,20 @@ function App() {
   const [newMessage, setNewMessage] = useState('');
   const [showMembersPanel, setShowMembersPanel] = useState(false);
 
-  // Состояние drag & drop
+
   const [isDragging, setIsDragging] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 
-  // WebSocket
+
   const { isConnected, subscribeToChannel, changeStatus } = useWebSocket(
     currentUser,
     handleStatusUpdate,
     handleNewMessage
   );
 
-  // Обработчики WebSocket
+  const [dmChannels, setDMChannels] = useState<Channel[]>([]);
+
+ 
   function handleStatusUpdate(username: string, status: string) {
     setUsers(prev => prev.map(user => 
       user.username === username 
@@ -74,7 +76,7 @@ function App() {
     }
   }
 
-  // Загрузка данных
+  
   const loadMessages = async () => {
     try {
       const msgs = await api.messages.getByChannel(currentChannel);
@@ -83,7 +85,7 @@ function App() {
       );
       setMessages(uniqueMessages || []);
     } catch (error) {
-      console.error('Ошибка загрузки сообщений:', error);
+      console.error('Error loading messages:', error);
     }
   };
 
@@ -93,12 +95,22 @@ function App() {
       const channelsList = await api.channels.getAll();
       setChannels(channelsList || []);
     } catch (error) {
-      console.error('Ошибка загрузки каналов:', error);
+      console.error('Error loading channels:', error);
       setChannels([]);
     } finally {
       setIsLoadingChannels(false);
     }
   };
+
+  const loadDMChannels = async () => {
+    try {
+      const dmChannelsList = await api.dm.getAll(currentUser);
+      setDMChannels(dmChannelsList || []);
+    } catch (error) {
+      console.error('Error loading DM channels:', error);
+      setDMChannels([]);
+    }
+  }
 
   const loadUsers = async () => {
     try {
@@ -120,12 +132,12 @@ function App() {
       
       setUsers(Array.from(uniqueUsersMap.values()));
     } catch (error) {
-      console.error('Ошибка загрузки пользователей:', error);
+      console.error('Error loading users:', error);
       setUsers([]);
     }
   };
 
-  // ✅ Функция для получения участников канала
+
   const getChannelMembers = useCallback(() => {
     const messageUsers = new Map<string, User>();
     
@@ -139,11 +151,12 @@ function App() {
     return Array.from(messageUsers.values());
   }, [messages, users]);
 
-  // Эффекты
+ 
   useEffect(() => {
     if (isLoggedIn) {
       loadMessages();
       loadChannels();
+      loadDMChannels();
       loadUsers();
     }
   }, [currentChannel, isLoggedIn]);
@@ -166,7 +179,7 @@ function App() {
     }
   }, [currentChannel, isConnected, subscribeToChannel]);
 
-  // Обработчики действий
+
   const handleLogin = (username: string) => {
     setCurrentUser(username);
     setIsLoggedIn(true);
@@ -184,7 +197,7 @@ function App() {
         setIsPostMode(false);
         setTimeout(() => loadMessages(), 100);
       } catch (error) {
-        console.error('Ошибка отправки:', error);
+        console.error('Error sending message:', error);
       }
     }
   };
@@ -217,13 +230,13 @@ function App() {
       
       setTimeout(() => loadMessages(), 100);
     } catch (error) {
-      console.error('Ошибка добавления реакции:', error);
+      console.error('Error adding reaction:', error);
     }
   };
 
   const handleCreateChannel = async () => {
     if (!newChannelName.trim()) {
-      alert('Введите название канала');
+      alert('Please enter a channel name');
       return;
     }
 
@@ -242,12 +255,12 @@ function App() {
       
       await loadChannels();
     } catch (error: any) {
-      alert(`Ошибка создания канала: ${error}`);
+      alert(`Error creating channel: ${error}`);
     }
   };
 
   const handleDeleteChannel = async (channelName: string) => {
-    if (!confirm(`Удалить канал "${channelName}"?`)) {
+    if (!confirm(`Delete channel "${channelName}"?`)) {
       return;
     }
 
@@ -264,11 +277,11 @@ function App() {
       
       await loadChannels();
     } catch (error: any) {
-      alert(`Ошибка удаления канала: ${error}`);
+      alert(`Error deleting channel: ${error}`);
     }
   };
 
-  // Drag & Drop обработчики
+  
   const handleDragStart = (e: React.DragEvent, channelId: string) => {
     setIsDragging(channelId);
     e.dataTransfer.setData('text/plain', channelId);
@@ -309,17 +322,23 @@ function App() {
     setDragOver(null);
   };
 
-  // Вспомогательные функции
-  const startDirectMessage = (username: string) => {
-    alert(`DM с ${username} (скоро будет)`);
+  
+  const startDirectMessage = async (username: string) => {
+    try {
+      const dmChannel = await api.dm.getOrCreate(currentUser, username);
+      await loadDMChannels();
+      setCurrentChannel(dmChannel.name);
+    } catch (error: any) {
+      alert(`DM with ${username} failed: ${error}`);
+    }
   };
 
   const startVideoCall = () => {
-    alert('Видеозвонок (скоро будет)');
+    alert('Video call (soon will be implemented)');
   };
 
   const startAudioCall = () => {
-    alert('Аудиозвонок (скоро будет)');
+    alert('Audio call (soon will be implemented)');
   };
 
   if (!isLoggedIn) {
@@ -347,6 +366,7 @@ function App() {
 
       <ChannelSidebar
         channels={channels}
+        dmChannels={dmChannels}
         currentChannel={currentChannel}
         isLoading={isLoadingChannels}
         currentUser={currentUser}
@@ -398,7 +418,7 @@ function App() {
         />
       </div>
 
-      {/* ✅ Панель участников перемещена сюда */}
+      
       {showMembersPanel && (
         <ChannelMembers
           channel={channels.find(ch => ch.name === currentChannel) || null}

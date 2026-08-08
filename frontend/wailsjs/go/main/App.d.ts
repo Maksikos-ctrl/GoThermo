@@ -12,7 +12,11 @@ export function DeleteChannel(arg1:string,arg2:string):Promise<void>;
 
 export function GetChannels():Promise<Array<main.Channel>>;
 
+export function GetDMChannels(arg1:string):Promise<Array<main.Channel>>;
+
 export function GetMessages(arg1:string):Promise<Array<main.Message>>;
+
+export function GetOrCreateDMChannel(arg1:string,arg2:string):Promise<main.Channel>;
 
 export function GetUsers():Promise<Array<main.User>>;
 

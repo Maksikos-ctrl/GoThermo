@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Channel } from '../types';
 
 interface ChannelSidebarProps {
   channels: Channel[];
+  dmChannels: Channel[];
   currentChannel: string;
   isLoading: boolean;
   currentUser: string;
@@ -19,6 +20,7 @@ interface ChannelSidebarProps {
 
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   channels,
+  dmChannels,
   currentChannel,
   isLoading,
   currentUser,
@@ -32,6 +34,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onDragLeave,
   onDrop,
 }) => {
+  
+  const getDMPartnerName = (dmChannelName: string): string => {
+    const names = dmChannelName.replace('dm_', '').split('_');
+    return names.find(n => n !== currentUser) || dmChannelName;
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -87,6 +95,30 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           ))
         )}
       </div>
+
+      
+      {dmChannels.length > 0 && (
+        <>
+          <div className="sidebar-header" style={{ marginTop: '16px' }}>
+            <h2>Direct Messages</h2>
+          </div>
+          <div className="channel-list">
+            {dmChannels.map((channel) => (
+              <div
+                key={channel.id}
+                className={`channel ${currentChannel === channel.name ? 'active' : ''}`}
+                onClick={() => onChannelChange(channel.name)}
+                title={getDMPartnerName(channel.name)}
+              >
+                <div className="channel-content">
+                  <span className="channel-hashtag">@</span>
+                  <span className="channel-name">{getDMPartnerName(channel.name)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };

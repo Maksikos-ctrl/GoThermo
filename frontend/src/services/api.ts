@@ -10,7 +10,9 @@ import {
   DeleteChannel,
   JoinChannel,
   GetUsers,
-  UpdateUserStatus
+  UpdateUserStatus,
+  GetOrCreateDMChannel,
+  GetDMChannels,
 } from '../../wailsjs/go/main/App';
 
 export const api = {
@@ -27,6 +29,10 @@ export const api = {
     create: CreateChannel,
     delete: DeleteChannel,
     join: JoinChannel,
+  },
+  dm: {
+    getOrCreate: GetOrCreateDMChannel,
+    getAll: GetDMChannels,
   },
   messages: {
     getByChannel: GetMessages,
