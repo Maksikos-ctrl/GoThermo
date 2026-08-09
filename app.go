@@ -139,7 +139,6 @@ func (a *App) CreateChannel(name, description, createdBy string) (Channel, error
 	if name == "" {
 		return Channel{}, fmt.Errorf("channel name cannot be empty")
 	}
-
 	if strings.HasPrefix(name, "dm_") {
 		return Channel{}, fmt.Errorf("invalid channel name")
 	}
@@ -155,7 +154,6 @@ func (a *App) CreateChannel(name, description, createdBy string) (Channel, error
 	return channel, nil
 }
 
-// TODO: CHANGED now returns only public channels, consider adding a parameter to fetch private channels for the users
 func (a *App) GetChannels() ([]Channel, error) {
 	channels, err := GetAllChannels()
 	if err != nil {
@@ -164,11 +162,12 @@ func (a *App) GetChannels() ([]Channel, error) {
 	}
 
 	publicChannels := make([]Channel, 0, len(channels))
-	for _, channel := range channels {
-		if !channel.IsPrivate {
-			publicChannels = append(publicChannels, channel)
+	for _, ch := range channels {
+		if !ch.IsPrivate {
+			publicChannels = append(publicChannels, ch)
 		}
 	}
+
 	return publicChannels, nil
 }
 
@@ -180,55 +179,135 @@ func (a *App) GetDMChannels(username string) ([]Channel, error) {
 	}
 
 	dmChannels := make([]Channel, 0)
-	for _, channel := range channels {
-		if !channel.IsPrivate && strings.HasPrefix(channel.Name, "dm_") {
+	for _, ch := range channels {
+		if !ch.IsPrivate || !strings.HasPrefix(ch.Name, "dm_") {
 			continue
 		}
-		for _, member := range channel.Members {
+		for _, member := range ch.Members {
 			if member == username {
-				dmChannels = append(dmChannels, channel)
+				dmChannels = append(dmChannels, ch)
 				break
 			}
 		}
 	}
+
 	return dmChannels, nil
 }
 
 func (a *App) GetOrCreateDMChannel(user1, user2 string) (Channel, error) {
-	if user1 == user2 {
-		return Channel{}, fmt.Errorf("cannot create a DM channel with yourself")
-	}
 	if user1 == "" || user2 == "" {
-		return Channel{}, fmt.Errorf("usernames cannot be empty")
+		return Channel{}, fmt.Errorf("both usernames are required")
+	}
+	if user1 == user2 {
+		return Channel{}, fmt.Errorf("cannot start a direct message with yourself")
 	}
 
-	// Sort usernames to ensure consistent channel naming
-	// nevertheless, we can sort them to ensure the channel name is consistent regardless of the order of users
 	pair := []string{user1, user2}
 	sort.Strings(pair)
 	dmName := fmt.Sprintf("dm_%s_%s", pair[0], pair[1])
 
-	existingChannel, err := GetChannel(dmName)
-	if err == nil && existingChannel != nil {
-		return *existingChannel, nil
+	existing, err := GetChannel(dmName)
+	if err == nil && existing != nil {
+		return *existing, nil
 	}
 
 	channel := Channel{
 		ID:          uuid.New().String(),
 		Name:        dmName,
-		Description: fmt.Sprintf("Direct message between %s and %s", user1, user2),
-		Members:     []string{user1, user2},
+		Description: "Direct Message",
+		Members:     pair,
 		CreatedBy:   "system",
 		CreatedAt:   time.Now(),
 		IsPrivate:   true,
 	}
 
-	if err = SaveChannel(channel); err != nil {
+	if err := SaveChannel(channel); err != nil {
 		return Channel{}, fmt.Errorf("failed to create DM channel: %v", err)
 	}
-	log.Printf("📩 DM channel #%s created between %s and %s", dmName, user1, user2)
-	return channel, nil
 
+	log.Printf("💬 DM channel created: %s <-> %s", user1, user2)
+	return channel, nil
+}
+
+func (a *App) DeleteDMChannel(channelName, username string) error {
+	channel, err := GetChannel(channelName)
+	if err != nil {
+		return fmt.Errorf("chat not found")
+	}
+
+	if !channel.IsPrivate || !strings.HasPrefix(channel.Name, "dm_") {
+		return fmt.Errorf("not a direct message channel")
+	}
+
+	isMember := false
+	for _, member := range channel.Members {
+		if member == username {
+			isMember = true
+			break
+		}
+	}
+	if !isMember {
+		return fmt.Errorf("you are not a participant of this chat")
+	}
+
+	if err := DeleteChannel(channelName); err != nil {
+		return fmt.Errorf("failed to delete chat: %v", err)
+	}
+
+	log.Printf("🗑️ DM channel #%s deleted by %s", channelName, username)
+	return nil
+}
+
+func (a *App) MarkChannelRead(username, channel string) error {
+	return SaveLastRead(username, channel)
+}
+
+func (a *App) GetUnreadCounts(username string) (map[string]int, error) {
+	result := make(map[string]int)
+
+	publicChannels, err := a.GetChannels()
+	if err != nil {
+		return result, err
+	}
+	dmChannels, err := a.GetDMChannels(username)
+	if err != nil {
+		return result, err
+	}
+
+	allChannels := append(publicChannels, dmChannels...)
+
+	for _, ch := range allChannels {
+		lastRead, found, err := GetLastRead(username, ch.Name)
+		if err != nil {
+			continue
+		}
+
+		if !found {
+
+			SaveLastRead(username, ch.Name)
+			result[ch.Name] = 0
+			continue
+		}
+
+		messages, err := GetMessages(ch.Name, 200)
+		if err != nil {
+			continue
+		}
+
+		count := 0
+		for _, msg := range messages {
+			if msg.User == username {
+				continue
+			}
+			if msg.Timestamp.After(lastRead) {
+				count++
+			}
+		}
+
+		result[ch.Name] = count
+	}
+
+	return result, nil
 }
 
 func (a *App) DeleteChannel(name, username string) error {

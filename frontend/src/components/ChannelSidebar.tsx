@@ -7,9 +7,11 @@ interface ChannelSidebarProps {
   currentChannel: string;
   isLoading: boolean;
   currentUser: string;
+  unreadCounts: Record<string, number>; // ✅ ДОБАВЛЕНО
   onChannelChange: (channel: string) => void;
   onCreateChannel: () => void;
   onDeleteChannel: (channelName: string) => void;
+  onDeleteDM: (channelName: string) => void; // ✅ ДОБАВЛЕНО
   isDragging: string | null;
   dragOver: string | null;
   onDragStart: (e: React.DragEvent, channelId: string) => void;
@@ -24,9 +26,11 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   currentChannel,
   isLoading,
   currentUser,
+  unreadCounts,
   onChannelChange,
   onCreateChannel,
   onDeleteChannel,
+  onDeleteDM,
   isDragging,
   dragOver,
   onDragStart,
@@ -34,10 +38,29 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onDragLeave,
   onDrop,
 }) => {
-  
   const getDMPartnerName = (dmChannelName: string): string => {
     const names = dmChannelName.replace('dm_', '').split('_');
     return names.find(n => n !== currentUser) || dmChannelName;
+  };
+
+  const renderUnreadBadge = (channelName: string) => {
+    const count = unreadCounts[channelName] || 0;
+    if (count === 0) return null;
+    return (
+      <span
+        style={{
+          background: '#e01e5a',
+          color: 'white',
+          borderRadius: '10px',
+          padding: '1px 7px',
+          fontSize: '11px',
+          fontWeight: 700,
+          marginLeft: 'auto',
+        }}
+      >
+        {count > 99 ? '99+' : count}
+      </span>
+    );
   };
 
   return (
@@ -78,6 +101,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 <span className="channel-hashtag">#</span>
                 <span className="channel-name">{channel.name}</span>
               </div>
+
+             
+              {renderUnreadBadge(channel.name)}
               
               {channel.createdBy === currentUser && channel.createdBy !== 'system' && (
                 <button 
@@ -96,7 +122,6 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         )}
       </div>
 
-      
       {dmChannels.length > 0 && (
         <>
           <div className="sidebar-header" style={{ marginTop: '16px' }}>
@@ -114,6 +139,21 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   <span className="channel-hashtag">@</span>
                   <span className="channel-name">{getDMPartnerName(channel.name)}</span>
                 </div>
+
+             
+                {renderUnreadBadge(channel.name)}
+
+                
+                <button
+                  className="delete-channel-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteDM(channel.name);
+                  }}
+                  title="Delete chat"
+                >
+                  ×
+                </button>
               </div>
             ))}
           </div>

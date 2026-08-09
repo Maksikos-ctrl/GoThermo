@@ -10,6 +10,8 @@ export function CreateChannel(arg1:string,arg2:string,arg3:string):Promise<main.
 
 export function DeleteChannel(arg1:string,arg2:string):Promise<void>;
 
+export function DeleteDMChannel(arg1:string,arg2:string):Promise<void>;
+
 export function GetChannels():Promise<Array<main.Channel>>;
 
 export function GetDMChannels(arg1:string):Promise<Array<main.Channel>>;
@@ -18,6 +20,8 @@ export function GetMessages(arg1:string):Promise<Array<main.Message>>;
 
 export function GetOrCreateDMChannel(arg1:string,arg2:string):Promise<main.Channel>;
 
+export function GetUnreadCounts(arg1:string):Promise<Record<string, number>>;
+
 export function GetUsers():Promise<Array<main.User>>;
 
 export function JoinChannel(arg1:string,arg2:string):Promise<void>;
@@ -25,6 +29,8 @@ export function JoinChannel(arg1:string,arg2:string):Promise<void>;
 export function Login(arg1:string,arg2:string):Promise<main.User>;
 
 export function Logout(arg1:string):Promise<boolean>;
+
+export function MarkChannelRead(arg1:string,arg2:string):Promise<void>;
 
 export function Register(arg1:string,arg2:string):Promise<main.User>;
 

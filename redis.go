@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -82,7 +83,19 @@ func DeleteChannel(name string) error {
 	}
 
 	key := fmt.Sprintf("channel:%s", name)
-	return redisClient.Del(ctx, key).Err()
+	if err := redisClient.Del(ctx, key).Err(); err != nil {
+		return err
+	}
+
+	msgKey := fmt.Sprintf("channel:%s:messages", name)
+	redisClient.Del(ctx, msgKey)
+
+	lastreadKeys, err := redisClient.Keys(ctx, fmt.Sprintf("user:*:lastread:%s", name)).Result()
+	if err == nil && len(lastreadKeys) > 0 {
+		redisClient.Del(ctx, lastreadKeys...)
+	}
+
+	return nil
 }
 
 func SaveMessage(msg Message) error {
@@ -174,7 +187,6 @@ func GetUserFromRedis(email string) (*User, error) {
 	return &user, nil
 }
 
-
 func GetAllUsersFromRedis() ([]User, error) {
 	keys, err := redisClient.Keys(ctx, "user:*").Result()
 	if err != nil {
@@ -183,15 +195,19 @@ func GetAllUsersFromRedis() ([]User, error) {
 
 	var users []User
 	for _, key := range keys {
-		
+
 		if strings.Contains(key, ":password") {
 			continue
 		}
-		
+
 		if strings.Contains(key, ":token") {
 			continue
 		}
-		
+
+		if strings.Contains(key, ":lastread:") {
+			continue
+		}
+
 		if !strings.Contains(key, "@") {
 			continue
 		}
@@ -211,14 +227,35 @@ func GetAllUsersFromRedis() ([]User, error) {
 	return users, nil
 }
 
-
 func SaveUserPasswordToRedis(email, hashedPassword string) error {
 	key := fmt.Sprintf("user:%s:password", email)
 	return redisClient.Set(ctx, key, hashedPassword, 0).Err()
 }
 
-
 func GetUserPasswordFromRedis(email string) (string, error) {
 	key := fmt.Sprintf("user:%s:password", email)
 	return redisClient.Get(ctx, key).Result()
+}
+
+func SaveLastRead(username, channel string) error {
+	key := fmt.Sprintf("user:%s:lastread:%s", username, channel)
+	return redisClient.Set(ctx, key, time.Now().Format(time.RFC3339Nano), 0).Err()
+}
+
+func GetLastRead(username, channel string) (time.Time, bool, error) {
+	key := fmt.Sprintf("user:%s:lastread:%s", username, channel)
+	data, err := redisClient.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return time.Time{}, false, nil
+	}
+	if err != nil {
+		return time.Time{}, false, err
+	}
+
+	t, err := time.Parse(time.RFC3339Nano, data)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+
+	return t, true, nil
 }

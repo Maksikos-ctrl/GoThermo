@@ -51,6 +51,8 @@ function App() {
   );
 
   const [dmChannels, setDMChannels] = useState<Channel[]>([]);
+  
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
  
   function handleStatusUpdate(username: string, status: string) {
@@ -158,6 +160,8 @@ function App() {
       loadChannels();
       loadDMChannels();
       loadUsers();
+      loadUnreadCounts();        
+      markCurrentChannelAsRead(); 
     }
   }, [currentChannel, isLoggedIn]);
 
@@ -168,6 +172,7 @@ function App() {
       loadChannels();
       loadMessages();
       loadUsers();
+      loadUnreadCounts();
     }, 2000);
     
     return () => clearInterval(interval);
@@ -333,6 +338,7 @@ function App() {
     }
   };
 
+
   const startVideoCall = () => {
     alert('Video call (soon will be implemented)');
   };
@@ -344,6 +350,46 @@ function App() {
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
   }
+
+  const loadUnreadCounts = async() => {
+    try {
+      const counts = await api.unread.getCounts(currentUser);
+      setUnreadCounts(counts || {});
+    }
+    catch (error) {
+      console.error('Error loading unread counts:', error);
+    }
+  };
+
+  const markCurrentChannelAsRead = async () => {
+    if (!currentUser || !currentChannel) return;
+    try {
+      await api.unread.markRead(currentUser, currentChannel);
+      
+      setUnreadCounts(prev => ({ ...prev, [currentChannel]: 0 }));
+    } catch (error) {
+      console.error('Error marking channel as read:', error);
+    }
+  };
+
+  const handleDeleteDM = async (channelName: string) => {
+    if (!confirm('Delete this conversation? This cannot be undone.')) {
+      return;
+    }
+    try {
+      await api.dm.delete(channelName, currentUser);
+      setDMChannels(prev => prev.filter(ch => ch.name !== channelName));
+  
+     
+      if (channelName === currentChannel) {
+        setCurrentChannel('general');
+      }
+    } catch (error: any) {
+      alert(`Failed to delete chat: ${error}`);
+    }
+  };
+
+
 
   return (
     <div className="chat-container">
@@ -368,11 +414,13 @@ function App() {
         channels={channels}
         dmChannels={dmChannels}
         currentChannel={currentChannel}
+        unreadCounts={unreadCounts} 
         isLoading={isLoadingChannels}
         currentUser={currentUser}
         onChannelChange={setCurrentChannel}
         onCreateChannel={() => setShowCreateChannelModal(true)}
         onDeleteChannel={handleDeleteChannel}
+        onDeleteDM={handleDeleteDM}  
         isDragging={isDragging}
         dragOver={dragOver}
         onDragStart={handleDragStart}
