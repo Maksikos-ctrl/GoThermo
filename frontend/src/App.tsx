@@ -16,6 +16,7 @@ import { ChatHeader } from './components/ChatHeader';
 import { MessagesList } from './components/MessagesList';
 import { MessageComposer } from './components/MessageComposer';
 import { ChannelMembers } from './components/ChannelMembers';
+import { ConfirmModal } from './components/ConfirmModal';
 
 function App() {
   
@@ -53,6 +54,12 @@ function App() {
   const [dmChannels, setDMChannels] = useState<Channel[]>([]);
   
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
 
  
   function handleStatusUpdate(username: string, status: string) {
@@ -264,27 +271,30 @@ function App() {
     }
   };
 
-  const handleDeleteChannel = async (channelName: string) => {
-    if (!confirm(`Delete channel "${channelName}"?`)) {
-      return;
-    }
-
-    try {
-      await api.channels.delete(channelName, currentUser);
-      setChannels(prev => prev.filter(ch => ch.name !== channelName));
-      
-      if (channelName === currentChannel && channels.length > 0) {
-        const remainingChannels = channels.filter(ch => ch.name !== channelName);
-        if (remainingChannels.length > 0) {
-          setCurrentChannel(remainingChannels[0].name);
+  const handleDeleteChannel = (channelName: string) => {
+    setConfirmDialog({
+      message: `Delete channel "${channelName}"? This cannot be undone.`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await api.channels.delete(channelName, currentUser);
+          setChannels(prev => prev.filter(ch => ch.name !== channelName));
+  
+          if (channelName === currentChannel && channels.length > 0) {
+            const remainingChannels = channels.filter(ch => ch.name !== channelName);
+            if (remainingChannels.length > 0) {
+              setCurrentChannel(remainingChannels[0].name);
+            }
+          }
+  
+          await loadChannels();
+        } catch (error: any) {
+          alert(`Error deleting channel: ${error}`);
         }
-      }
-      
-      await loadChannels();
-    } catch (error: any) {
-      alert(`Error deleting channel: ${error}`);
-    }
+      },
+    });
   };
+
 
   
   const handleDragStart = (e: React.DragEvent, channelId: string) => {
@@ -372,23 +382,56 @@ function App() {
     }
   };
 
-  const handleDeleteDM = async (channelName: string) => {
-    if (!confirm('Delete this conversation? This cannot be undone.')) {
-      return;
-    }
-    try {
-      await api.dm.delete(channelName, currentUser);
-      setDMChannels(prev => prev.filter(ch => ch.name !== channelName));
+  const handleDeleteDM = (channelName: string) => {
+    setConfirmDialog({
+      message: 'Delete this conversation? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await api.dm.delete(channelName, currentUser);
+          setDMChannels(prev => prev.filter(ch => ch.name !== channelName));
   
-     
-      if (channelName === currentChannel) {
-        setCurrentChannel('general');
-      }
-    } catch (error: any) {
-      alert(`Failed to delete chat: ${error}`);
+          if (channelName === currentChannel) {
+            setCurrentChannel('general');
+          }
+        } catch (error: any) {
+          alert(`Failed to delete chat: ${error}`);
+        }
+      },
+    });
+  };
+
+
+
+  const handleEditMessage = async (messageId: string, newText: string) => {
+    try {
+      await api.messages.edit(messageId, currentChannel, currentUser, newText); 
+      setMessages(prev => prev.map(msg =>
+        msg.id === messageId ? { ...msg, text: newText, isEdited: true } : msg
+      ));
+    } catch (error) {
+      console.error('Error editing message:', error);
     }
   };
 
+
+  const handleDeleteMessage = (messageId: string) => {
+    setConfirmDialog({
+      message: 'Delete this message? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await api.messages.delete(messageId, currentChannel, currentUser);
+          setMessages(prev => prev.filter(msg => msg.id !== messageId));
+        } catch (error) {
+          console.error('Error deleting message:', error);
+        }
+      },
+    });
+  };
+
+
+  
 
 
   return (
@@ -454,6 +497,8 @@ function App() {
           currentChannel={currentChannel}
           currentUser={currentUser}
           onAddReaction={handleAddReaction}
+          onEditMessage={handleEditMessage}
+          onDeleteMessage={handleDeleteMessage}
         />
 
         <MessageComposer
@@ -475,6 +520,13 @@ function App() {
           onClose={() => setShowMembersPanel(false)}
         />
       )}
+      <ConfirmModal
+        isOpen={confirmDialog !== null}
+        message={confirmDialog?.message || ''}
+        onConfirm={() => confirmDialog?.onConfirm()}
+        onCancel={() => setConfirmDialog(null)}
+      />
+
     </div>
   );
 }

@@ -52,6 +52,7 @@ export namespace main {
 	    timestamp: any;
 	    reactions: Record<string, Array<string>>;
 	    isPost: boolean;
+	    isEdited?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Message(source);
@@ -66,6 +67,7 @@ export namespace main {
 	        this.timestamp = this.convertValues(source["timestamp"], null);
 	        this.reactions = source["reactions"];
 	        this.isPost = source["isPost"];
+	        this.isEdited = source["isEdited"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

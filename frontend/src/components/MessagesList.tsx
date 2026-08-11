@@ -7,6 +7,8 @@ interface MessagesListProps {
   currentChannel: string;
   currentUser: string;
   onAddReaction: (messageId: string, emoji: string) => void;
+  onEditMessage: (messageId: string, newText: string) => void; // ✅ ДОБАВЛЕНО
+  onDeleteMessage: (messageId: string) => void; // ✅ ДОБАВЛЕНО
 }
 
 export const MessagesList: React.FC<MessagesListProps> = ({
@@ -14,6 +16,8 @@ export const MessagesList: React.FC<MessagesListProps> = ({
   currentChannel,
   currentUser,
   onAddReaction,
+  onEditMessage,   // ✅ ДОБАВЛЕНО
+  onDeleteMessage, // ✅ ДОБАВЛЕНО
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +50,8 @@ export const MessagesList: React.FC<MessagesListProps> = ({
           message={msg}
           currentUser={currentUser}
           onAddReaction={onAddReaction}
+          onEditMessage={onEditMessage}     // ✅ ДОБАВЛЕНО
+          onDeleteMessage={onDeleteMessage} // ✅ ДОБАВЛЕНО
         />
       ))}
       <div ref={messagesEndRef} />

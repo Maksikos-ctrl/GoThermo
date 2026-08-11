@@ -22,6 +22,14 @@ export function DeleteDMChannel(arg1, arg2) {
   return window['go']['main']['App']['DeleteDMChannel'](arg1, arg2);
 }
 
+export function DeleteMessage(arg1, arg2, arg3) {
+  return window['go']['main']['App']['DeleteMessage'](arg1, arg2, arg3);
+}
+
+export function EditMessage(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['EditMessage'](arg1, arg2, arg3, arg4);
+}
+
 export function GetChannels() {
   return window['go']['main']['App']['GetChannels']();
 }

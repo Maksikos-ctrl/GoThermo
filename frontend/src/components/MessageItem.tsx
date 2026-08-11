@@ -1,18 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Message, EMOJI_LIST } from '../types';
 
 interface MessageItemProps {
   message: Message;
   currentUser: string;
   onAddReaction: (messageId: string, emoji: string) => void;
+  onEditMessage: (messageId: string, newText: string) => void;
+  onDeleteMessage: (messageId: string) => void; 
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
   message,
   currentUser,
   onAddReaction,
+  onEditMessage,
+  onDeleteMessage,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); 
+  const [editText, setEditText] = useState(message.text); 
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const isOwnMessage = message.user === currentUser; 
+
+  useEffect(() => {
+    if (isEditing) {
+      editInputRef.current?.focus();
+      editInputRef.current?.setSelectionRange(editText.length, editText.length);
+    }
+  }, [isEditing]);
 
   const handleMouseEnter = () => {
     setTimeout(() => setIsHovered(true), 50);
@@ -33,9 +49,29 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     });
   };
 
+
+  const saveEdit = () => {
+    const trimmed = editText.trim();
+    if (trimmed && trimmed !== message.text) {
+      onEditMessage(message.id, trimmed);
+    }
+    setIsEditing(false);
+  };
+
+  
+  const cancelEdit = () => {
+    setEditText(message.text);
+    setIsEditing(false);
+  };
+
+ 
+  const handleDeleteClick = () => {
+    onDeleteMessage(message.id);
+  };
+
   return (
     <div 
-      className={`message ${message.isPost ? 'post-message' : ''} ${message.user === currentUser ? 'my-message' : ''}`}
+      className={`message ${message.isPost ? 'post-message' : ''} ${isOwnMessage ? 'my-message' : ''}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -43,8 +79,39 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         <span className="message-user">{message.user}</span>
         <span className="message-time">{formatTime(message.timestamp)}</span>
         {message.isPost && <span className="post-badge">📌 Post</span>}
+        {message.isEdited && <span className="edited-badge" style={{ fontSize: '11px', color: '#8a8f98', marginLeft: '6px' }}>(edited)</span>}
       </div>
-      <div className="message-text">{message.text}</div>
+
+      {isEditing ? (
+      
+        <div className="edit-message-form">
+          <textarea
+            ref={editInputRef}
+            className="edit-message-textarea"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                saveEdit();
+              } else if (e.key === 'Escape') {
+                cancelEdit();
+              }
+            }}
+            rows={2}
+            style={{ width: '100%', resize: 'vertical' }}
+          />
+          <div className="edit-message-actions" style={{ marginTop: '4px', display: 'flex', gap: '8px' }}>
+            <button onClick={saveEdit} className="edit-save-btn">Save</button>
+            <button onClick={cancelEdit} className="edit-cancel-btn">Cancel</button>
+            <span style={{ fontSize: '11px', color: '#8a8f98', alignSelf: 'center' }}>
+              Enter to save · Esc to cancel
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="message-text">{message.text}</div>
+      )}
       
       <div className="message-footer">
         {message.reactions && Object.entries(message.reactions).some(([_, users]) => users.length > 0) && (
@@ -64,18 +131,40 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
 
-        {isHovered && (
-          <div className="quick-reactions">
-            {EMOJI_LIST.slice(0, 5).map(emoji => (
-              <button
-                key={emoji}
-                className="quick-reaction-btn"
-                onClick={() => onAddReaction(message.id, emoji)}
-                title={`React with ${emoji}`}
-              >
-                {emoji}
-              </button>
-            ))}
+        {isHovered && !isEditing && (
+          <div className="message-hover-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            <div className="quick-reactions">
+              {EMOJI_LIST.slice(0, 5).map(emoji => (
+                <button
+                  key={emoji}
+                  className="quick-reaction-btn"
+                  onClick={() => onAddReaction(message.id, emoji)}
+                  title={`React with ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            
+            {isOwnMessage && (
+              <>
+                <button
+                  className="quick-reaction-btn"
+                  onClick={() => setIsEditing(true)}
+                  title="Edit message"
+                >
+                  ✏️
+                </button>
+                <button
+                  className="quick-reaction-btn"
+                  onClick={handleDeleteClick}
+                  title="Delete message"
+                >
+                  🗑️
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

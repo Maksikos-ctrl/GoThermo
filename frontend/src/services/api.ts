@@ -16,6 +16,8 @@ import {
   DeleteDMChannel,     
   MarkChannelRead,     
   GetUnreadCounts,     
+  EditMessage,
+  DeleteMessage,
 } from '../../wailsjs/go/main/App';
 
 export const api = {
@@ -48,5 +50,7 @@ export const api = {
     send: SendMessage,
     sendPost: SendPost,
     addReaction: AddReaction,
+    edit: EditMessage,
+    delete: DeleteMessage,
   },
 };

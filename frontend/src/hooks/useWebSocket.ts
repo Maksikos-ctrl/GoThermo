@@ -14,7 +14,7 @@ export const useWebSocket = (
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  // ✅ Функция для отправки сообщений
+ 
   const sendMessage = useCallback((type: string, payload: any) => {
     if (ws && isConnected) {
       const message = { type, payload };
@@ -31,18 +31,18 @@ export const useWebSocket = (
     const socket = new WebSocket(wsUrl);
     
     socket.onopen = () => {
-      console.log('✓ WebSocket подключен');
+      console.log('✓ WebSocket is connected');
       setIsConnected(true);
     };
     
     socket.onclose = () => {
-      console.log('✗ WebSocket отключен');
+      console.log('✗ WebSocket is disconnected');
       setIsConnected(false);
       setTimeout(() => connect(), 3000);
     };
     
     socket.onerror = (error) => {
-      console.error('WebSocket ошибка:', error);
+      console.error('WebSocket error:', error);
     };
     
     socket.onmessage = (event) => {
@@ -50,7 +50,7 @@ export const useWebSocket = (
         const data: WSMessage = JSON.parse(event.data);
         handleMessage(data);
       } catch (error) {
-        console.error('Ошибка парсинга WebSocket сообщения:', error);
+        console.error('Error parsing WebSocket message:', error);
       }
     };
     
@@ -61,34 +61,34 @@ export const useWebSocket = (
     switch (data.type) {
       case 'status_update':
         const { username, status } = data.payload;
-        console.log(`🔄 Статус обновлен: ${username} -> ${status}`);
+        console.log(`🔄 Status updated: ${username} -> ${status}`);
         onStatusUpdate(username, status);
         break;
         
       case 'channel_message':
         const { channel, message } = data.payload;
-        console.log(`📨 Сообщение в #${channel} от ${message.user}`);
+        console.log(`📨 Message in #${channel} from ${message.user}`);
         onNewMessage(channel, message);
         break;
         
       case 'subscribed':
-        console.log(`✅ Подписан на канал: ${data.payload.channel}`);
+        console.log(`✅ Subscribed to channel: ${data.payload.channel}`);
         break;
         
       case 'connected':
         console.log('WebSocket: ' + data.payload.message);
         break;
 
-      // ✅ НОВОЕ: получаем список всех пользователей
+   
       case 'users_list':
-        console.log(`👥 Получен список пользователей: ${data.payload.length}`);
+        console.log(`👥 Received users list: ${data.payload.length}`);
         data.payload.forEach((user: any) => {
           onStatusUpdate(user.username, user.status || 'offline');
         });
         break;
         
       case 'pong':
-        // Ответ на ping, ничего не делаем
+        
         break;
     }
   };
@@ -97,13 +97,13 @@ export const useWebSocket = (
     sendMessage('subscribe_channel', channel);
   }, [sendMessage]);
 
-  // ✅ НОВОЕ: функция для изменения статуса
+  
   const changeStatus = useCallback((status: 'online' | 'away' | 'offline') => {
-    console.log(`🔄 Отправка изменения статуса: ${status}`);
+    console.log(`🔄 Sending status change: ${status}`);
     sendMessage('status_change', { status });
   }, [sendMessage]);
 
-  // ✅ НОВОЕ: ping каждые 25 секунд для поддержания соединения
+  
   useEffect(() => {
     if (!isConnected) return;
 
@@ -130,7 +130,7 @@ export const useWebSocket = (
     ws, 
     isConnected, 
     subscribeToChannel,
-    changeStatus, // ✅ Экспортируем
+    changeStatus,
     sendMessage 
   };
 };

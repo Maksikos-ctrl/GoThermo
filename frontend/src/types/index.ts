@@ -6,6 +6,7 @@ export interface Message {
   timestamp: string;
   reactions?: { [emoji: string]: string[] };
   isPost?: boolean;
+  isEdited?: boolean; 
 }
 
 export interface Channel {

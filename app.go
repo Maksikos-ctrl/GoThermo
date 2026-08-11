@@ -135,6 +135,75 @@ func (a *App) AddReaction(messageID, emoji, username, channel string) error {
 	return nil
 }
 
+func (a *App) EditMessage(messageID, newText, username, channel string) error {
+	if newText == "" {
+		return fmt.Errorf("message cannot be empty")
+	}
+
+	messages, err := GetMessages(channel, 1000)
+	if err != nil {
+		return fmt.Errorf("error fetching messages: %v", err)
+	}
+
+	var foundMsg *Message
+	for _, msg := range messages {
+		if msg.ID == messageID {
+			foundMsg = &msg
+			break
+		}
+	}
+
+	if foundMsg == nil {
+		return fmt.Errorf("message not found")
+	}
+	if foundMsg.User != username {
+		return fmt.Errorf("you can only edit your own messages")
+	}
+
+	foundMsg.Text = newText
+	foundMsg.isEdited = true
+
+	if err = UpdateMessage(channel, *foundMsg); err != nil {
+		return fmt.Errorf("error updating message: %v", err)
+	}
+
+	a.hub.BroadcastToChannel(channel, *foundMsg)
+	log.Printf("✏️ %s edited a message in #%s: %s", username, channel, truncate(newText, 50))
+	return nil
+
+}
+
+func (a *App) DeleteMessage(messageID, username, channel string) error {
+	messages, err := GetMessages(channel, 1000)
+	if err != nil {
+		return fmt.Errorf("error fetching messages: %v", err)
+	}
+
+	var foundMsg *Message
+	for _, msg := range messages {
+		if msg.ID == messageID {
+			foundMsg = &msg
+			break
+		}
+	}
+
+	if foundMsg == nil {
+		return fmt.Errorf("message not found")
+	}
+
+	if foundMsg.User != username {
+		return fmt.Errorf("you can only delete your own messages")
+	}
+
+	if err = DeleteMessageInRedis(channel, messageID); err != nil {
+		return fmt.Errorf("error deleting message: %v", err)
+	}
+
+	a.hub.BroadcastToChannel(channel, *foundMsg)
+	log.Printf("🗑️ %s deleted a message in #%s", username, channel)
+	return nil
+}
+
 func (a *App) CreateChannel(name, description, createdBy string) (Channel, error) {
 	if name == "" {
 		return Channel{}, fmt.Errorf("channel name cannot be empty")

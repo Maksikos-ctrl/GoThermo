@@ -162,6 +162,31 @@ func UpdateMessage(channel string, updatedMsg Message) error {
 	return fmt.Errorf("message with ID %s not found", updatedMsg.ID)
 }
 
+func DeleteMessageInRedis(channel, messageID string) error {
+	key := fmt.Sprintf("channel:%s:messages", channel)
+	messages, err := redisClient.LRange(ctx, key, 0, -1).Result()
+	if err != nil {
+		return err
+	}
+
+	for i, msgData := range messages {
+		if msgData == "DELETED" {
+			continue
+		}
+
+		var msg Message
+		if err := json.Unmarshal([]byte(msgData), &msg); err != nil {
+			continue
+		}
+
+		if msg.ID == messageID {
+			return redisClient.LSet(ctx, key, int64(i), "DELETED").Err()
+		}
+	}
+
+	return fmt.Errorf("message with ID %s not found", messageID)
+}
+
 func SaveUserToRedis(user *User) error {
 	data, err := json.Marshal(user)
 	if err != nil {

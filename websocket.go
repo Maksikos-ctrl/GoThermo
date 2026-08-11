@@ -44,6 +44,11 @@ type ChannelMessage struct {
 	Message Message `json:"message"`
 }
 
+type MessageDelayedPayload struct {
+	Channel   string `json:"channel"`
+	MessageID string `json:"messageId"`
+}
+
 func NewHub() *Hub {
 	hub := &Hub{
 		clients:    make(map[string]*Client),
@@ -52,7 +57,6 @@ func NewHub() *Hub {
 		unregister: make(chan *Client),
 	}
 
-	
 	globalHub = hub
 
 	return hub
@@ -163,6 +167,38 @@ func (h *Hub) BroadcastToChannel(channel string, msg Message) {
 	}
 
 	log.Printf("✓ Message sent to %d clients in channel #%s", sentCount, channel)
+}
+
+func (h *Hub) BroadcastMessageDeleted(channel, messageID string) {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	msg := WSMessage{
+		Type: "message_deleted",
+		Payload: MessageDelayedPayload{
+			Channel:   channel,
+			MessageID: messageID,
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("Error marshaling message_deleted: %v", err)
+		return
+	}
+
+	for username, client := range h.clients {
+		if len(client.Channels) == 0 || contains(client.Channels, channel) {
+			select {
+			case client.Send <- data:
+			default:
+				close(client.Send)
+				delete(h.clients, username)
+			}
+		}
+	}
+
+	log.Printf("🗑️ Broadcasted deletion of message %s in channel #%s", messageID, channel)
 }
 
 func (h *Hub) AddChannelToClient(username, channel string) {

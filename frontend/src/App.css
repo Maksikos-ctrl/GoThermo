@@ -1988,3 +1988,48 @@ textarea:focus-visible {
   border-radius: 12px;
   margin-left: 4px;
 }
+
+
+
+.edit-message-textarea {
+  background: #1e1f22;
+  border: 1px solid #5865f2;
+  border-radius: 6px;
+  color: #dcddde;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.edit-message-textarea:focus {
+  border-color: #7983f5;
+}
+
+.edit-save-btn,
+.edit-cancel-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.edit-save-btn {
+  background: #5865f2;
+  color: white;
+}
+
+.edit-save-btn:hover {
+  background: #4752c4;
+}
+
+.edit-cancel-btn {
+  background: transparent;
+  color: #b5bac1;
+}
+
+.edit-cancel-btn:hover {
+  text-decoration: underline;
+}

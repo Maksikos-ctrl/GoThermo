@@ -7,11 +7,11 @@ interface ChannelSidebarProps {
   currentChannel: string;
   isLoading: boolean;
   currentUser: string;
-  unreadCounts: Record<string, number>; // ✅ ДОБАВЛЕНО
+  unreadCounts: Record<string, number>; 
   onChannelChange: (channel: string) => void;
   onCreateChannel: () => void;
   onDeleteChannel: (channelName: string) => void;
-  onDeleteDM: (channelName: string) => void; // ✅ ДОБАВЛЕНО
+  onDeleteDM: (channelName: string) => void; 
   isDragging: string | null;
   dragOver: string | null;
   onDragStart: (e: React.DragEvent, channelId: string) => void;
