@@ -10,7 +10,7 @@ type Message struct {
 	Timestamp time.Time           `json:"timestamp"`
 	Reactions map[string][]string `json:"reactions"` // emoji -> [usernames]
 	IsPost    bool                `json:"isPost"`
-	isEdited  bool                `json:"isEdited,omitempty"`
+	IsEdited  bool                `json:"isEdited,omitempty"`
 }
 
 type Channel struct {

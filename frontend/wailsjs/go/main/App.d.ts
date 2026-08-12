@@ -14,7 +14,7 @@ export function DeleteDMChannel(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteMessage(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function EditMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+export function EditMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.Message>;
 
 export function GetChannels():Promise<Array<main.Channel>>;
 

@@ -405,7 +405,7 @@ function App() {
 
   const handleEditMessage = async (messageId: string, newText: string) => {
     try {
-      await api.messages.edit(messageId, currentChannel, currentUser, newText); 
+      await api.messages.edit(messageId, currentChannel, currentUser, newText);
       setMessages(prev => prev.map(msg =>
         msg.id === messageId ? { ...msg, text: newText, isEdited: true } : msg
       ));
@@ -429,6 +429,8 @@ function App() {
       },
     });
   };
+
+  const allUsernames = users.map(u => u.username);
 
 
   
@@ -499,6 +501,7 @@ function App() {
           onAddReaction={handleAddReaction}
           onEditMessage={handleEditMessage}
           onDeleteMessage={handleDeleteMessage}
+          knownUsernames={allUsernames}
         />
 
         <MessageComposer
@@ -508,6 +511,7 @@ function App() {
           onSend={handleSendMessage}
           onMessageChange={setNewMessage}
           onTogglePostMode={() => setIsPostMode(!isPostMode)}
+          mentionableUsers={allUsernames}
         />
       </div>
 

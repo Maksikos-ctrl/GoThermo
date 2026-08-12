@@ -6,7 +6,8 @@ interface MessageItemProps {
   currentUser: string;
   onAddReaction: (messageId: string, emoji: string) => void;
   onEditMessage: (messageId: string, newText: string) => void;
-  onDeleteMessage: (messageId: string) => void; 
+  onDeleteMessage: (messageId: string) => void;
+  knownUsernames?: string[]; 
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -15,6 +16,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onAddReaction,
   onEditMessage,
   onDeleteMessage,
+  knownUsernames = [], 
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false); 
@@ -22,6 +24,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   const isOwnMessage = message.user === currentUser; 
+
+  
+  const mentionsCurrentUser = new RegExp(`(?:^|\\s)@${escapeRegex(currentUser)}(?:\\s|$|[.,!?])`).test(message.text);
 
   useEffect(() => {
     if (isEditing) {
@@ -71,7 +76,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
   return (
     <div 
-      className={`message ${message.isPost ? 'post-message' : ''} ${isOwnMessage ? 'my-message' : ''}`}
+      className={`message ${message.isPost ? 'post-message' : ''} ${isOwnMessage ? 'my-message' : ''} ${mentionsCurrentUser ? 'mentions-me' : ''}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -110,7 +115,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         </div>
       ) : (
-        <div className="message-text">{message.text}</div>
+        
+        <div className="message-text">{renderTextWithMentions(message.text, knownUsernames, currentUser)}</div>
       )}
       
       <div className="message-footer">
@@ -171,3 +177,57 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     </div>
   );
 };
+
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+
+function renderTextWithMentions(text: string, knownUsernames: string[], currentUser: string): React.ReactNode {
+  if (knownUsernames.length === 0) return text;
+
+  const knownSet = new Set(knownUsernames.map(u => u.toLowerCase()));
+  const parts: React.ReactNode[] = [];
+  const regex = /@([a-zA-Z0-9_]+)/g;
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    const username = match[1];
+    const isKnown = knownSet.has(username.toLowerCase());
+
+    if (!isKnown) continue; 
+
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    const isSelf = username.toLowerCase() === currentUser.toLowerCase();
+
+    parts.push(
+      <span
+        key={`mention-${key++}`}
+        style={{
+          background: isSelf ? '#5865f2' : 'rgba(88, 101, 242, 0.15)',
+          color: isSelf ? 'white' : '#a9b3ff',
+          borderRadius: '4px',
+          padding: '0 4px',
+          fontWeight: 600,
+        }}
+      >
+        @{username}
+      </span>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+}

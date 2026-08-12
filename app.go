@@ -135,14 +135,14 @@ func (a *App) AddReaction(messageID, emoji, username, channel string) error {
 	return nil
 }
 
-func (a *App) EditMessage(messageID, newText, username, channel string) error {
+func (a *App) EditMessage(messageID, channel, username, newText string) (Message, error) {
 	if newText == "" {
-		return fmt.Errorf("message cannot be empty")
+		return Message{}, fmt.Errorf("message cannot be empty")
 	}
 
 	messages, err := GetMessages(channel, 1000)
 	if err != nil {
-		return fmt.Errorf("error fetching messages: %v", err)
+		return Message{}, fmt.Errorf("error fetching messages: %v", err)
 	}
 
 	var foundMsg *Message
@@ -152,28 +152,33 @@ func (a *App) EditMessage(messageID, newText, username, channel string) error {
 			break
 		}
 	}
-
 	if foundMsg == nil {
-		return fmt.Errorf("message not found")
+		idsInChannel := make([]string, 0, len(messages))
+		for _, m := range messages {
+			idsInChannel = append(idsInChannel, m.ID)
+		}
+		log.Printf("🔍 EditMessage DEBUG: не найдено. channel=%q messageID=%q username=%q | сообщений в канале=%d | IDs=%v",
+			channel, messageID, username, len(messages), idsInChannel)
+		return Message{}, fmt.Errorf("message not found")
 	}
 	if foundMsg.User != username {
-		return fmt.Errorf("you can only edit your own messages")
+		return Message{}, fmt.Errorf("you can only edit your own messages")
 	}
 
 	foundMsg.Text = newText
-	foundMsg.isEdited = true
+	foundMsg.IsEdited = true
 
-	if err = UpdateMessage(channel, *foundMsg); err != nil {
-		return fmt.Errorf("error updating message: %v", err)
+	if err := UpdateMessage(channel, *foundMsg); err != nil {
+		return Message{}, fmt.Errorf("error updating message: %v", err)
 	}
 
 	a.hub.BroadcastToChannel(channel, *foundMsg)
-	log.Printf("✏️ %s edited a message in #%s: %s", username, channel, truncate(newText, 50))
-	return nil
 
+	log.Printf("✏️ %s edited a message in #%s", username, channel)
+	return *foundMsg, nil
 }
 
-func (a *App) DeleteMessage(messageID, username, channel string) error {
+func (a *App) DeleteMessage(messageID, channel, username string) error {
 	messages, err := GetMessages(channel, 1000)
 	if err != nil {
 		return fmt.Errorf("error fetching messages: %v", err)
@@ -186,20 +191,19 @@ func (a *App) DeleteMessage(messageID, username, channel string) error {
 			break
 		}
 	}
-
 	if foundMsg == nil {
 		return fmt.Errorf("message not found")
 	}
-
 	if foundMsg.User != username {
 		return fmt.Errorf("you can only delete your own messages")
 	}
 
-	if err = DeleteMessageInRedis(channel, messageID); err != nil {
+	if err := DeleteMessageInRedis(channel, messageID); err != nil {
 		return fmt.Errorf("error deleting message: %v", err)
 	}
 
-	a.hub.BroadcastToChannel(channel, *foundMsg)
+	a.hub.BroadcastMessageDeleted(channel, messageID)
+
 	log.Printf("🗑️ %s deleted a message in #%s", username, channel)
 	return nil
 }
@@ -327,10 +331,12 @@ func (a *App) DeleteDMChannel(channelName, username string) error {
 	return nil
 }
 
+// ✅ НОВОЕ - пометить канал прочитанным
 func (a *App) MarkChannelRead(username, channel string) error {
 	return SaveLastRead(username, channel)
 }
 
+// ✅ НОВОЕ - количество непрочитанных сообщений по каждому каналу/DM пользователя
 func (a *App) GetUnreadCounts(username string) (map[string]int, error) {
 	result := make(map[string]int)
 
