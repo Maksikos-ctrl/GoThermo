@@ -8,6 +8,7 @@ interface ChatHeaderProps {
   onStartVideoCall: () => void;
   onStartAudioCall: () => void;
   onShowMembers?: () => void;
+  onOpenSearch?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -17,6 +18,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onStartVideoCall,
   onStartAudioCall,
   onShowMembers,
+  onOpenSearch, 
 }) => {
   const channel = channels.find(ch => ch.name === currentChannel);
 
@@ -35,6 +37,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       </div>
       
       <div className="header-actions">
+        
+        <button
+          className="search-btn"
+          onClick={onOpenSearch}
+          title="Search messages"
+        >
+          🔍
+        </button>
         <button 
           className="members-btn" 
           onClick={onShowMembers}

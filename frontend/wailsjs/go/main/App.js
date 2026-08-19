@@ -74,6 +74,10 @@ export function Register(arg1, arg2) {
   return window['go']['main']['App']['Register'](arg1, arg2);
 }
 
+export function SearchMessages(arg1, arg2) {
+  return window['go']['main']['App']['SearchMessages'](arg1, arg2);
+}
+
 export function SendMessage(arg1, arg2, arg3) {
   return window['go']['main']['App']['SendMessage'](arg1, arg2, arg3);
 }

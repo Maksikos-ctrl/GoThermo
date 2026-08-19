@@ -211,11 +211,12 @@ function renderTextWithMentions(text: string, knownUsernames: string[], currentU
       <span
         key={`mention-${key++}`}
         style={{
-          background: isSelf ? '#5865f2' : 'rgba(88, 101, 242, 0.15)',
-          color: isSelf ? 'white' : '#a9b3ff',
+          background: isSelf ? '#5865f2' : 'rgba(255, 255, 255, 0.18)',
+          color: isSelf ? 'white' : '#ffffff',
           borderRadius: '4px',
-          padding: '0 4px',
-          fontWeight: 600,
+          padding: '1px 5px',
+          fontWeight: 700,
+          boxShadow: isSelf ? 'none' : 'inset 0 0 0 1px rgba(255,255,255,0.25)',
         }}
       >
         @{username}

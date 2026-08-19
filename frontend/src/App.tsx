@@ -18,6 +18,9 @@ import { MessageComposer } from './components/MessageComposer';
 import { ChannelMembers } from './components/ChannelMembers';
 import { ConfirmModal } from './components/ConfirmModal';
 
+import { SearchModal } from './components/SearchModal';
+
+
 function App() {
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -59,6 +62,8 @@ function App() {
     message: string;
     onConfirm: () => void;
   } | null>(null);
+
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
 
  
@@ -491,8 +496,10 @@ function App() {
           messagesCount={messages.length}
           onStartVideoCall={startVideoCall}
           onStartAudioCall={startAudioCall}
-          onShowMembers={() => setShowMembersPanel(true)} 
+          onShowMembers={() => setShowMembersPanel(true)}
+          onOpenSearch={() => setShowSearchModal(true)} 
         />
+
 
         <MessagesList
           messages={messages}
@@ -530,6 +537,15 @@ function App() {
         onConfirm={() => confirmDialog?.onConfirm()}
         onCancel={() => setConfirmDialog(null)}
       />
+      <SearchModal
+        isOpen={showSearchModal}
+        currentUser={currentUser}
+        onClose={() => setShowSearchModal(false)}
+        onSelectChannel={(channelName) => {
+          setCurrentChannel(channelName);
+        }}
+      />  
+
 
     </div>
   );

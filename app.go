@@ -208,6 +208,49 @@ func (a *App) DeleteMessage(messageID, channel, username string) error {
 	return nil
 }
 
+func (a *App) SearchMessages(username, query string) ([]Message, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return []Message{}, nil
+	}
+	lowerQuery := strings.ToLower(query)
+
+	publicChannels, err := a.GetChannels()
+	if err != nil {
+		return []Message{}, nil
+	}
+	dmChannels, err := a.GetDMChannels(username)
+	if err != nil {
+		return []Message{}, nil
+	}
+	allChannels := append(publicChannels, dmChannels...)
+
+	results := make([]Message, 0)
+
+	for _, ch := range allChannels {
+		messages, err := GetMessages(ch.Name, 500)
+		if err != nil {
+			continue
+		}
+		for _, msg := range messages {
+			if strings.Contains(strings.ToLower(msg.Text), lowerQuery) {
+				results = append(results, msg)
+			}
+		}
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Timestamp.After(results[j].Timestamp)
+	})
+
+	const maxResults = 100
+	if len(results) > maxResults {
+		results = results[:maxResults]
+	}
+
+	return results, nil
+}
+
 func (a *App) CreateChannel(name, description, createdBy string) (Channel, error) {
 	if name == "" {
 		return Channel{}, fmt.Errorf("channel name cannot be empty")
@@ -331,12 +374,10 @@ func (a *App) DeleteDMChannel(channelName, username string) error {
 	return nil
 }
 
-// ✅ НОВОЕ - пометить канал прочитанным
 func (a *App) MarkChannelRead(username, channel string) error {
 	return SaveLastRead(username, channel)
 }
 
-// ✅ НОВОЕ - количество непрочитанных сообщений по каждому каналу/DM пользователя
 func (a *App) GetUnreadCounts(username string) (map[string]int, error) {
 	result := make(map[string]int)
 

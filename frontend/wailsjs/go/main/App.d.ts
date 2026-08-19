@@ -38,6 +38,8 @@ export function MarkChannelRead(arg1:string,arg2:string):Promise<void>;
 
 export function Register(arg1:string,arg2:string):Promise<main.User>;
 
+export function SearchMessages(arg1:string,arg2:string):Promise<Array<main.Message>>;
+
 export function SendMessage(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function SendPost(arg1:string,arg2:string,arg3:string):Promise<string>;

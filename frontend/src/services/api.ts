@@ -13,11 +13,12 @@ import {
   UpdateUserStatus,
   GetOrCreateDMChannel,
   GetDMChannels,
-  DeleteDMChannel,     
-  MarkChannelRead,     
-  GetUnreadCounts,     
+  DeleteDMChannel,
+  MarkChannelRead,
+  GetUnreadCounts,
   EditMessage,
   DeleteMessage,
+  SearchMessages,     
 } from '../../wailsjs/go/main/App';
 
 export const api = {
@@ -52,5 +53,6 @@ export const api = {
     addReaction: AddReaction,
     edit: EditMessage,
     delete: DeleteMessage,
+    search: SearchMessages, 
   },
 };
