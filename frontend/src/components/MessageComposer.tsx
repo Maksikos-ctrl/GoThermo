@@ -8,7 +8,8 @@ interface MessageComposerProps {
   onSend: () => void;
   onMessageChange: (message: string) => void;
   onTogglePostMode: () => void;
-  mentionableUsers?: string[]; 
+  mentionableUsers?: string[];
+  onSendFile?: (fileName: string, mimeType: string, base64Data: string) => void; 
 }
 
 export const MessageComposer: React.FC<MessageComposerProps> = ({
@@ -19,12 +20,15 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   onMessageChange,
   onTogglePostMode,
   mentionableUsers = [],
+  onSendFile, 
 }) => {
   const [showEmojiPopup, setShowEmojiPopup] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPopupRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); 
 
-
+  
   const [mentionQuery, setMentionQuery] = useState<string | null>(null); 
   const [mentionStartIndex, setMentionStartIndex] = useState<number>(-1);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
@@ -51,7 +55,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-
+ 
   const filteredSuggestions = useMemo(() => {
     if (mentionQuery === null) return [];
     const q = mentionQuery.toLowerCase();
@@ -59,6 +63,28 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       .filter(u => u.toLowerCase().startsWith(q))
       .slice(0, 6);
   }, [mentionQuery, mentionableUsers]);
+
+ 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onSendFile) return;
+
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      onSendFile(file.name, file.type || 'application/octet-stream', dataUrl);
+      setIsUploading(false);
+    };
+    reader.onerror = () => {
+      console.error('Error reading file');
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+
+    
+    e.target.value = '';
+  };
 
   const insertEmoji = (emoji: string) => {
     const cursorPos = textareaRef.current?.selectionStart || 0;
@@ -75,7 +101,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     }, 10);
   };
 
-  
+ 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     onMessageChange(value);
@@ -83,12 +109,12 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     const cursorPos = e.target.selectionStart;
     const textBeforeCursor = value.substring(0, cursorPos);
 
-    
+
     const match = textBeforeCursor.match(/(?:^|\s)@([a-zA-Z0-9_]*)$/);
 
     if (match) {
       setMentionQuery(match[1]);
-      setMentionStartIndex(cursorPos - match[1].length - 1); 
+      setMentionStartIndex(cursorPos - match[1].length - 1);
       setActiveSuggestionIndex(0);
     } else {
       setMentionQuery(null);
@@ -115,7 +141,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-  
+   
     if (mentionQuery !== null && filteredSuggestions.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -170,7 +196,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           rows={1}
         />
 
-        {/* ✅ ДОБАВЛЕНО - выпадающий список упоминаний */}
+       
         {mentionQuery !== null && filteredSuggestions.length > 0 && (
           <div
             ref={mentionPopupRef}
@@ -229,6 +255,26 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           >
             📝
           </button>
+
+          
+          {onSendFile && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+              />
+              <button
+                className="toolbar-icon-btn"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach file"
+                disabled={isUploading}
+              >
+                {isUploading ? '⏳' : '📎'}
+              </button>
+            </>
+          )}
           
           <div className="emoji-trigger" ref={emojiPopupRef}>
             <button 

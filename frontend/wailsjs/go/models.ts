@@ -53,6 +53,11 @@ export namespace main {
 	    reactions: Record<string, Array<string>>;
 	    isPost: boolean;
 	    isEdited?: boolean;
+	    isFile?: boolean;
+	    fileId?: string;
+	    fileName?: string;
+	    fileSize?: number;
+	    mimeType?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Message(source);
@@ -68,6 +73,11 @@ export namespace main {
 	        this.reactions = source["reactions"];
 	        this.isPost = source["isPost"];
 	        this.isEdited = source["isEdited"];
+	        this.isFile = source["isFile"];
+	        this.fileId = source["fileId"];
+	        this.fileName = source["fileName"];
+	        this.fileSize = source["fileSize"];
+	        this.mimeType = source["mimeType"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

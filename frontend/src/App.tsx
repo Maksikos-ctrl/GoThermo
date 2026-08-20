@@ -219,6 +219,17 @@ function App() {
     }
   };
 
+   
+  const handleSendFile = async (fileName: string, mimeType: string, base64Data: string) => {
+    try {
+      await api.files.send(currentUser, currentChannel, fileName, mimeType, base64Data);
+      
+    } catch (error: any) {
+      alert(`Failed to send file: ${error}`);
+    }
+  };
+
+
   const handleAddReaction = async (messageId: string, emoji: string) => {
     try {
       await api.messages.addReaction(messageId, emoji, currentUser, currentChannel);
@@ -519,6 +530,7 @@ function App() {
           onMessageChange={setNewMessage}
           onTogglePostMode={() => setIsPostMode(!isPostMode)}
           mentionableUsers={allUsernames}
+          onSendFile={handleSendFile}
         />
       </div>
 

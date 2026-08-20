@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, EMOJI_LIST } from '../types';
+import { api } from '../services/api'; 
 
 interface MessageItemProps {
   message: Message;
@@ -7,7 +8,7 @@ interface MessageItemProps {
   onAddReaction: (messageId: string, emoji: string) => void;
   onEditMessage: (messageId: string, newText: string) => void;
   onDeleteMessage: (messageId: string) => void;
-  knownUsernames?: string[]; 
+  knownUsernames?: string[];
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -25,7 +26,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
   const isOwnMessage = message.user === currentUser; 
 
-  
+
   const mentionsCurrentUser = new RegExp(`(?:^|\\s)@${escapeRegex(currentUser)}(?:\\s|$|[.,!?])`).test(message.text);
 
   useEffect(() => {
@@ -114,8 +115,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             </span>
           </div>
         </div>
+      ) : message.isFile ? (
+       
+        <FileAttachment message={message} />
       ) : (
-        
         <div className="message-text">{renderTextWithMentions(message.text, knownUsernames, currentUser)}</div>
       )}
       
@@ -178,7 +181,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   );
 };
 
-
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -199,7 +201,7 @@ function renderTextWithMentions(text: string, knownUsernames: string[], currentU
     const username = match[1];
     const isKnown = knownSet.has(username.toLowerCase());
 
-    if (!isKnown) continue; 
+    if (!isKnown) continue; // не подсвечиваем "@" перед случайным словом
 
     if (match.index > lastIndex) {
       parts.push(text.substring(lastIndex, match.index));
@@ -231,4 +233,133 @@ function renderTextWithMentions(text: string, knownUsernames: string[], currentU
   }
 
   return parts.length > 0 ? parts : text;
+}
+
+
+function FileAttachment({ message }: { message: Message }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const isImage = (message.mimeType || '').startsWith('image/');
+
+  const formatSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  
+  useEffect(() => {
+    if (isImage && message.fileId && !dataUrl) {
+      setIsLoading(true);
+      api.files.getData(message.fileId)
+        .then((url: string) => setDataUrl(url))
+        .catch(() => setError(true))
+        .finally(() => setIsLoading(false));
+    }
+  }, [isImage, message.fileId]);
+
+  const handleDownload = async () => {
+    if (!message.fileId) return;
+
+    
+    const isNativeWails =
+      !!(window as any).chrome?.webview || !!(window as any).webkit?.messageHandlers;
+
+    if (isNativeWails) {
+      try {
+        await api.files.saveToDisk(message.fileId);
+        return;
+      } catch (nativeErr) {
+        console.warn('Native save failed, falling back to blob download:', nativeErr);
+       
+      }
+    }
+
+    try {
+      let url = dataUrl;
+      if (!url) {
+        setIsLoading(true);
+        url = await api.files.getData(message.fileId);
+        setDataUrl(url);
+        setIsLoading(false);
+      }
+
+     
+      const response = await fetch(url as string);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = message.fileName || 'file';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch (e) {
+      console.error('Download failed:', e);
+      setError(true);
+      setIsLoading(false);
+    }
+  };
+
+  if (isImage) {
+    return (
+      <div className="message-file-attachment">
+        {isLoading && !dataUrl && (
+          <div style={{ color: '#8a8f98', fontSize: '13px', padding: '8px 0' }}>Loading image...</div>
+        )}
+        {error && (
+          <div style={{ color: '#da373c', fontSize: '13px' }}>Failed to load image</div>
+        )}
+        {dataUrl && (
+          <img
+            src={dataUrl}
+            alt={message.fileName}
+            onClick={handleDownload}
+            style={{
+              maxWidth: '320px',
+              maxHeight: '320px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'block',
+            }}
+            title={`${message.fileName} (${formatSize(message.fileSize)}) — click to download`}
+          />
+        )}
+      </div>
+    );
+  }
+
+
+  return (
+    <div
+      onClick={handleDownload}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '10px',
+        background: '#2b2d31',
+        border: '1px solid #3f4147',
+        borderRadius: '8px',
+        padding: '10px 14px',
+        cursor: 'pointer',
+        maxWidth: '320px',
+      }}
+    >
+      <span style={{ fontSize: '22px' }}>📄</span>
+      <div style={{ overflow: 'hidden' }}>
+        <div style={{ color: '#f2f3f5', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {message.fileName}
+        </div>
+        <div style={{ color: '#8a8f98', fontSize: '12px' }}>
+          {isLoading ? 'Loading...' : `${formatSize(message.fileSize)} · Click to download`}
+        </div>
+      </div>
+    </div>
+  );
 }

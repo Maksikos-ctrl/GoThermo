@@ -1,3 +1,5 @@
+
+ 
 export interface Message {
   id: string;
   user: string;
@@ -6,8 +8,14 @@ export interface Message {
   timestamp: string;
   reactions?: { [emoji: string]: string[] };
   isPost?: boolean;
-  isEdited?: boolean; 
+  isEdited?: boolean;
+  isFile?: boolean;     
+  fileId?: string;     
+  fileName?: string;    
+  fileSize?: number;    
+  mimeType?: string;    
 }
+
 
 export interface Channel {
   id: string;

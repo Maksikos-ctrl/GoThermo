@@ -11,6 +11,11 @@ type Message struct {
 	Reactions map[string][]string `json:"reactions"` // emoji -> [usernames]
 	IsPost    bool                `json:"isPost"`
 	IsEdited  bool                `json:"isEdited,omitempty"`
+	IsFile    bool                `json:"isFile,omitempty"`
+	FileID    string              `json:"fileId,omitempty"`
+	FileName  string              `json:"fileName,omitempty"`
+	FileSize  int64               `json:"fileSize,omitempty"`
+	MimeType  string              `json:"mimeType,omitempty"`
 }
 
 type Channel struct {

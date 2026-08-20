@@ -38,6 +38,10 @@ export function GetDMChannels(arg1) {
   return window['go']['main']['App']['GetDMChannels'](arg1);
 }
 
+export function GetFileData(arg1) {
+  return window['go']['main']['App']['GetFileData'](arg1);
+}
+
 export function GetMessages(arg1) {
   return window['go']['main']['App']['GetMessages'](arg1);
 }
@@ -74,8 +78,16 @@ export function Register(arg1, arg2) {
   return window['go']['main']['App']['Register'](arg1, arg2);
 }
 
+export function SaveFileToDisk(arg1) {
+  return window['go']['main']['App']['SaveFileToDisk'](arg1);
+}
+
 export function SearchMessages(arg1, arg2) {
   return window['go']['main']['App']['SearchMessages'](arg1, arg2);
+}
+
+export function SendFile(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SendFile'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function SendMessage(arg1, arg2, arg3) {

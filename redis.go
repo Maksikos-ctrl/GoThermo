@@ -164,6 +164,7 @@ func UpdateMessage(channel string, updatedMsg Message) error {
 
 func DeleteMessageInRedis(channel, messageID string) error {
 	key := fmt.Sprintf("channel:%s:messages", channel)
+
 	messages, err := redisClient.LRange(ctx, key, 0, -1).Result()
 	if err != nil {
 		return err
@@ -185,6 +186,27 @@ func DeleteMessageInRedis(channel, messageID string) error {
 	}
 
 	return fmt.Errorf("message with ID %s not found", messageID)
+}
+
+func SaveFileMeta(fileID, filePath, mimeType, fileName string) error {
+	key := fmt.Sprintf("file:%s", fileID)
+	return redisClient.HSet(ctx, key, map[string]interface{}{
+		"path":     filePath,
+		"mimeType": mimeType,
+		"fileName": fileName,
+	}).Err()
+}
+
+func GetFileMeta(fileID string) (path, mimeType, fileName string, err error) {
+	key := fmt.Sprintf("file:%s", fileID)
+	data, err := redisClient.HGetAll(ctx, key).Result()
+	if err != nil {
+		return "", "", "", err
+	}
+	if len(data) == 0 {
+		return "", "", "", fmt.Errorf("file metadata not found")
+	}
+	return data["path"], data["mimeType"], data["fileName"], nil
 }
 
 func SaveUserToRedis(user *User) error {

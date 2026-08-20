@@ -20,6 +20,8 @@ export function GetChannels():Promise<Array<main.Channel>>;
 
 export function GetDMChannels(arg1:string):Promise<Array<main.Channel>>;
 
+export function GetFileData(arg1:string):Promise<string>;
+
 export function GetMessages(arg1:string):Promise<Array<main.Message>>;
 
 export function GetOrCreateDMChannel(arg1:string,arg2:string):Promise<main.Channel>;
@@ -38,7 +40,11 @@ export function MarkChannelRead(arg1:string,arg2:string):Promise<void>;
 
 export function Register(arg1:string,arg2:string):Promise<main.User>;
 
+export function SaveFileToDisk(arg1:string):Promise<void>;
+
 export function SearchMessages(arg1:string,arg2:string):Promise<Array<main.Message>>;
+
+export function SendFile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.Message>;
 
 export function SendMessage(arg1:string,arg2:string,arg3:string):Promise<string>;
 

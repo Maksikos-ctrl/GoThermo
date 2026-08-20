@@ -18,7 +18,10 @@ import {
   GetUnreadCounts,
   EditMessage,
   DeleteMessage,
-  SearchMessages,     
+  SearchMessages,
+  SendFile,
+  GetFileData,
+  SaveFileToDisk, 
 } from '../../wailsjs/go/main/App';
 
 export const api = {
@@ -41,7 +44,7 @@ export const api = {
     getAll: GetDMChannels,
     delete: DeleteDMChannel, 
   },
-
+ 
   unread: {
     markRead: MarkChannelRead,
     getCounts: GetUnreadCounts,
@@ -53,6 +56,12 @@ export const api = {
     addReaction: AddReaction,
     edit: EditMessage,
     delete: DeleteMessage,
-    search: SearchMessages, 
+    search: SearchMessages,
+  },
+
+  files: {
+    send: SendFile,
+    getData: GetFileData,
+    saveToDisk: SaveFileToDisk, 
   },
 };

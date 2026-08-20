@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
@@ -249,6 +253,117 @@ func (a *App) SearchMessages(username, query string) ([]Message, error) {
 	}
 
 	return results, nil
+}
+
+const uploadsDir = "uploads"
+
+func (a *App) SendFile(user, channel, fileName, mimeType, base64Data string) (Message, error) {
+	if fileName == "" {
+		return Message{}, fmt.Errorf("file name cannot be empty")
+	}
+
+	if idx := strings.Index(base64Data, ","); idx != -1 && strings.HasPrefix(base64Data, "data:") {
+		base64Data = base64Data[idx+1:]
+	}
+
+	data, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return Message{}, fmt.Errorf("invalid file data: %v", err)
+	}
+
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		return Message{}, fmt.Errorf("failed to create uploads directory: %v", err)
+	}
+
+	fileID := uuid.New().String()
+	safeName := sanitizeFileName(fileName)
+	savePath := filepath.Join(uploadsDir, fileID+"_"+safeName)
+
+	if err := os.WriteFile(savePath, data, 0644); err != nil {
+		return Message{}, fmt.Errorf("failed to save file: %v", err)
+	}
+
+	if err := SaveFileMeta(fileID, savePath, mimeType, fileName); err != nil {
+		return Message{}, fmt.Errorf("failed to save file metadata: %v", err)
+	}
+
+	msg := Message{
+		ID:        uuid.New().String(),
+		User:      user,
+		Text:      "",
+		Channel:   channel,
+		Timestamp: time.Now(),
+		Reactions: make(map[string][]string),
+		IsFile:    true,
+		FileID:    fileID,
+		FileName:  fileName,
+		FileSize:  int64(len(data)),
+		MimeType:  mimeType,
+	}
+
+	if err := SaveMessage(msg); err != nil {
+		return Message{}, fmt.Errorf("error saving message: %v", err)
+	}
+
+	a.hub.BroadcastToChannel(channel, msg)
+
+	log.Printf("📎 %s -> #%s: uploaded file %s (%d bytes)", user, channel, fileName, len(data))
+	return msg, nil
+}
+
+func (a *App) SaveFileToDisk(fileID string) error {
+	path, _, fileName, err := GetFileMeta(fileID)
+	if err != nil {
+		return fmt.Errorf("file not found: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %v", err)
+	}
+
+	savePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		DefaultFilename: fileName,
+	})
+	if err != nil {
+		return fmt.Errorf("save dialog failed: %v", err)
+	}
+
+	if savePath == "" {
+		return nil
+	}
+
+	if err := os.WriteFile(savePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %v", err)
+	}
+
+	log.Printf("💾 File saved to disk: %s", savePath)
+	return nil
+}
+
+func (a *App) GetFileData(fileID string) (string, error) {
+	path, mimeType, _, err := GetFileMeta(fileID)
+	if err != nil {
+		return "", fmt.Errorf("file not found: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %v", err)
+	}
+
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(data)
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, encoded), nil
+}
+
+func sanitizeFileName(name string) string {
+	name = filepath.Base(name)
+	replacer := strings.NewReplacer("/", "_", "\\", "_", "..", "_")
+	return replacer.Replace(name)
 }
 
 func (a *App) CreateChannel(name, description, createdBy string) (Channel, error) {
