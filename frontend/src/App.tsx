@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 import { 
   Message, 
@@ -19,6 +19,10 @@ import { ChannelMembers } from './components/ChannelMembers';
 import { ConfirmModal } from './components/ConfirmModal';
 
 import { SearchModal } from './components/SearchModal';
+import { useCall } from './hooks/useCall';
+import { IncomingCallModal } from './components/IncomingCallModal';
+import { CallBar } from './components/CallBar';
+
 
 
 function App() {
@@ -48,12 +52,6 @@ function App() {
   const [dragOver, setDragOver] = useState<string | null>(null);
 
 
-  const { isConnected, subscribeToChannel, changeStatus } = useWebSocket(
-    currentUser,
-    handleStatusUpdate,
-    handleNewMessage
-  );
-
   const [dmChannels, setDMChannels] = useState<Channel[]>([]);
   
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -64,6 +62,20 @@ function App() {
   } | null>(null);
 
   const [showSearchModal, setShowSearchModal] = useState(false);
+
+  const callSignalHandlerRef = useRef<((type: string, payload: any) => void) | null>(null);
+  const { isConnected, subscribeToChannel, changeStatus, sendMessage } = useWebSocket(
+    currentUser,
+    handleStatusUpdate,
+    handleNewMessage,
+    handleMessageDeleted,
+    (type, payload) => callSignalHandlerRef.current?.(type, payload)
+  );
+
+  const call = useCall({ currentUser, sendSignal: sendMessage });
+
+  callSignalHandlerRef.current = call.handleSignal;
+
 
 
  
@@ -90,6 +102,11 @@ function App() {
     }
   }
 
+  function handleMessageDeleted(channel: string, messageId: string) {
+    if (channel !== currentChannel) return;
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+  }
+
   
   const loadMessages = async () => {
     try {
@@ -102,6 +119,15 @@ function App() {
       console.error('Error loading messages:', error);
     }
   };
+
+  const getDMPartner = (): string | null => {
+    if (!currentChannel.startsWith('dm_')) return null;
+    const names = currentChannel.replace('dm_', '').split('_');
+    return names.find(n => n !== currentUser) || null;
+  };
+
+  
+
 
   const loadChannels = async () => {
     setIsLoadingChannels(true);
@@ -370,8 +396,15 @@ function App() {
   };
 
   const startAudioCall = () => {
-    alert('Audio call (soon will be implemented)');
+    const partner = getDMPartner();
+    if (!partner) {
+      alert('Audio calls are only available in direct messages for now');
+      return;
+    }
+    call.startCall(partner);
   };
+ 
+
 
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
@@ -557,6 +590,22 @@ function App() {
           setCurrentChannel(channelName);
         }}
       />  
+      <IncomingCallModal
+        callerName={call.incomingCall?.from || null}
+        onAccept={call.acceptCall}
+        onDecline={call.declineCall}
+      />
+
+      <CallBar
+        status={call.status}
+        remoteUser={call.remoteUser}
+        isMuted={call.isMuted}
+        remoteAudioRef={call.remoteAudioRef}
+        onToggleMute={call.toggleMute}
+        onEndCall={call.endCall}
+      />
+
+
 
 
     </div>

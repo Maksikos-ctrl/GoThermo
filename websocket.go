@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -11,6 +12,47 @@ import (
 )
 
 var globalHub *Hub
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+const wsServerPort = "8081"
+
+func StartWSServer(hub *Hub) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", ServeWS(hub))
+
+	log.Printf("🚀 WebSocket server listening on :%s", wsServerPort)
+	if err := http.ListenAndServe(":"+wsServerPort, mux); err != nil {
+		log.Printf("❌ WebSocket server failed to start: %v", err)
+	}
+}
+
+func ServeWS(hub *Hub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("🔌 Incoming /ws request: remote=%s username=%s", r.RemoteAddr, r.URL.Query().Get("username"))
+
+		username := r.URL.Query().Get("username")
+		if username == "" {
+			http.Error(w, "username query parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("❌ WebSocket upgrade error: %v", err)
+			return
+		}
+
+		hub.HandleClient(conn, username)
+	}
+}
 
 type Client struct {
 	ID       string
@@ -44,7 +86,7 @@ type ChannelMessage struct {
 	Message Message `json:"message"`
 }
 
-type MessageDelayedPayload struct {
+type MessageDeletedPayload struct {
 	Channel   string `json:"channel"`
 	MessageID string `json:"messageId"`
 }
@@ -175,7 +217,7 @@ func (h *Hub) BroadcastMessageDeleted(channel, messageID string) {
 
 	msg := WSMessage{
 		Type: "message_deleted",
-		Payload: MessageDelayedPayload{
+		Payload: MessageDeletedPayload{
 			Channel:   channel,
 			MessageID: messageID,
 		},
@@ -198,7 +240,7 @@ func (h *Hub) BroadcastMessageDeleted(channel, messageID string) {
 		}
 	}
 
-	log.Printf("🗑️ Broadcasted deletion of message %s in channel #%s", messageID, channel)
+	log.Printf("🗑️ Broadcast message_deleted for #%s: %s", channel, messageID)
 }
 
 func (h *Hub) AddChannelToClient(username, channel string) {
@@ -278,6 +320,23 @@ func (h *Hub) broadcastMessage(message []byte, excludeUsername string) {
 			close(client.Send)
 			delete(h.clients, username)
 		}
+	}
+}
+
+func (h *Hub) SendToUser(username string, data []byte) bool {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	client, exists := h.clients[username]
+	if !exists {
+		return false
+	}
+
+	select {
+	case client.Send <- data:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -394,6 +453,33 @@ func (c *Client) handleMessage(msg WSMessage) {
 			log.Printf("🔄 Status changed via WebSocket: %s -> %s",
 				c.Username, statusPayload.Status)
 		}
+
+	// ✅ НОВОЕ - все сигналы звонка просто пересылаются адресату из payload.to,
+	// сервер не хранит и не разбирает их содержимое (SDP/ICE), только маршрутизирует
+	case "call_offer", "call_answer", "call_ice_candidate", "call_reject", "call_end":
+		payloadBytes, err := json.Marshal(msg.Payload)
+		if err != nil {
+			log.Printf("Error marshaling call signal payload: %v", err)
+			return
+		}
+
+		var target struct {
+			To string `json:"to"`
+		}
+		if err := json.Unmarshal(payloadBytes, &target); err != nil || target.To == "" {
+			log.Printf("Invalid call signal payload (no 'to'): %v", err)
+			return
+		}
+
+		relayMsg := WSMessage{Type: msg.Type, Payload: msg.Payload}
+		data, err := json.Marshal(relayMsg)
+		if err != nil {
+			log.Printf("Error marshaling call relay: %v", err)
+			return
+		}
+
+		delivered := c.Hub.SendToUser(target.To, data)
+		log.Printf("📞 %s -> %s: %s (delivered=%v)", c.Username, target.To, msg.Type, delivered)
 	}
 }
 

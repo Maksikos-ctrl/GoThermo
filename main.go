@@ -12,10 +12,11 @@ import (
 var assets embed.FS
 
 func main() {
-	
+
 	app := NewApp()
 
-	
+	go StartWSServer(app.hub)
+
 	err := wails.Run(&options.App{
 		Title:  "GoThermo",
 		Width:  1024,
