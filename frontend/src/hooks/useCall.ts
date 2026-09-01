@@ -1,5 +1,21 @@
 import { useState, useRef, useCallback } from 'react';
 
+
+function showCallDebugBanner(message: string, color: string = '#da373c') {
+  let el = document.getElementById('__call_debug__');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '__call_debug__';
+    el.style.cssText =
+      'position:fixed;top:0;left:0;right:0;color:white;' +
+      'font-size:13px;font-family:monospace;padding:8px 12px;z-index:999999;' +
+      'word-break:break-all;text-align:center;';
+    document.body.appendChild(el);
+  }
+  el.style.background = color;
+  el.textContent = message;
+}
+
 export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connected';
 
 interface IncomingCallInfo {
@@ -45,11 +61,17 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
       pc.onicecandidate = (e) => {
-        if (e.candidate) {
+        
+        if (e.candidate && e.candidate.candidate) {
           sendSignal('call_ice_candidate', {
             to: targetUser,
             from: currentUser,
-            candidate: e.candidate,
+            candidate: {
+              candidate: e.candidate.candidate,
+              sdpMid: e.candidate.sdpMid,
+              sdpMLineIndex: e.candidate.sdpMLineIndex,
+              usernameFragment: e.candidate.usernameFragment,
+            },
           });
         }
       };
@@ -99,14 +121,15 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
         sendSignal('call_offer', { to: targetUser, from: currentUser, sdp: offer });
       } catch (err) {
         console.error('Failed to start call:', err);
-        alert('Could not access microphone. Please check permissions.');
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        showCallDebugBanner(`Start call failed: ${errorMessage}`); 
         cleanup();
       }
     },
     [status, createPeerConnection, currentUser, sendSignal, cleanup]
   );
 
-
+ 
   const acceptCall = useCallback(async () => {
     if (!incomingCall || !pendingOfferRef.current) return;
     const caller = incomingCall.from;
@@ -120,7 +143,7 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
 
       await pc.setRemoteDescription(new RTCSessionDescription(pendingOfferRef.current));
 
-     
+    
       for (const c of iceQueueRef.current) {
         await pc.addIceCandidate(new RTCIceCandidate(c));
       }
@@ -135,7 +158,8 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
       sendSignal('call_answer', { to: caller, from: currentUser, sdp: answer });
     } catch (err) {
       console.error('Failed to accept call:', err);
-      alert('Could not access microphone. Please check permissions.');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      showCallDebugBanner(`Accept call failed: ${errorMessage}`); 
       sendSignal('call_reject', { to: caller, from: currentUser });
       cleanup();
     }
@@ -168,7 +192,7 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
     setIsMuted(newMuted);
   }, [isMuted]);
 
-  
+
   const handleSignal = useCallback(
     (type: string, payload: any) => {
       switch (type) {
@@ -204,10 +228,13 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
 
         case 'call_ice_candidate': {
           if (payload.to !== currentUser) return;
+          
+          if (!payload.candidate || !payload.candidate.candidate) return;
+
           if (pcRef.current && pcRef.current.remoteDescription) {
             pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(console.error);
           } else {
-          
+           
             iceQueueRef.current.push(payload.candidate);
           }
           break;
@@ -215,7 +242,7 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
 
         case 'call_reject': {
           if (payload.to !== currentUser) return;
-          alert(`${payload.from} declined the call`);
+          showCallDebugBanner(`${payload.from} declined the call`, '#f0b232'); 
           cleanup();
           break;
         }

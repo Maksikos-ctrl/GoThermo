@@ -23,6 +23,13 @@
         <string>true</string>
         <key>NSHumanReadableCopyright</key>
         <string>{{.Info.Copyright}}</string>
+       	<key>NSMicrophoneUsageDescription</key>
+        <string>GoThermo needs access to your microphone for audio calls</string>
+        <key>NSCameraUsageDescription</key>
+        <string>GoThermo needs access to your camera for video calls</string>
+
+
+
         {{if .Info.FileAssociations}}
         <key>CFBundleDocumentTypes</key>
         <array>

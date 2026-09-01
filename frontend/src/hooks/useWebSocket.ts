@@ -11,7 +11,7 @@ export const useWebSocket = (
   onStatusUpdate: (username: string, status: string) => void,
   onNewMessage: (channel: string, message: Message) => void,
   onMessageDeleted?: (channel: string, messageId: string) => void,
-  onCallSignal?: (type: string, payload: any) => void 
+  onCallSignal?: (type: string, payload: any) => void // ✅ ДОБАВЛЕНО
 ) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -27,10 +27,16 @@ export const useWebSocket = (
     if (!username) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-   
-    const wsUrl = `${protocol}//${window.location.hostname}:8081/ws?username=${username}`;
+    // ✅ ИСПРАВЛЕНО - в нативном окне Wails window.location.hostname возвращает
+    // служебный "wails.localhost", а не "localhost", и подключение к нашему
+    // отдельному серверу на 8081 по этому адресу не проходит. Наш WS-сервер
+    // всегда слушает на loopback-интерфейсе, поэтому просто фиксируем 127.0.0.1
+    // напрямую - работает одинаково что в браузере, что в десктопном окне.
+    const wsUrl = `${protocol}//127.0.0.1:8081/ws?username=${username}`;
 
-  
+    // 🔍 ВРЕМЕННАЯ ДИАГНОСТИКА - красная плашка внизу экрана с точным адресом
+    // подключения. Работает через прямой DOM, не зависит от React/title синка.
+    // Убери этот блок после того, как разберёмся с багом подключения десктопа.
     let debugElRaw = document.getElementById('__ws_debug__');
     if (!debugElRaw) {
       debugElRaw = document.createElement('div');
@@ -41,20 +47,20 @@ export const useWebSocket = (
         'word-break:break-all;';
       document.body.appendChild(debugElRaw);
     }
-    const debugEl = debugElRaw as HTMLDivElement; 
+    const debugEl = debugElRaw as HTMLDivElement; // ✅ ФИКС - после этой строки TS точно знает, что не null
     debugEl.textContent = `WS attempt: ${wsUrl}`;
     
     const socket = new WebSocket(wsUrl);
     
     socket.onopen = () => {
-      console.log('✓ WebSocket is connected');
+      console.log('✓ WebSocket подключен');
       setIsConnected(true);
       debugEl.textContent = `WS OPEN: ${wsUrl}`;
       debugEl.style.background = '#23a55a';
     };
     
     socket.onclose = () => {
-      console.log('✗ WebSocket is disconnected');
+      console.log('✗ WebSocket отключен');
       setIsConnected(false);
       debugEl.textContent = `WS CLOSED: ${wsUrl}`;
       debugEl.style.background = '#da373c';
@@ -62,7 +68,7 @@ export const useWebSocket = (
     };
     
     socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('WebSocket ошибка:', error);
       debugEl.textContent = `WS ERROR: ${wsUrl}`;
       debugEl.style.background = '#f0b232';
     };
@@ -75,7 +81,7 @@ export const useWebSocket = (
           handleMessage(data);
         });
       } catch (error) {
-        console.error('WebSocket message parsing error:', error);
+        console.error('Ошибка парсинга WebSocket сообщения:', error);
       }
     };
     
@@ -86,24 +92,24 @@ export const useWebSocket = (
     switch (data.type) {
       case 'status_update':
         const { username, status } = data.payload;
-        console.log(`🔄 Status updated: ${username} -> ${status}`);
+        console.log(`🔄 Статус обновлен: ${username} -> ${status}`);
         onStatusUpdate(username, status);
         break;
         
       case 'channel_message':
         const { channel, message } = data.payload;
-        console.log(`📨 Message in #${channel} from ${message.user}`);
+        console.log(`📨 Сообщение в #${channel} от ${message.user}`);
         onNewMessage(channel, message);
         break;
 
-   
+      // ✅ ДОБАВЛЕНО - удаление сообщения
       case 'message_deleted':
         if (onMessageDeleted) {
           onMessageDeleted(data.payload.channel, data.payload.messageId);
         }
         break;
 
-    
+      // ✅ ДОБАВЛЕНО - все сигналы звонка просто прокидываем наверх в App.tsx
       case 'call_offer':
       case 'call_answer':
       case 'call_ice_candidate':
@@ -115,7 +121,7 @@ export const useWebSocket = (
         break;
         
       case 'subscribed':
-        console.log(`✅ Subscribed to channel: ${data.payload.channel}`);
+        console.log(`✅ Подписан на канал: ${data.payload.channel}`);
         break;
         
       case 'connected':
@@ -123,7 +129,7 @@ export const useWebSocket = (
         break;
 
       case 'users_list':
-        console.log(`👥 Received users list: ${data.payload.length}`);
+        console.log(`👥 Получен список пользователей: ${data.payload.length}`);
         data.payload.forEach((user: any) => {
           onStatusUpdate(user.username, user.status || 'offline');
         });
@@ -139,7 +145,7 @@ export const useWebSocket = (
   }, [sendMessage]);
 
   const changeStatus = useCallback((status: 'online' | 'away' | 'offline') => {
-    console.log(`🔄 Sending status change: ${status}`);
+    console.log(`🔄 Отправка изменения статуса: ${status}`);
     sendMessage('status_change', { status });
   }, [sendMessage]);
 
