@@ -1,20 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
-
-
-function showCallDebugBanner(message: string, color: string = '#da373c') {
-  let el = document.getElementById('__call_debug__');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = '__call_debug__';
-    el.style.cssText =
-      'position:fixed;top:0;left:0;right:0;color:white;' +
-      'font-size:13px;font-family:monospace;padding:8px 12px;z-index:999999;' +
-      'word-break:break-all;text-align:center;';
-    document.body.appendChild(el);
-  }
-  el.style.background = color;
-  el.textContent = message;
-}
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connected';
 
@@ -25,12 +9,17 @@ interface IncomingCallInfo {
 interface UseCallParams {
   currentUser: string;
   sendSignal: (type: string, payload: any) => void;
+  onCallEnded?: (info: {
+    remoteUser: string;
+    status: 'completed' | 'declined' | 'cancelled';
+    durationSeconds: number;
+  }) => void;
 }
 
 
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
-export function useCall({ currentUser, sendSignal }: UseCallParams) {
+export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams) {
   const [status, setStatus] = useState<CallStatus>('idle');
   const [remoteUser, setRemoteUser] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallInfo | null>(null);
@@ -42,19 +31,119 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
   const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const iceQueueRef = useRef<RTCIceCandidateInit[]>([]);
 
-  const cleanup = useCallback(() => {
-    pcRef.current?.close();
-    pcRef.current = null;
-    localStreamRef.current?.getTracks().forEach((t) => t.stop());
-    localStreamRef.current = null;
-    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
-    iceQueueRef.current = [];
-    pendingOfferRef.current = null;
-    setStatus('idle');
-    setRemoteUser(null);
-    setIncomingCall(null);
-    setIsMuted(false);
+  // Only the initiator logs the call summary, to avoid duplicate log
+  // entries from both sides of the same call.
+  const isInitiatorRef = useRef(false);
+  const callStartTimeRef = useRef<number | null>(null);
+  const remoteUserRef = useRef<string | null>(null);
+
+  // --- Ringtone (Web Audio API, no files needed) ---
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const ringTimeoutRef = useRef<number | null>(null);
+
+  const getAudioCtx = useCallback(() => {
+    if (!audioCtxRef.current) {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      audioCtxRef.current = new Ctx();
+    }
+    return audioCtxRef.current;
   }, []);
+
+  const playTone = useCallback((freqs: number[], duration: number, gainValue = 0.15) => {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(gainValue, now);
+    gain.gain.setValueAtTime(gainValue, now + duration - 0.03);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+    gain.connect(ctx.destination);
+
+    freqs.forEach((freq) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      osc.start(now);
+      osc.stop(now + duration);
+    });
+  }, [getAudioCtx]);
+
+  const stopRingtone = useCallback(() => {
+    if (ringTimeoutRef.current !== null) {
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Caller side: classic ringback tone - 1s tone, 3s silence, repeat
+  const startOutgoingRingback = useCallback(() => {
+    stopRingtone();
+    const cycle = () => {
+      playTone([425], 1);
+      ringTimeoutRef.current = window.setTimeout(cycle, 4000);
+    };
+    cycle();
+  }, [playTone, stopRingtone]);
+
+  // Callee side: double-beep phone ring, pause, repeat
+  const startIncomingRing = useCallback(() => {
+    stopRingtone();
+    const cycle = () => {
+      playTone([800, 1000], 0.25);
+      ringTimeoutRef.current = window.setTimeout(() => {
+        playTone([800, 1000], 0.25);
+        ringTimeoutRef.current = window.setTimeout(cycle, 1800);
+      }, 400);
+    };
+    cycle();
+  }, [playTone, stopRingtone]);
+
+  useEffect(() => {
+    if (status === 'calling') {
+      startOutgoingRingback();
+    } else if (status === 'ringing') {
+      startIncomingRing();
+    } else {
+      stopRingtone();
+    }
+    return stopRingtone;
+  }, [status, startOutgoingRingback, startIncomingRing, stopRingtone]);
+  // --- end ringtone ---
+
+  const cleanup = useCallback(
+    (explicitStatus?: 'completed' | 'declined' | 'cancelled') => {
+      stopRingtone();
+
+      if (isInitiatorRef.current && onCallEnded && remoteUserRef.current) {
+        const wasConnected = callStartTimeRef.current !== null;
+        const finalStatus = explicitStatus || (wasConnected ? 'completed' : 'cancelled');
+        const durationSeconds = wasConnected
+          ? Math.max(0, Math.round((Date.now() - callStartTimeRef.current!) / 1000))
+          : 0;
+        onCallEnded({ remoteUser: remoteUserRef.current, status: finalStatus, durationSeconds });
+      }
+
+      isInitiatorRef.current = false;
+      callStartTimeRef.current = null;
+      remoteUserRef.current = null;
+
+      pcRef.current?.close();
+      pcRef.current = null;
+      localStreamRef.current?.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
+      iceQueueRef.current = [];
+      pendingOfferRef.current = null;
+      setStatus('idle');
+      setRemoteUser(null);
+      setIncomingCall(null);
+      setIsMuted(false);
+    },
+    [onCallEnded, stopRingtone]
+  );
 
   const createPeerConnection = useCallback(
     (targetUser: string) => {
@@ -84,6 +173,7 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
 
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'connected') {
+          if (callStartTimeRef.current === null) callStartTimeRef.current = Date.now();
           setStatus('connected');
         }
         if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
@@ -116,13 +206,13 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
         await pc.setLocalDescription(offer);
 
         setRemoteUser(targetUser);
+        remoteUserRef.current = targetUser;
+        isInitiatorRef.current = true;
         setStatus('calling');
 
         sendSignal('call_offer', { to: targetUser, from: currentUser, sdp: offer });
       } catch (err) {
         console.error('Failed to start call:', err);
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        showCallDebugBanner(`Start call failed: ${errorMessage}`); 
         cleanup();
       }
     },
@@ -153,13 +243,13 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
       await pc.setLocalDescription(answer);
 
       setRemoteUser(caller);
+      remoteUserRef.current = caller;
+      isInitiatorRef.current = false;
       setIncomingCall(null);
 
       sendSignal('call_answer', { to: caller, from: currentUser, sdp: answer });
     } catch (err) {
       console.error('Failed to accept call:', err);
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      showCallDebugBanner(`Accept call failed: ${errorMessage}`); 
       sendSignal('call_reject', { to: caller, from: currentUser });
       cleanup();
     }
@@ -167,6 +257,7 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
 
 
   const declineCall = useCallback(() => {
+    stopRingtone();
     if (incomingCall) {
       sendSignal('call_reject', { to: incomingCall.from, from: currentUser });
     }
@@ -174,7 +265,7 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
     pendingOfferRef.current = null;
     iceQueueRef.current = [];
     setStatus('idle');
-  }, [incomingCall, currentUser, sendSignal]);
+  }, [incomingCall, currentUser, sendSignal, stopRingtone]);
 
   
   const endCall = useCallback(() => {
@@ -242,8 +333,7 @@ export function useCall({ currentUser, sendSignal }: UseCallParams) {
 
         case 'call_reject': {
           if (payload.to !== currentUser) return;
-          showCallDebugBanner(`${payload.from} declined the call`, '#f0b232'); 
-          cleanup();
+          cleanup('declined');
           break;
         }
 

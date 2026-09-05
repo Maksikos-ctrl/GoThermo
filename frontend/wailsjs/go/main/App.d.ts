@@ -32,6 +32,8 @@ export function GetUsers():Promise<Array<main.User>>;
 
 export function JoinChannel(arg1:string,arg2:string):Promise<void>;
 
+export function LogCall(arg1:string,arg2:string,arg3:string,arg4:number):Promise<main.Message>;
+
 export function Login(arg1:string,arg2:string):Promise<main.User>;
 
 export function Logout(arg1:string):Promise<boolean>;

@@ -1,5 +1,3 @@
-
- 
 export interface Message {
   id: string;
   user: string;
@@ -14,6 +12,10 @@ export interface Message {
   fileName?: string;    
   fileSize?: number;    
   mimeType?: string;    
+  isCall?: boolean;
+  callStatus?: string;
+  callDuration?: number;
+  callInitiator?: string;
 }
 
 

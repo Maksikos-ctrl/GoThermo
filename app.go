@@ -257,6 +257,38 @@ func (a *App) SearchMessages(username, query string) ([]Message, error) {
 
 const uploadsDir = "uploads"
 
+func (a *App) LogCall(channel, initiator, callStatus string, durationSeconds int) (Message, error) {
+	validStatuses := map[string]bool{"completed": true, "declined": true, "cancelled": true}
+	if !validStatuses[callStatus] {
+		return Message{}, fmt.Errorf("invalid call status: %s", callStatus)
+	}
+	if durationSeconds < 0 {
+		durationSeconds = 0
+	}
+
+	msg := Message{
+		ID:            uuid.New().String(),
+		User:          initiator,
+		Text:          "",
+		Channel:       channel,
+		Timestamp:     time.Now(),
+		Reactions:     make(map[string][]string),
+		IsCall:        true,
+		CallStatus:    callStatus,
+		CallDuration:  durationSeconds,
+		CallInitiator: initiator,
+	}
+
+	if err := SaveMessage(msg); err != nil {
+		return Message{}, fmt.Errorf("error saving call log: %v", err)
+	}
+
+	a.hub.BroadcastToChannel(channel, msg)
+
+	log.Printf("📞 Call log: %s -> #%s: %s (%ds)", initiator, channel, callStatus, durationSeconds)
+	return msg, nil
+}
+
 func (a *App) SendFile(user, channel, fileName, mimeType, base64Data string) (Message, error) {
 	if fileName == "" {
 		return Message{}, fmt.Errorf("file name cannot be empty")

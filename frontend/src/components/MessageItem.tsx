@@ -81,14 +81,18 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="message-header">
-        <span className="message-user">{message.user}</span>
-        <span className="message-time">{formatTime(message.timestamp)}</span>
-        {message.isPost && <span className="post-badge">📌 Post</span>}
-        {message.isEdited && <span className="edited-badge" style={{ fontSize: '11px', color: '#8a8f98', marginLeft: '6px' }}>(edited)</span>}
-      </div>
+      {!message.isCall && (
+        <div className="message-header">
+          <span className="message-user">{message.user}</span>
+          <span className="message-time">{formatTime(message.timestamp)}</span>
+          {message.isPost && <span className="post-badge">📌 Post</span>}
+          {message.isEdited && <span className="edited-badge" style={{ fontSize: '11px', color: '#8a8f98', marginLeft: '6px' }}>(edited)</span>}
+        </div>
+      )}
 
-      {isEditing ? (
+      {message.isCall ? (
+        <CallLogBubble message={message} isOwnMessage={isOwnMessage} />
+      ) : isEditing ? (
       
         <div className="edit-message-form">
           <textarea
@@ -122,6 +126,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         <div className="message-text">{renderTextWithMentions(message.text, knownUsernames, currentUser)}</div>
       )}
       
+      {!message.isCall && (
       <div className="message-footer">
         {message.reactions && Object.entries(message.reactions).some(([_, users]) => users.length > 0) && (
           <div className="reactions">
@@ -177,12 +182,80 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function formatCallDuration(totalSeconds?: number): string {
+  const s = Math.max(0, totalSeconds || 0);
+  const mins = Math.floor(s / 60);
+  const secs = s % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function CallLogBubble({ message, isOwnMessage }: { message: Message; isOwnMessage: boolean }) {
+  const status = message.callStatus;
+  const isDeclinedOrCancelled = status === 'declined' || status === 'cancelled';
+
+  let label: string;
+  if (status === 'completed') {
+    label = `Audio call · ${formatCallDuration(message.callDuration)}`;
+  } else if (status === 'declined') {
+    label = isOwnMessage ? 'Call declined' : 'You declined the call';
+  } else if (status === 'cancelled') {
+    label = isOwnMessage ? 'Call cancelled' : 'Missed call';
+  } else {
+    label = 'Call ended';
+  }
+
+  return (
+    <div
+      className="call-log-bubble"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '10px',
+        background: '#2b2d31',
+        border: `1px solid ${isDeclinedOrCancelled ? 'rgba(218,55,60,0.35)' : '#3f4147'}`,
+        borderRadius: '10px',
+        padding: '10px 16px',
+        marginTop: '2px',
+      }}
+    >
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '30px',
+          height: '30px',
+          borderRadius: '50%',
+          background: isDeclinedOrCancelled ? '#da373c' : '#23a55a',
+          fontSize: '15px',
+          flexShrink: 0,
+        }}
+      >
+        {isDeclinedOrCancelled ? '✕' : '📞'}
+      </span>
+      <span
+        style={{
+          color: isDeclinedOrCancelled ? '#da373c' : '#f2f3f5',
+          fontSize: '14px',
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ color: '#8a8f98', fontSize: '12px' }}>
+        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </span>
+    </div>
+  );
 }
 
 

@@ -22,6 +22,7 @@ import {
   SendFile,
   GetFileData,
   SaveFileToDisk, 
+  LogCall,
 } from '../../wailsjs/go/main/App';
 
 export const api = {
@@ -63,5 +64,8 @@ export const api = {
     send: SendFile,
     getData: GetFileData,
     saveToDisk: SaveFileToDisk, 
+  },
+  calls: {
+    log: LogCall,
   },
 };

@@ -72,7 +72,7 @@ function App() {
     (type, payload) => callSignalHandlerRef.current?.(type, payload)
   );
 
-  const call = useCall({ currentUser, sendSignal: sendMessage });
+  const call = useCall({ currentUser, sendSignal: sendMessage, onCallEnded: handleCallEnded });
 
   callSignalHandlerRef.current = call.handleSignal;
 
@@ -105,6 +105,19 @@ function App() {
   function handleMessageDeleted(channel: string, messageId: string) {
     if (channel !== currentChannel) return;
     setMessages(prev => prev.filter(m => m.id !== messageId));
+  }
+
+  async function handleCallEnded(info: {
+    remoteUser: string;
+    status: 'completed' | 'declined' | 'cancelled';
+    durationSeconds: number;
+  }) {
+    try {
+      const dmChannel = await api.dm.getOrCreate(currentUser, info.remoteUser);
+      await api.calls.log(dmChannel.name, currentUser, info.status, info.durationSeconds);
+    } catch (error) {
+      console.error('Error logging call:', error);
+    }
   }
 
   

@@ -58,6 +58,10 @@ export namespace main {
 	    fileName?: string;
 	    fileSize?: number;
 	    mimeType?: string;
+	    isCall?: boolean;
+	    callStatus?: string;
+	    callDuration?: number;
+	    callInitiator?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Message(source);
@@ -78,6 +82,10 @@ export namespace main {
 	        this.fileName = source["fileName"];
 	        this.fileSize = source["fileSize"];
 	        this.mimeType = source["mimeType"];
+	        this.isCall = source["isCall"];
+	        this.callStatus = source["callStatus"];
+	        this.callDuration = source["callDuration"];
+	        this.callInitiator = source["callInitiator"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

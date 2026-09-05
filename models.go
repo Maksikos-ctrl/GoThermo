@@ -8,7 +8,7 @@ type Message struct {
 	Text      string              `json:"text"`
 	Channel   string              `json:"channel"`
 	Timestamp time.Time           `json:"timestamp"`
-	Reactions map[string][]string `json:"reactions"` // emoji -> [usernames]
+	Reactions map[string][]string `json:"reactions"`
 	IsPost    bool                `json:"isPost"`
 	IsEdited  bool                `json:"isEdited,omitempty"`
 	IsFile    bool                `json:"isFile,omitempty"`
@@ -16,6 +16,11 @@ type Message struct {
 	FileName  string              `json:"fileName,omitempty"`
 	FileSize  int64               `json:"fileSize,omitempty"`
 	MimeType  string              `json:"mimeType,omitempty"`
+
+	IsCall        bool   `json:"isCall,omitempty"`
+	CallStatus    string `json:"callStatus,omitempty"`
+	CallDuration  int    `json:"callDuration,omitempty"`
+	CallInitiator string `json:"callInitiator,omitempty"`
 }
 
 type Channel struct {
