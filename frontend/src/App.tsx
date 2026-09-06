@@ -405,7 +405,12 @@ function App() {
 
 
   const startVideoCall = () => {
-    alert('Video call (soon will be implemented)');
+    const partner = getDMPartner();
+    if (!partner) {
+      alert('Video calls are only available in direct messages for now');
+      return;
+    }
+    call.startCall(partner, true);
   };
 
   const startAudioCall = () => {
@@ -605,6 +610,7 @@ function App() {
       />  
       <IncomingCallModal
         callerName={call.incomingCall?.from || null}
+        isVideoCall={call.incomingCall?.hasVideo || false}
         onAccept={call.acceptCall}
         onDecline={call.declineCall}
       />
@@ -613,8 +619,13 @@ function App() {
         status={call.status}
         remoteUser={call.remoteUser}
         isMuted={call.isMuted}
+        isVideoEnabled={call.isVideoEnabled}
+        remoteHasVideo={call.remoteHasVideo}
         remoteAudioRef={call.remoteAudioRef}
+        localVideoRef={call.localVideoRef}
+        remoteVideoRef={call.remoteVideoRef}
         onToggleMute={call.toggleMute}
+        onToggleVideo={call.toggleVideo}
         onEndCall={call.endCall}
       />
 

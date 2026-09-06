@@ -2,12 +2,14 @@ import React from 'react';
 
 interface IncomingCallModalProps {
   callerName: string | null;
+  isVideoCall?: boolean;
   onAccept: () => void;
   onDecline: () => void;
 }
 
 export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
   callerName,
+  isVideoCall = false,
   onAccept,
   onDecline,
 }) => {
@@ -58,7 +60,7 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
           {callerName}
         </div>
         <div style={{ color: '#8a8f98', fontSize: '13px', marginBottom: '28px' }}>
-          Incoming audio call...
+          {isVideoCall ? 'Incoming video call...' : 'Incoming audio call...'}
         </div>
 
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>

@@ -12,7 +12,7 @@ interface UserPanelProps {
   onStartDirectMessage: (username: string) => void;
   onStartVideoCall: () => void;
   onStartAudioCall: () => void;
-  // ✅ Добавляем проп для WebSocket
+  
   onChangeStatusViaWS?: (status: StatusType) => void;
 }
 
@@ -26,12 +26,12 @@ export const UserPanel: React.FC<UserPanelProps> = ({
   onStartDirectMessage,
   onStartVideoCall,
   onStartAudioCall,
-  onChangeStatusViaWS, // ✅ Добавляем
+  onChangeStatusViaWS, 
 }) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Убираем дубликаты пользователей
+ 
   const uniqueUsersMap = new Map<string, User>();
   users.forEach(user => {
     uniqueUsersMap.set(user.username, user);
@@ -45,12 +45,12 @@ export const UserPanel: React.FC<UserPanelProps> = ({
 
   const handleStatusChange = async (status: StatusType) => {
     try {
-      // 1. Обновляем через API
+      
       const success = await api.users.updateStatus(currentUser, status);
       if (success) {
         onStatusChange(status);
         
-        // 2. Отправляем через WebSocket для мгновенной синхронизации
+       
         if (onChangeStatusViaWS) {
           onChangeStatusViaWS(status);
         }
@@ -61,7 +61,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
     setShowStatusMenu(false);
   };
 
-  // ✅ Иконки статусов
+
   const getStatusIcon = (status: string) => {
     switch(status) {
       case 'online': return '🟢';

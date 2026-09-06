@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CallStatus } from '../hooks/useCall';
 
 interface CallBarProps {
   status: CallStatus;
   remoteUser: string | null;
   isMuted: boolean;
+  isVideoEnabled: boolean;
+  remoteHasVideo: boolean;
   remoteAudioRef: React.RefObject<HTMLAudioElement>;
+  localVideoRef: React.RefObject<HTMLVideoElement>;
+  remoteVideoRef: React.RefObject<HTMLVideoElement>;
   onToggleMute: () => void;
+  onToggleVideo: () => void;
   onEndCall: () => void;
 }
 
@@ -14,8 +20,13 @@ export const CallBar: React.FC<CallBarProps> = ({
   status,
   remoteUser,
   isMuted,
+  isVideoEnabled,
+  remoteHasVideo,
   remoteAudioRef,
+  localVideoRef,
+  remoteVideoRef,
   onToggleMute,
+  onToggleVideo,
   onEndCall,
 }) => {
   const [seconds, setSeconds] = useState(0);
@@ -101,6 +112,25 @@ export const CallBar: React.FC<CallBarProps> = ({
           {isMuted ? '🔇' : '🎤'}
         </button>
 
+        {status === 'connected' && (
+          <button
+            onClick={onToggleVideo}
+            title={isVideoEnabled ? 'Turn camera off' : 'Turn camera on'}
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '50%',
+              background: isVideoEnabled ? '#23a55a' : 'transparent',
+              border: '1px solid #3f4147',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '15px',
+            }}
+          >
+            {isVideoEnabled ? '📹' : '📷'}
+          </button>
+        )}
+
         <button
           onClick={onEndCall}
           title="End call"
@@ -125,6 +155,71 @@ export const CallBar: React.FC<CallBarProps> = ({
           50% { opacity: 0.3; }
         }
       `}</style>
+
+      {(isVideoEnabled || remoteHasVideo) &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              bottom: '20px',
+              right: '20px',
+              width: '260px',
+              aspectRatio: '4 / 3',
+              background: '#000',
+              borderRadius: '14px',
+              overflow: 'hidden',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              border: '1px solid #3f4147',
+              zIndex: 9999,
+            }}
+          >
+            {remoteHasVideo ? (
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                muted
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#8a8f98',
+                  fontSize: '13px',
+                }}
+              >
+                {remoteUser}'s camera is off
+              </div>
+            )}
+
+            {isVideoEnabled && (
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  right: '8px',
+                  width: '78px',
+                  height: '58px',
+                  objectFit: 'cover',
+                  borderRadius: '8px',
+                  border: '2px solid #1e1f22',
+                  transform: 'scaleX(-1)',
+                  background: '#111',
+                }}
+              />
+            )}
+          </div>,
+          document.body
+        )}
     </>
   );
 };

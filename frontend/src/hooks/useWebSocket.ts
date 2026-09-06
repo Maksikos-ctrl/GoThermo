@@ -27,7 +27,7 @@ export const useWebSocket = (
     if (!username) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  
+    
     const wsUrl = `${protocol}//127.0.0.1:8081/ws?username=${username}`;
 
     const socket = new WebSocket(wsUrl);
@@ -83,6 +83,8 @@ export const useWebSocket = (
       case 'call_ice_candidate':
       case 'call_reject':
       case 'call_end':
+      case 'call_renegotiate_offer':
+      case 'call_renegotiate_answer':
         if (onCallSignal) {
           onCallSignal(data.type, data.payload);
         }

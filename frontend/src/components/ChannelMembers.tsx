@@ -16,9 +16,9 @@ export const ChannelMembers: React.FC<ChannelMembersProps> = ({
 }) => {
   const [members, setMembers] = useState<User[]>([]);
 
-  // Обновляем список участников при изменении users
+  
   useEffect(() => {
-    // Сортируем: сначала онлайн, потом по алфавиту
+    
     const sorted = [...users].sort((a, b) => {
       if (a.status === 'online' && b.status !== 'online') return -1;
       if (a.status !== 'online' && b.status === 'online') return 1;
@@ -71,7 +71,7 @@ export const ChannelMembers: React.FC<ChannelMembersProps> = ({
           <div className="no-members">No members yet</div>
         ) : (
           <>
-            {/* Онлайн участники */}
+            
             {members.filter(m => m.status === 'online').length > 0 && (
               <div className="members-section">
                 <div className="section-label">ONLINE — {members.filter(m => m.status === 'online').length}</div>
@@ -92,7 +92,7 @@ export const ChannelMembers: React.FC<ChannelMembersProps> = ({
               </div>
             )}
 
-            {/* Офлайн участники */}
+          
             {members.filter(m => m.status === 'offline').length > 0 && (
               <div className="members-section">
                 <div className="section-label">OFFLINE — {members.filter(m => m.status === 'offline').length}</div>
@@ -128,7 +128,6 @@ export const ChannelMembers: React.FC<ChannelMembersProps> = ({
   );
 };
 
-// Функция для генерации цвета аватара на основе имени
 function getAvatarColor(username: string): string {
   const colors = [
     '#5865f2', '#ed4245', '#57f287', '#fee75c', 
