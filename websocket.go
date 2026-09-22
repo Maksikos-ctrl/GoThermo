@@ -454,8 +454,10 @@ func (c *Client) handleMessage(msg WSMessage) {
 				c.Username, statusPayload.Status)
 		}
 
+	// ✅ НОВОЕ - все сигналы звонка просто пересылаются адресату из payload.to,
+	// сервер не хранит и не разбирает их содержимое (SDP/ICE), только маршрутизирует
 	case "call_offer", "call_answer", "call_ice_candidate", "call_reject", "call_end",
-		"call_renegotiate_offer", "call_renegotiate_answer":
+		"call_renegotiate_offer", "call_renegotiate_answer", "call_screen_share_status":
 		payloadBytes, err := json.Marshal(msg.Payload)
 		if err != nil {
 			log.Printf("Error marshaling call signal payload: %v", err)

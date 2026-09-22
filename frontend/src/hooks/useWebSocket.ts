@@ -27,7 +27,11 @@ export const useWebSocket = (
     if (!username) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    
+    // In a native Wails window, window.location.hostname resolves to the
+    // internal "wails.localhost", not "localhost", so connecting to our
+    // separate server on 8081 via that host fails. Our WS server always
+    // listens on the loopback interface, so we pin 127.0.0.1 directly -
+    // this works the same in the browser and in the desktop window.
     const wsUrl = `${protocol}//127.0.0.1:8081/ws?username=${username}`;
 
     const socket = new WebSocket(wsUrl);
@@ -85,6 +89,7 @@ export const useWebSocket = (
       case 'call_end':
       case 'call_renegotiate_offer':
       case 'call_renegotiate_answer':
+      case 'call_screen_share_status':
         if (onCallSignal) {
           onCallSignal(data.type, data.payload);
         }

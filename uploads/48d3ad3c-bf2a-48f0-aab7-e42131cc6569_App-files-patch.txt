@@ -1,0 +1,77 @@
+// ============================================
+// ПАТЧ 1: types.ts (или types/index.ts) — добавь поля файла в Message
+// ============================================
+
+export interface Message {
+  id: string;
+  user: string;
+  text: string;
+  channel: string;
+  timestamp: string;
+  reactions?: { [emoji: string]: string[] };
+  isPost?: boolean;
+  isEdited?: boolean;
+  isFile?: boolean;     // ✅ ДОБАВЬ
+  fileId?: string;      // ✅ ДОБАВЬ
+  fileName?: string;    // ✅ ДОБАВЬ
+  fileSize?: number;    // ✅ ДОБАВЬ
+  mimeType?: string;    // ✅ ДОБАВЬ
+}
+
+
+// ============================================
+// ПАТЧ 2: App.tsx — отправка файлов
+// ============================================
+
+// 1️⃣ ДОБАВЬ функцию отправки файла (рядом с handleSendMessage):
+
+const handleSendFile = async (fileName: string, mimeType: string, base64Data: string) => {
+  try {
+    await api.files.send(currentUser, currentChannel, fileName, mimeType, base64Data);
+    // Сообщение с файлом придёт обратно через WebSocket/polling так же,
+    // как обычное сообщение (SendFile его broadcast'ит точно так же)
+  } catch (error: any) {
+    alert(`Failed to send file: ${error}`);
+  }
+};
+
+
+// 2️⃣ ПЕРЕДАЙ проп onSendFile в MessageComposer:
+
+<MessageComposer
+  currentChannel={currentChannel}
+  isPostMode={isPostMode}
+  message={newMessage}
+  onSend={handleSendMessage}
+  onMessageChange={setNewMessage}
+  onTogglePostMode={() => setIsPostMode(!isPostMode)}
+  mentionableUsers={allUsernames}
+  onSendFile={handleSendFile} // ✅ ДОБАВЬ
+/>
+
+
+// ============================================
+// ГОТОВО. Как это работает:
+// ============================================
+// 1. Клик на 📎 в поле ввода открывает системный выбор файла (обычный
+//    <input type="file">, работает одинаково в браузере и десктопе).
+// 2. Файл читается через FileReader как base64 data-URL прямо в браузере/
+//    webview, без обращения к диску напрямую.
+// 3. Отправляется на бэкенд через обычный Wails RPC вызов SendFile (как
+//    SendMessage) - файл сохраняется на диск в папку "uploads/" рядом
+//    с исполняемым файлом приложения, метаданные (путь, mime-type) - в Redis.
+// 4. В чате сообщение с файлом рассылается всем как обычное сообщение
+//    (через тот же BroadcastToChannel), но с флагом isFile=true.
+// 5. Картинки автоматически подгружаются и показываются превью сразу
+//    при рендере сообщения. Остальные файлы показываются карточкой
+//    с иконкой и размером - клик скачивает файл.
+// 6. Скачивание/показ файла тоже идёт через RPC (GetFileData возвращает
+//    файл обратно как base64), НЕ через отдельный HTTP-роут - это
+//    сознательное решение, так как в проекте нет настроенного HTTP-роутера
+//    для /files (см. диагностику с /ws выше), а RPC уже гарантированно
+//    работает одинаково в десктопе и браузере.
+//
+// ⚠️ ВАЖНО: раз файлы идут через base64+RPC, а не потоковую передачу,
+// это не самый эффективный способ для очень больших файлов (десятки-сотни
+// МБ) - вся передача идёт в памяти. Для обычных документов/картинок
+// (до нескольких МБ) это будет работать нормально и быстро.

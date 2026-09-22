@@ -8,11 +8,15 @@ interface CallBarProps {
   isMuted: boolean;
   isVideoEnabled: boolean;
   remoteHasVideo: boolean;
+  isScreenSharing: boolean;
+  remoteIsScreenSharing: boolean;
   remoteAudioRef: React.RefObject<HTMLAudioElement>;
   localVideoRef: React.RefObject<HTMLVideoElement>;
   remoteVideoRef: React.RefObject<HTMLVideoElement>;
+  remoteScreenVideoRef: React.RefObject<HTMLVideoElement>;
   onToggleMute: () => void;
   onToggleVideo: () => void;
+  onToggleScreenShare: () => void;
   onEndCall: () => void;
 }
 
@@ -22,11 +26,15 @@ export const CallBar: React.FC<CallBarProps> = ({
   isMuted,
   isVideoEnabled,
   remoteHasVideo,
+  isScreenSharing,
+  remoteIsScreenSharing,
   remoteAudioRef,
   localVideoRef,
   remoteVideoRef,
+  remoteScreenVideoRef,
   onToggleMute,
   onToggleVideo,
+  onToggleScreenShare,
   onEndCall,
 }) => {
   const [seconds, setSeconds] = useState(0);
@@ -131,6 +139,25 @@ export const CallBar: React.FC<CallBarProps> = ({
           </button>
         )}
 
+        {status === 'connected' && (
+          <button
+            onClick={onToggleScreenShare}
+            title={isScreenSharing ? 'Stop sharing screen' : 'Share your screen'}
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '50%',
+              background: isScreenSharing ? '#5865f2' : 'transparent',
+              border: '1px solid #3f4147',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '15px',
+            }}
+          >
+            🖥️
+          </button>
+        )}
+
         <button
           onClick={onEndCall}
           title="End call"
@@ -156,7 +183,7 @@ export const CallBar: React.FC<CallBarProps> = ({
         }
       `}</style>
 
-      {(isVideoEnabled || remoteHasVideo) &&
+      {(isVideoEnabled || remoteHasVideo || remoteIsScreenSharing) &&
         createPortal(
           <div
             style={{
@@ -173,7 +200,15 @@ export const CallBar: React.FC<CallBarProps> = ({
               zIndex: 9999,
             }}
           >
-            {remoteHasVideo ? (
+            {remoteIsScreenSharing ? (
+              <video
+                ref={remoteScreenVideoRef}
+                autoPlay
+                muted
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
+              />
+            ) : remoteHasVideo ? (
               <video
                 ref={remoteVideoRef}
                 autoPlay
@@ -195,6 +230,27 @@ export const CallBar: React.FC<CallBarProps> = ({
               >
                 {remoteUser}'s camera is off
               </div>
+            )}
+
+            {/* Remote camera as a small circle overlay while they're sharing their screen */}
+            {remoteIsScreenSharing && remoteHasVideo && (
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                muted
+                playsInline
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  width: '52px',
+                  height: '52px',
+                  objectFit: 'cover',
+                  borderRadius: '50%',
+                  border: '2px solid #1e1f22',
+                  background: '#111',
+                }}
+              />
             )}
 
             {isVideoEnabled && (

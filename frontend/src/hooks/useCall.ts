@@ -27,29 +27,46 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [remoteHasVideo, setRemoteHasVideo] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [remoteIsScreenSharing, setRemoteIsScreenSharing] = useState(false);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteScreenVideoRef = useRef<HTMLVideoElement | null>(null);
   const localVideoStreamRef = useRef<MediaStream | null>(null);
   const remoteVideoStreamRef = useRef<MediaStream | null>(null);
+  const localScreenStreamRef = useRef<MediaStream | null>(null);
+  const remoteScreenStreamRef = useRef<MediaStream | null>(null);
+  const screenSenderRef = useRef<RTCRtpSender | null>(null);
+  // Track id the remote side told us to expect for their screen-share
+  // track, so ontrack can tell it apart from their camera track (both
+  // are simply "video" kind tracks from WebRTC's point of view).
+  const expectingRemoteScreenTrackRef = useRef(false);
   const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const iceQueueRef = useRef<RTCIceCandidateInit[]>([]);
 
-
+  // Guards against the automatic onnegotiationneeded firing during the
+  // initial manual offer/answer exchange (we only want it to react to
+  // renegotiation triggered later, e.g. by turning the camera on).
   const initialNegotiationDoneRef = useRef(false);
 
-  
+  // Only the initiator logs the call summary, to avoid duplicate log
+  // entries from both sides of the same call.
   const isInitiatorRef = useRef(false);
   const callStartTimeRef = useRef<number | null>(null);
   const remoteUserRef = useRef<string | null>(null);
 
- 
+  // Set when either side intends this to be a "video call" (button pressed
+  // by the caller, or offer flagged by the caller). We don't put video in
+  // the initial SDP - once connected, we trigger the camera via the same
+  // renegotiation path used by the manual camera toggle, since that path
+  // is reliable while embedding video in the very first offer was not.
   const wantsVideoRef = useRef(false);
 
-  
+  // --- Ringtone (Web Audio API, no files needed) ---
   const audioCtxRef = useRef<AudioContext | null>(null);
   const ringTimeoutRef = useRef<number | null>(null);
 
@@ -90,7 +107,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     }
   }, []);
 
-  
+  // Caller side: classic ringback tone - 1s tone, 3s silence, repeat
   const startOutgoingRingback = useCallback(() => {
     stopRingtone();
     const cycle = () => {
@@ -100,7 +117,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     cycle();
   }, [playTone, stopRingtone]);
 
-
+  // Callee side: double-beep phone ring, pause, repeat
   const startIncomingRing = useCallback(() => {
     stopRingtone();
     const cycle = () => {
@@ -123,7 +140,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     }
     return stopRingtone;
   }, [status, startOutgoingRingback, startIncomingRing, stopRingtone]);
-  
+  // --- end ringtone ---
 
   useEffect(() => {
     if (status === 'connected') {
@@ -146,6 +163,13 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
       remoteVideoRef.current.play().catch(() => {});
     }
   }, [remoteHasVideo]);
+
+  useEffect(() => {
+    if (remoteIsScreenSharing && remoteScreenVideoRef.current && remoteScreenStreamRef.current) {
+      remoteScreenVideoRef.current.srcObject = remoteScreenStreamRef.current;
+      remoteScreenVideoRef.current.play().catch(() => {});
+    }
+  }, [remoteIsScreenSharing]);
 
   const cleanup = useCallback(
     (explicitStatus?: 'completed' | 'declined' | 'cancelled') => {
@@ -172,9 +196,15 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
       localVideoStreamRef.current?.getTracks().forEach((t) => t.stop());
       localVideoStreamRef.current = null;
       remoteVideoStreamRef.current = null;
+      localScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      localScreenStreamRef.current = null;
+      remoteScreenStreamRef.current = null;
+      screenSenderRef.current = null;
+      expectingRemoteScreenTrackRef.current = false;
       if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
       if (localVideoRef.current) localVideoRef.current.srcObject = null;
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+      if (remoteScreenVideoRef.current) remoteScreenVideoRef.current.srcObject = null;
       iceQueueRef.current = [];
       pendingOfferRef.current = null;
       setStatus('idle');
@@ -183,6 +213,8 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
       setIsMuted(false);
       setIsVideoEnabled(false);
       setRemoteHasVideo(false);
+      setIsScreenSharing(false);
+      setRemoteIsScreenSharing(false);
     },
     [onCallEnded, stopRingtone]
   );
@@ -215,7 +247,32 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
           return;
         }
 
+        // WebRTC track ids aren't guaranteed to match between sender and
+        // receiver across different browser engines, so instead of
+        // comparing ids we rely on a simple "the other side told us a
+        // screen-share track is about to arrive" flag, set by the
+        // call_screen_share_status signal which is always sent right
+        // before the track itself (see toggleScreenShare).
+        const isScreenTrack = expectingRemoteScreenTrackRef.current;
 
+        if (isScreenTrack) {
+          expectingRemoteScreenTrackRef.current = false;
+          if (!remoteScreenStreamRef.current) {
+            remoteScreenStreamRef.current = new MediaStream();
+          }
+          remoteScreenStreamRef.current.addTrack(e.track);
+          if (remoteScreenVideoRef.current) {
+            remoteScreenVideoRef.current.srcObject = remoteScreenStreamRef.current;
+          }
+          setRemoteIsScreenSharing(true);
+
+          e.track.onended = () => {
+            setRemoteIsScreenSharing(false);
+          };
+          return;
+        }
+
+        // camera track: build/append to a dedicated remote video stream
         if (!remoteVideoStreamRef.current) {
           remoteVideoStreamRef.current = new MediaStream();
         }
@@ -230,7 +287,9 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
         };
       };
 
-   
+      // Fires when a track is added/removed after the initial handshake
+      // (e.g. turning the camera on mid-call). We ignore it until the
+      // initial manual offer/answer exchange has completed.
       pc.onnegotiationneeded = async () => {
         if (!initialNegotiationDoneRef.current) return;
         try {
@@ -376,6 +435,60 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     setIsVideoEnabled(newEnabled);
   }, [isVideoEnabled]);
 
+  const toggleScreenShareRef = useRef<() => void>(() => {});
+
+  const toggleScreenShare = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc) return;
+
+    if (isScreenSharing) {
+      if (screenSenderRef.current) {
+        pc.removeTrack(screenSenderRef.current);
+        screenSenderRef.current = null;
+      }
+      localScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      localScreenStreamRef.current = null;
+      setIsScreenSharing(false);
+      sendSignal('call_screen_share_status', { to: remoteUserRef.current, from: currentUser, sharing: false });
+      return;
+    }
+
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' } as MediaTrackConstraints,
+        audio: false,
+      });
+      const screenTrack = screenStream.getVideoTracks()[0];
+      localScreenStreamRef.current = screenStream;
+
+      // Tell the other side a screen-share track is about to arrive, so
+      // their ontrack handler knows to treat the next incoming video
+      // track as a screen rather than a camera (a plain WebRTC video
+      // track carries no such info itself, and track ids aren't reliably
+      // preserved across different browser engines).
+      sendSignal('call_screen_share_status', {
+        to: remoteUserRef.current,
+        from: currentUser,
+        sharing: true,
+      });
+
+      screenSenderRef.current = pc.addTrack(screenTrack, screenStream);
+      setIsScreenSharing(true);
+
+      // Fires when the user stops sharing via the browser/OS "Stop
+      // sharing" control instead of our own button.
+      screenTrack.onended = () => {
+        toggleScreenShareRef.current();
+      };
+    } catch (err) {
+      console.error('Failed to start screen share:', err, (err as DOMException)?.name, (err as DOMException)?.message);
+    }
+  }, [isScreenSharing, currentUser, sendSignal]);
+
+  useEffect(() => {
+    toggleScreenShareRef.current = toggleScreenShare;
+  }, [toggleScreenShare]);
+
   const toggleMute = useCallback(() => {
     if (!localStreamRef.current) return;
     const newMuted = !isMuted;
@@ -462,6 +575,19 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
           break;
         }
 
+        case 'call_screen_share_status': {
+          if (payload.to !== currentUser) return;
+          if (payload.sharing) {
+            expectingRemoteScreenTrackRef.current = true;
+          } else {
+            expectingRemoteScreenTrackRef.current = false;
+            remoteScreenStreamRef.current = null;
+            if (remoteScreenVideoRef.current) remoteScreenVideoRef.current.srcObject = null;
+            setRemoteIsScreenSharing(false);
+          }
+          break;
+        }
+
         case 'call_reject': {
           if (payload.to !== currentUser) return;
           cleanup('declined');
@@ -485,15 +611,19 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     isMuted,
     isVideoEnabled,
     remoteHasVideo,
+    isScreenSharing,
+    remoteIsScreenSharing,
     remoteAudioRef,
     localVideoRef,
     remoteVideoRef,
+    remoteScreenVideoRef,
     startCall,
     acceptCall,
     declineCall,
     endCall,
     toggleMute,
     toggleVideo,
+    toggleScreenShare,
     handleSignal,
   };
 }

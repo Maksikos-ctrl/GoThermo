@@ -621,11 +621,15 @@ function App() {
         isMuted={call.isMuted}
         isVideoEnabled={call.isVideoEnabled}
         remoteHasVideo={call.remoteHasVideo}
+        isScreenSharing={call.isScreenSharing}
+        remoteIsScreenSharing={call.remoteIsScreenSharing}
         remoteAudioRef={call.remoteAudioRef}
         localVideoRef={call.localVideoRef}
         remoteVideoRef={call.remoteVideoRef}
+        remoteScreenVideoRef={call.remoteScreenVideoRef}
         onToggleMute={call.toggleMute}
         onToggleVideo={call.toggleVideo}
+        onToggleScreenShare={call.toggleScreenShare}
         onEndCall={call.endCall}
       />
 
