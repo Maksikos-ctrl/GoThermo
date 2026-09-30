@@ -26,6 +26,8 @@ export function GetMessages(arg1:string):Promise<Array<main.Message>>;
 
 export function GetOrCreateDMChannel(arg1:string,arg2:string):Promise<main.Channel>;
 
+export function GetOrCreateGroupChannel(arg1:Array<string>,arg2:string):Promise<main.Channel>;
+
 export function GetUnreadCounts(arg1:string):Promise<Record<string, number>>;
 
 export function GetUsers():Promise<Array<main.User>>;

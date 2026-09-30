@@ -50,6 +50,10 @@ export function GetOrCreateDMChannel(arg1, arg2) {
   return window['go']['main']['App']['GetOrCreateDMChannel'](arg1, arg2);
 }
 
+export function GetOrCreateGroupChannel(arg1, arg2) {
+  return window['go']['main']['App']['GetOrCreateGroupChannel'](arg1, arg2);
+}
+
 export function GetUnreadCounts(arg1) {
   return window['go']['main']['App']['GetUnreadCounts'](arg1);
 }

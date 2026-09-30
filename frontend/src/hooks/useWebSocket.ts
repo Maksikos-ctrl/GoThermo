@@ -11,12 +11,16 @@ export const useWebSocket = (
   onStatusUpdate: (username: string, status: string) => void,
   onNewMessage: (channel: string, message: Message) => void,
   onMessageDeleted?: (channel: string, messageId: string) => void,
-  onCallSignal?: (type: string, payload: any) => void
+  onCallSignal?: (type: string, payload: any) => void,
+  onGroupCallSignal?: (type: string, payload: any) => void
 ) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   const sendMessage = useCallback((type: string, payload: any) => {
+    if (type.startsWith('group_call')) {
+      console.log('[WS] sending', type, payload, 'connected=', isConnected);
+    }
     if (ws && isConnected) {
       const message = { type, payload };
       ws.send(JSON.stringify(message));
@@ -27,11 +31,7 @@ export const useWebSocket = (
     if (!username) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // In a native Wails window, window.location.hostname resolves to the
-    // internal "wails.localhost", not "localhost", so connecting to our
-    // separate server on 8081 via that host fails. Our WS server always
-    // listens on the loopback interface, so we pin 127.0.0.1 directly -
-    // this works the same in the browser and in the desktop window.
+  
     const wsUrl = `${protocol}//127.0.0.1:8081/ws?username=${username}`;
 
     const socket = new WebSocket(wsUrl);
@@ -65,6 +65,9 @@ export const useWebSocket = (
   }, [username]);
 
   const handleMessage = (data: WSMessage) => {
+    if (data.type.startsWith('group_call')) {
+      console.log('[WS] received', data.type, data.payload);
+    }
     switch (data.type) {
       case 'status_update':
         const { username, status } = data.payload;
@@ -92,6 +95,21 @@ export const useWebSocket = (
       case 'call_screen_share_status':
         if (onCallSignal) {
           onCallSignal(data.type, data.payload);
+        }
+        break;
+
+      case 'group_call_invite':
+      case 'group_call_accept':
+      case 'group_call_decline':
+      case 'group_call_join':
+      case 'group_call_roster':
+      case 'group_call_offer':
+      case 'group_call_answer':
+      case 'group_call_ice_candidate':
+      case 'group_call_leave':
+      case 'group_call_screen_share_status':
+        if (onGroupCallSignal) {
+          onGroupCallSignal(data.type, data.payload);
         }
         break;
 

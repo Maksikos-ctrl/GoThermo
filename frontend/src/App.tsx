@@ -22,6 +22,10 @@ import { SearchModal } from './components/SearchModal';
 import { useCall } from './hooks/useCall';
 import { IncomingCallModal } from './components/IncomingCallModal';
 import { CallBar } from './components/CallBar';
+import { useGroupCall } from './hooks/useGroupCall';
+import { GroupCallInviteModal } from './components/GroupCallInviteModal';
+import { StartGroupCallModal } from './components/StartGroupCallModal';
+import { GroupCallGrid } from './components/GroupCallGrid';
 
 
 
@@ -64,17 +68,23 @@ function App() {
   const [showSearchModal, setShowSearchModal] = useState(false);
 
   const callSignalHandlerRef = useRef<((type: string, payload: any) => void) | null>(null);
+  const groupCallSignalHandlerRef = useRef<((type: string, payload: any) => void) | null>(null);
   const { isConnected, subscribeToChannel, changeStatus, sendMessage } = useWebSocket(
     currentUser,
     handleStatusUpdate,
     handleNewMessage,
     handleMessageDeleted,
-    (type, payload) => callSignalHandlerRef.current?.(type, payload)
+    (type, payload) => callSignalHandlerRef.current?.(type, payload),
+    (type, payload) => groupCallSignalHandlerRef.current?.(type, payload)
   );
 
   const call = useCall({ currentUser, sendSignal: sendMessage, onCallEnded: handleCallEnded });
+  const groupCall = useGroupCall({ currentUser, sendSignal: sendMessage, onGroupCallEnded: handleGroupCallEnded });
 
   callSignalHandlerRef.current = call.handleSignal;
+  groupCallSignalHandlerRef.current = groupCall.handleGroupSignal;
+
+  const [showStartGroupCallModal, setShowStartGroupCallModal] = useState(false);
 
 
 
@@ -117,6 +127,19 @@ function App() {
       await api.calls.log(dmChannel.name, currentUser, info.status, info.durationSeconds);
     } catch (error) {
       console.error('Error logging call:', error);
+    }
+  }
+
+  async function handleGroupCallEnded(info: {
+    participants: string[];
+    durationSeconds: number;
+    status: 'completed' | 'cancelled';
+  }) {
+    try {
+      const groupChannel = await api.dm.getOrCreateGroup(info.participants, currentUser);
+      await api.calls.log(groupChannel.name, currentUser, info.status, info.durationSeconds);
+    } catch (error) {
+      console.error('Error logging group call:', error);
     }
   }
 
@@ -631,6 +654,62 @@ function App() {
         onToggleVideo={call.toggleVideo}
         onToggleScreenShare={call.toggleScreenShare}
         onEndCall={call.endCall}
+      />
+
+      <button
+        onClick={() => setShowStartGroupCallModal(true)}
+        title="Start a group call"
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: showUserPanel ? '260px' : '20px',
+          zIndex: 9998,
+          width: '44px',
+          height: '44px',
+          borderRadius: '50%',
+          background: '#5865f2',
+          border: 'none',
+          color: 'white',
+          fontSize: '18px',
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+        }}
+      >
+        👥
+      </button>
+
+      <StartGroupCallModal
+        isOpen={showStartGroupCallModal}
+        users={users}
+        currentUser={currentUser}
+        onClose={() => setShowStartGroupCallModal(false)}
+        onStart={(usernames) => groupCall.startGroupCall(usernames)}
+      />
+
+      <GroupCallInviteModal
+        from={groupCall.incomingInvite?.from || null}
+        participants={groupCall.incomingInvite?.participants || []}
+        onAccept={groupCall.acceptGroupInvite}
+        onDecline={groupCall.declineGroupInvite}
+      />
+
+      <GroupCallGrid
+        inCall={groupCall.inCall}
+        participants={groupCall.participants}
+        joinedParticipants={groupCall.joinedParticipants}
+        currentUser={currentUser}
+        isMuted={groupCall.isMuted}
+        isVideoEnabled={groupCall.isVideoEnabled}
+        isScreenSharing={groupCall.isScreenSharing}
+        remotePeers={groupCall.remotePeers}
+        localVideoRef={groupCall.localVideoRef}
+        registerRemoteAudioRef={groupCall.registerRemoteAudioRef}
+        registerRemoteVideoRef={groupCall.registerRemoteVideoRef}
+        registerRemoteScreenVideoRef={groupCall.registerRemoteScreenVideoRef}
+        onToggleMute={groupCall.toggleMute}
+        onToggleVideo={groupCall.toggleVideo}
+        onToggleScreenShare={groupCall.toggleScreenShare}
+        onLeave={groupCall.leaveGroupCall}
       />
 
 

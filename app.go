@@ -492,6 +492,52 @@ func (a *App) GetOrCreateDMChannel(user1, user2 string) (Channel, error) {
 	return channel, nil
 }
 
+// GetOrCreateGroupChannel returns (creating if needed) a stable channel shared
+// by exactly this set of usernames, used as the home for group call logs
+// (and, as a side effect, a persistent group chat for that same set of
+// people). The name is deterministic from the sorted, de-duplicated
+// member list, so any caller with the same participants always lands on
+// the same channel - same idea as the 1:1 "dm_user1_user2" naming.
+func (a *App) GetOrCreateGroupChannel(usernames []string, createdBy string) (Channel, error) {
+	unique := make(map[string]bool)
+	members := make([]string, 0, len(usernames))
+	for _, u := range usernames {
+		if u == "" || unique[u] {
+			continue
+		}
+		unique[u] = true
+		members = append(members, u)
+	}
+	if len(members) < 2 {
+		return Channel{}, fmt.Errorf("need at least 2 distinct participants")
+	}
+
+	sort.Strings(members)
+	groupName := fmt.Sprintf("dm_group_%s", strings.Join(members, "_"))
+
+	existing, err := GetChannel(groupName)
+	if err == nil && existing != nil {
+		return *existing, nil
+	}
+
+	channel := Channel{
+		ID:          uuid.New().String(),
+		Name:        groupName,
+		Description: "Group call",
+		Members:     members,
+		CreatedBy:   createdBy,
+		CreatedAt:   time.Now(),
+		IsPrivate:   true,
+	}
+
+	if err := SaveChannel(channel); err != nil {
+		return Channel{}, fmt.Errorf("failed to create group channel: %v", err)
+	}
+
+	log.Printf("💬 Group channel created: %s", groupName)
+	return channel, nil
+}
+
 func (a *App) DeleteDMChannel(channelName, username string) error {
 	channel, err := GetChannel(channelName)
 	if err != nil {

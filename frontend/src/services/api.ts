@@ -12,6 +12,7 @@ import {
   GetUsers,
   UpdateUserStatus,
   GetOrCreateDMChannel,
+  GetOrCreateGroupChannel,
   GetDMChannels,
   DeleteDMChannel,
   MarkChannelRead,
@@ -42,6 +43,7 @@ export const api = {
   },
   dm: {
     getOrCreate: GetOrCreateDMChannel,
+    getOrCreateGroup: GetOrCreateGroupChannel,
     getAll: GetDMChannels,
     delete: DeleteDMChannel, 
   },
