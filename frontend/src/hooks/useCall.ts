@@ -15,12 +15,13 @@ interface UseCallParams {
     status: 'completed' | 'declined' | 'cancelled';
     durationSeconds: number;
   }) => void;
+  onError?: (message: string) => void;
 }
 
 
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
-export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams) {
+export function useCall({ currentUser, sendSignal, onCallEnded, onError }: UseCallParams) {
   const [status, setStatus] = useState<CallStatus>('idle');
   const [remoteUser, setRemoteUser] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallInfo | null>(null);
@@ -41,23 +42,32 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
   const localScreenStreamRef = useRef<MediaStream | null>(null);
   const remoteScreenStreamRef = useRef<MediaStream | null>(null);
   const screenSenderRef = useRef<RTCRtpSender | null>(null);
-  
+  // Track id the remote side told us to expect for their screen-share
+  // track, so ontrack can tell it apart from their camera track (both
+  // are simply "video" kind tracks from WebRTC's point of view).
   const expectingRemoteScreenTrackRef = useRef(false);
   const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const iceQueueRef = useRef<RTCIceCandidateInit[]>([]);
 
-  
+  // Guards against the automatic onnegotiationneeded firing during the
+  // initial manual offer/answer exchange (we only want it to react to
+  // renegotiation triggered later, e.g. by turning the camera on).
   const initialNegotiationDoneRef = useRef(false);
 
- 
+  // Only the initiator logs the call summary, to avoid duplicate log
+  // entries from both sides of the same call.
   const isInitiatorRef = useRef(false);
   const callStartTimeRef = useRef<number | null>(null);
   const remoteUserRef = useRef<string | null>(null);
 
-
+  // Set when either side intends this to be a "video call" (button pressed
+  // by the caller, or offer flagged by the caller). We don't put video in
+  // the initial SDP - once connected, we trigger the camera via the same
+  // renegotiation path used by the manual camera toggle, since that path
+  // is reliable while embedding video in the very first offer was not.
   const wantsVideoRef = useRef(false);
 
-  
+  // --- Ringtone (Web Audio API, no files needed) ---
   const audioCtxRef = useRef<AudioContext | null>(null);
   const ringTimeoutRef = useRef<number | null>(null);
 
@@ -98,7 +108,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     }
   }, []);
 
-
+  // Caller side: classic ringback tone - 1s tone, 3s silence, repeat
   const startOutgoingRingback = useCallback(() => {
     stopRingtone();
     const cycle = () => {
@@ -108,7 +118,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     cycle();
   }, [playTone, stopRingtone]);
 
-  
+  // Callee side: double-beep phone ring, pause, repeat
   const startIncomingRing = useCallback(() => {
     stopRingtone();
     const cycle = () => {
@@ -131,7 +141,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     }
     return stopRingtone;
   }, [status, startOutgoingRingback, startIncomingRing, stopRingtone]);
-  
+  // --- end ringtone ---
 
   useEffect(() => {
     if (status === 'connected') {
@@ -238,7 +248,12 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
           return;
         }
 
-        
+        // WebRTC track ids aren't guaranteed to match between sender and
+        // receiver across different browser engines, so instead of
+        // comparing ids we rely on a simple "the other side told us a
+        // screen-share track is about to arrive" flag, set by the
+        // call_screen_share_status signal which is always sent right
+        // before the track itself (see toggleScreenShare).
         const isScreenTrack = expectingRemoteScreenTrackRef.current;
 
         if (isScreenTrack) {
@@ -258,7 +273,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
           return;
         }
 
-        
+        // camera track: build/append to a dedicated remote video stream
         if (!remoteVideoStreamRef.current) {
           remoteVideoStreamRef.current = new MediaStream();
         }
@@ -273,7 +288,9 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
         };
       };
 
-     
+      // Fires when a track is added/removed after the initial handshake
+      // (e.g. turning the camera on mid-call). We ignore it until the
+      // initial manual offer/answer exchange has completed.
       pc.onnegotiationneeded = async () => {
         if (!initialNegotiationDoneRef.current) return;
         try {
@@ -306,7 +323,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
   const startCall = useCallback(
     async (targetUser: string, withVideo: boolean = false) => {
       if (status !== 'idle') {
-        alert('You are already in a call');
+        onError ? onError('You are already in a call') : alert('You are already in a call');
         return;
       }
       try {
@@ -332,7 +349,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
         cleanup();
       }
     },
-    [status, createPeerConnection, currentUser, sendSignal, cleanup]
+    [status, createPeerConnection, currentUser, sendSignal, cleanup, onError]
   );
 
  
@@ -445,7 +462,11 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
       const screenTrack = screenStream.getVideoTracks()[0];
       localScreenStreamRef.current = screenStream;
 
-     
+      // Tell the other side a screen-share track is about to arrive, so
+      // their ontrack handler knows to treat the next incoming video
+      // track as a screen rather than a camera (a plain WebRTC video
+      // track carries no such info itself, and track ids aren't reliably
+      // preserved across different browser engines).
       sendSignal('call_screen_share_status', {
         to: remoteUserRef.current,
         from: currentUser,
@@ -455,7 +476,8 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
       screenSenderRef.current = pc.addTrack(screenTrack, screenStream);
       setIsScreenSharing(true);
 
-      
+      // Fires when the user stops sharing via the browser/OS "Stop
+      // sharing" control instead of our own button.
       screenTrack.onended = () => {
         toggleScreenShareRef.current();
       };
@@ -475,7 +497,9 @@ export function useCall({ currentUser, sendSignal, onCallEnded }: UseCallParams)
     setIsMuted(newMuted);
   }, [isMuted]);
 
-
+  // Once the (audio-only) handshake connects, if this was meant to be a
+  // video call, kick off the camera through the same reliable renegotiation
+  // path used by the manual toggle button - this fires once per call.
   useEffect(() => {
     if (status === 'connected' && wantsVideoRef.current) {
       wantsVideoRef.current = false;

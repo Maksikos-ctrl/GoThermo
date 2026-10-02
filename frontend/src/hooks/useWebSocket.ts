@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Message } from '../types';
 
 interface WSMessage {
@@ -12,15 +12,31 @@ export const useWebSocket = (
   onNewMessage: (channel: string, message: Message) => void,
   onMessageDeleted?: (channel: string, messageId: string) => void,
   onCallSignal?: (type: string, payload: any) => void,
-  onGroupCallSignal?: (type: string, payload: any) => void
+  onGroupCallSignal?: (type: string, payload: any) => void,
+  onChannelCreated?: (channel: any) => void,
+  onChannelDeleted?: (channelName: string) => void
 ) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
+ 
+  const onStatusUpdateRef = useRef(onStatusUpdate);
+  const onNewMessageRef = useRef(onNewMessage);
+  const onMessageDeletedRef = useRef(onMessageDeleted);
+  const onCallSignalRef = useRef(onCallSignal);
+  const onGroupCallSignalRef = useRef(onGroupCallSignal);
+  const onChannelCreatedRef = useRef(onChannelCreated);
+  const onChannelDeletedRef = useRef(onChannelDeleted);
+
+  onStatusUpdateRef.current = onStatusUpdate;
+  onNewMessageRef.current = onNewMessage;
+  onMessageDeletedRef.current = onMessageDeleted;
+  onCallSignalRef.current = onCallSignal;
+  onGroupCallSignalRef.current = onGroupCallSignal;
+  onChannelCreatedRef.current = onChannelCreated;
+  onChannelDeletedRef.current = onChannelDeleted;
+
   const sendMessage = useCallback((type: string, payload: any) => {
-    if (type.startsWith('group_call')) {
-      console.log('[WS] sending', type, payload, 'connected=', isConnected);
-    }
     if (ws && isConnected) {
       const message = { type, payload };
       ws.send(JSON.stringify(message));
@@ -31,7 +47,7 @@ export const useWebSocket = (
     if (!username) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  
+   
     const wsUrl = `${protocol}//127.0.0.1:8081/ws?username=${username}`;
 
     const socket = new WebSocket(wsUrl);
@@ -65,23 +81,32 @@ export const useWebSocket = (
   }, [username]);
 
   const handleMessage = (data: WSMessage) => {
-    if (data.type.startsWith('group_call')) {
-      console.log('[WS] received', data.type, data.payload);
-    }
     switch (data.type) {
       case 'status_update':
         const { username, status } = data.payload;
-        onStatusUpdate(username, status);
+        onStatusUpdateRef.current(username, status);
         break;
 
       case 'channel_message':
         const { channel, message } = data.payload;
-        onNewMessage(channel, message);
+        onNewMessageRef.current(channel, message);
         break;
 
       case 'message_deleted':
-        if (onMessageDeleted) {
-          onMessageDeleted(data.payload.channel, data.payload.messageId);
+        if (onMessageDeletedRef.current) {
+          onMessageDeletedRef.current(data.payload.channel, data.payload.messageId);
+        }
+        break;
+
+      case 'channel_created':
+        if (onChannelCreatedRef.current) {
+          onChannelCreatedRef.current(data.payload);
+        }
+        break;
+
+      case 'channel_deleted':
+        if (onChannelDeletedRef.current) {
+          onChannelDeletedRef.current(data.payload.channel);
         }
         break;
 
@@ -93,8 +118,8 @@ export const useWebSocket = (
       case 'call_renegotiate_offer':
       case 'call_renegotiate_answer':
       case 'call_screen_share_status':
-        if (onCallSignal) {
-          onCallSignal(data.type, data.payload);
+        if (onCallSignalRef.current) {
+          onCallSignalRef.current(data.type, data.payload);
         }
         break;
 
@@ -108,8 +133,8 @@ export const useWebSocket = (
       case 'group_call_ice_candidate':
       case 'group_call_leave':
       case 'group_call_screen_share_status':
-        if (onGroupCallSignal) {
-          onGroupCallSignal(data.type, data.payload);
+        if (onGroupCallSignalRef.current) {
+          onGroupCallSignalRef.current(data.type, data.payload);
         }
         break;
 
@@ -121,7 +146,7 @@ export const useWebSocket = (
 
       case 'users_list':
         data.payload.forEach((user: any) => {
-          onStatusUpdate(user.username, user.status || 'offline');
+          onStatusUpdateRef.current(user.username, user.status || 'offline');
         });
         break;
 

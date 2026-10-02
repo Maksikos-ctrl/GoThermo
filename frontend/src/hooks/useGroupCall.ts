@@ -5,7 +5,7 @@ export const MAX_GROUP_PARTICIPANTS = 4;
 interface IncomingGroupInvite {
   callId: string;
   from: string;
-  participants: string[]; // full list including the initiator
+  participants: string[]; 
 }
 
 interface RemotePeerState {
@@ -17,10 +17,7 @@ interface PeerEntry {
   pc: RTCPeerConnection;
   initialNegotiationDone: boolean;
   iceQueue: RTCIceCandidateInit[];
-  // Set right before we expect the next incoming video track from this
-  // peer to be their screen share rather than their camera - WebRTC
-  // itself has no notion of "this video track is a screen", so we signal
-  // it out of band (see group_call_screen_share_status).
+  
   expectingScreenTrack: boolean;
 }
 
@@ -28,15 +25,16 @@ interface UseGroupCallParams {
   currentUser: string;
   sendSignal: (type: string, payload: any) => void;
   onGroupCallEnded?: (info: {
-    participants: string[]; // everyone who actually joined
+    participants: string[]; 
     durationSeconds: number;
     status: 'completed' | 'cancelled';
   }) => void;
+  onError?: (message: string) => void;
 }
 
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
-export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseGroupCallParams) {
+export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded, onError }: UseGroupCallParams) {
   const [inCall, setInCall] = useState(false);
   const [participants, setParticipants] = useState<string[]>([]);
   const [joinedParticipants, setJoinedParticipants] = useState<string[]>([]);
@@ -66,12 +64,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
     Map<string, { audio: MediaStream; video: MediaStream | null; screen: MediaStream | null }>
   >(new Map());
 
-  // Re-attach a specific remote peer's streams to whatever DOM node is
-  // currently registered for them - same fix as the 1:1 call: the actual
-  // <video>/<audio> element can mount/unmount as the UI re-renders (e.g.
-  // grid re-layout when someone joins/leaves), so state changes alone
-  // aren't enough to guarantee the element exists yet when we first learn
-  // about the stream.
+ 
   const reattachPeerMedia = useCallback((username: string) => {
     const streams = remoteStreams.current.get(username);
     if (!streams) return;
@@ -135,11 +128,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
     }
   }, [isVideoEnabled]);
 
-  // Defensive: re-attach every known peer's media whenever their state
-  // changes (video on/off, screen share on/off, someone (re)joins). The
-  // ref-mount callback covers the common case, but grid tiles can
-  // remount in ways that don't always fire it in every browser, so this
-  // is a safety net that costs nothing when there's nothing to redo.
+  
   useEffect(() => {
     Object.keys(remotePeers).forEach((username) => reattachPeerMedia(username));
   }, [remotePeers, reattachPeerMedia]);
@@ -339,7 +328,6 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
   const broadcastRoster = useCallback(
     (newJoiner: string) => {
       const joinedList = Array.from(joinedRef.current);
-      console.log('[GroupCall] broadcastRoster', { joinedList, newJoiner, myCallId: callIdRef.current });
       joinedList.forEach((member) => {
         if (member === currentUser) return;
         sendSignal('group_call_roster', {
@@ -357,16 +345,17 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
   const startGroupCall = useCallback(
     async (usernames: string[]) => {
       if (inCall) {
-        alert('You are already in a call');
+        onError ? onError('You are already in a call') : alert('You are already in a call');
         return;
       }
       const uniqueOthers = Array.from(new Set(usernames.filter((u) => u !== currentUser)));
       if (uniqueOthers.length === 0) {
-        alert('Pick at least one person to call');
+        onError ? onError('Pick at least one person to call') : alert('Pick at least one person to call');
         return;
       }
       if (uniqueOthers.length + 1 > MAX_GROUP_PARTICIPANTS) {
-        alert(`Group calls support up to ${MAX_GROUP_PARTICIPANTS} people for now`);
+        const msg = `Group calls support up to ${MAX_GROUP_PARTICIPANTS} people for now`;
+        onError ? onError(msg) : alert(msg);
         return;
       }
 
@@ -400,7 +389,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
         cleanupGroupCall();
       }
     },
-    [inCall, currentUser, sendSignal, cleanupGroupCall]
+    [inCall, currentUser, sendSignal, cleanupGroupCall, onError]
   );
 
   const acceptGroupInvite = useCallback(async () => {
@@ -421,8 +410,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
       setInCall(true);
       setIncomingInvite(null);
 
-      // Only the initiator coordinates the roster; everyone else just
-      // announces their join to them.
+    
       sendSignal('group_call_join', { to: invite.from, from: currentUser, callId: invite.callId });
     } catch (err) {
       console.error('Failed to accept group call:', err);
@@ -443,9 +431,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
       sendSignal('group_call_leave', { to: member, from: currentUser, callId: callIdRef.current });
     });
 
-    // Only the initiator logs the call summary, same reasoning as the 1:1
-    // call: everyone logging independently would produce duplicate
-    // entries in the shared channel.
+   
     if (isInitiatorRef.current && onGroupCallEnded) {
       const joinedList = Array.from(joinedRef.current);
       const wasConnected = joinedList.length > 1;
@@ -517,9 +503,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
       localScreenStreamRef.current = screenStream;
 
       peersRef.current.forEach((entry, peerUsername) => {
-        // Tell them before the track/renegotiation arrives, same reasoning
-        // as the 1:1 call: a plain WebRTC video track carries no info
-        // about whether it's a camera or a shared screen.
+      
         announceScreenShareTo(peerUsername, true);
         const sender = entry.pc.addTrack(screenTrack, screenStream);
         screenSendersRef.current.set(peerUsername, sender);
@@ -542,12 +526,6 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
 
   const handleGroupSignal = useCallback(
     (type: string, payload: any) => {
-      console.log('[GroupCall] handling', type, {
-        payload,
-        currentUser,
-        myCallId: callIdRef.current,
-        isInitiator: isInitiatorRef.current,
-      });
       switch (type) {
         case 'group_call_invite': {
           if (payload.to !== currentUser) return;
@@ -565,9 +543,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
           joinedRef.current.add(payload.from);
           setJoinedParticipants(Array.from(joinedRef.current));
           broadcastRoster(payload.from);
-          // The initiator is also an existing member relative to this new
-          // joiner, so they need to connect to them too - the broadcast
-          // above only reaches everyone else.
+          
           initiateOfferTo(payload.from);
           break;
         }
@@ -641,7 +617,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded }: UseG
         }
 
         case 'group_call_decline': {
-          // MVP: no dedicated UI yet, just avoid an unhandled case.
+        
           break;
         }
 

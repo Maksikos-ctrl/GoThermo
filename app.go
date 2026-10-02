@@ -414,6 +414,7 @@ func (a *App) CreateChannel(name, description, createdBy string) (Channel, error
 		return Channel{}, fmt.Errorf("failed to create channel: %v", err)
 	}
 	log.Printf("📢 Channel #%s created by %s", name, createdBy)
+	a.hub.BroadcastChannelCreated(channel)
 	return channel, nil
 }
 
@@ -635,6 +636,7 @@ func (a *App) DeleteChannel(name, username string) error {
 		return fmt.Errorf("failed to delete channel: %v", err)
 	}
 	log.Printf("🗑️ Channel #%s deleted by %s", name, username)
+	a.hub.BroadcastChannelDeleted(name)
 	return nil
 }
 

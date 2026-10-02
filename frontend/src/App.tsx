@@ -26,6 +26,8 @@ import { useGroupCall } from './hooks/useGroupCall';
 import { GroupCallInviteModal } from './components/GroupCallInviteModal';
 import { StartGroupCallModal } from './components/StartGroupCallModal';
 import { GroupCallGrid } from './components/GroupCallGrid';
+import { useToast } from './hooks/useToast';
+import { ToastContainer } from './components/ToastContainer';
 
 
 
@@ -57,8 +59,10 @@ function App() {
 
 
   const [dmChannels, setDMChannels] = useState<Channel[]>([]);
-  
+    
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  const { toasts, showToast, removeToast } = useToast();
 
   const [confirmDialog, setConfirmDialog] = useState<{
     message: string;
@@ -75,11 +79,23 @@ function App() {
     handleNewMessage,
     handleMessageDeleted,
     (type, payload) => callSignalHandlerRef.current?.(type, payload),
-    (type, payload) => groupCallSignalHandlerRef.current?.(type, payload)
+    (type, payload) => groupCallSignalHandlerRef.current?.(type, payload),
+    handleChannelCreated,
+    handleChannelDeleted
   );
 
-  const call = useCall({ currentUser, sendSignal: sendMessage, onCallEnded: handleCallEnded });
-  const groupCall = useGroupCall({ currentUser, sendSignal: sendMessage, onGroupCallEnded: handleGroupCallEnded });
+  const call = useCall({
+    currentUser,
+    sendSignal: sendMessage,
+    onCallEnded: handleCallEnded,
+    onError: (msg) => showToast(msg, 'error'),
+  });
+  const groupCall = useGroupCall({
+    currentUser,
+    sendSignal: sendMessage,
+    onGroupCallEnded: handleGroupCallEnded,
+    onError: (msg) => showToast(msg, 'error'),
+  });
 
   callSignalHandlerRef.current = call.handleSignal;
   groupCallSignalHandlerRef.current = groupCall.handleGroupSignal;
@@ -90,25 +106,55 @@ function App() {
 
  
   function handleStatusUpdate(username: string, status: string) {
-    setUsers(prev => prev.map(user => 
-      user.username === username 
-        ? { 
-            ...user, 
-            status: status as StatusType,
-            isOnline: status !== 'offline'
-          } 
-        : user
-    ));
+    setUsers(prev => {
+      const exists = prev.some(u => u.username === username);
+      if (exists) {
+        return prev.map(user =>
+          user.username === username
+            ? { ...user, status: status as StatusType, isOnline: status !== 'offline' }
+            : user
+        );
+      }
+     
+      return [
+        ...prev,
+        {
+          id: username,
+          username,
+          email: '',
+          isOnline: status !== 'offline',
+          status: status as StatusType,
+        },
+      ];
+    });
   }
 
   function handleNewMessage(channel: string, message: Message) {
     if (channel === currentChannel) {
       setMessages(prev => {
-        if (!prev.some(m => m.id === message.id)) {
+        const index = prev.findIndex(m => m.id === message.id);
+        if (index === -1) {
           return [...prev, message];
         }
-        return prev;
+        
+        const next = [...prev];
+        next[index] = message;
+        return next;
       });
+    } else if (message.user !== currentUser) {
+      setUnreadCounts(prev => ({ ...prev, [channel]: (prev[channel] || 0) + 1 }));
+    }
+  }
+
+  function handleChannelCreated(channel: Channel) {
+    if (channel.isPrivate) return; 
+    setChannels(prev => (prev.some(ch => ch.name === channel.name) ? prev : [...prev, channel]));
+  }
+
+  function handleChannelDeleted(channelName: string) {
+    setChannels(prev => prev.filter(ch => ch.name !== channelName));
+    if (channelName === currentChannel) {
+      setCurrentChannel('general');
     }
   }
 
@@ -156,8 +202,15 @@ function App() {
     }
   };
 
+  const isGroupChannel = (channelName: string) => channelName.startsWith('dm_group_');
+
+  const getGroupMembers = (): string[] => {
+    const channel = dmChannels.find(ch => ch.name === currentChannel);
+    return channel ? channel.members.filter(m => m !== currentUser) : [];
+  };
+
   const getDMPartner = (): string | null => {
-    if (!currentChannel.startsWith('dm_')) return null;
+    if (!currentChannel.startsWith('dm_') || isGroupChannel(currentChannel)) return null;
     const names = currentChannel.replace('dm_', '').split('_');
     return names.find(n => n !== currentUser) || null;
   };
@@ -239,6 +292,7 @@ function App() {
     }
   }, [currentChannel, isLoggedIn]);
 
+  
   useEffect(() => {
     if (!isLoggedIn) return;
     
@@ -247,7 +301,7 @@ function App() {
       loadMessages();
       loadUsers();
       loadUnreadCounts();
-    }, 2000);
+    }, 45000);
     
     return () => clearInterval(interval);
   }, [isLoggedIn, currentChannel]);
@@ -274,7 +328,7 @@ function App() {
         }
         setNewMessage('');
         setIsPostMode(false);
-        setTimeout(() => loadMessages(), 100);
+        
       } catch (error) {
         console.error('Error sending message:', error);
       }
@@ -287,7 +341,7 @@ function App() {
       await api.files.send(currentUser, currentChannel, fileName, mimeType, base64Data);
       
     } catch (error: any) {
-      alert(`Failed to send file: ${error}`);
+      showToast(`Failed to send file: ${error}`, 'error');
     }
   };
 
@@ -317,8 +371,7 @@ function App() {
         }
         return msg;
       }));
-      
-      setTimeout(() => loadMessages(), 100);
+    
     } catch (error) {
       console.error('Error adding reaction:', error);
     }
@@ -326,7 +379,7 @@ function App() {
 
   const handleCreateChannel = async () => {
     if (!newChannelName.trim()) {
-      alert('Please enter a channel name');
+      showToast('Please enter a channel name', 'error');
       return;
     }
 
@@ -342,10 +395,10 @@ function App() {
       setNewChannelName('');
       setNewChannelDescription('');
       setCurrentChannel(channel.name);
-      
-      await loadChannels();
+      showToast(`Channel #${channel.name} created`, 'success');
+   
     } catch (error: any) {
-      alert(`Error creating channel: ${error}`);
+      showToast(`Error creating channel: ${error}`, 'error');
     }
   };
 
@@ -364,10 +417,10 @@ function App() {
               setCurrentChannel(remainingChannels[0].name);
             }
           }
-  
-          await loadChannels();
+          showToast(`Channel #${channelName} deleted`, 'success');
+          // Other clients pick this up via the channel_deleted WS broadcast.
         } catch (error: any) {
-          alert(`Error deleting channel: ${error}`);
+          showToast(`Error deleting channel: ${error}`, 'error');
         }
       },
     });
@@ -422,24 +475,42 @@ function App() {
       await loadDMChannels();
       setCurrentChannel(dmChannel.name);
     } catch (error: any) {
-      alert(`DM with ${username} failed: ${error}`);
+      showToast(`DM with ${username} failed: ${error}`, 'error');
     }
   };
 
 
   const startVideoCall = () => {
+    if (isGroupChannel(currentChannel)) {
+      const members = getGroupMembers();
+      if (members.length === 0) {
+        showToast('No one else in this group chat yet', 'error');
+        return;
+      }
+      groupCall.startGroupCall(members);
+      return;
+    }
     const partner = getDMPartner();
     if (!partner) {
-      alert('Video calls are only available in direct messages for now');
+      showToast('Video calls are only available in direct messages for now', 'error');
       return;
     }
     call.startCall(partner, true);
   };
 
   const startAudioCall = () => {
+    if (isGroupChannel(currentChannel)) {
+      const members = getGroupMembers();
+      if (members.length === 0) {
+        showToast('No one else in this group chat yet', 'error');
+        return;
+      }
+      groupCall.startGroupCall(members);
+      return;
+    }
     const partner = getDMPartner();
     if (!partner) {
-      alert('Audio calls are only available in direct messages for now');
+      showToast('Audio calls are only available in direct messages for now', 'error');
       return;
     }
     call.startCall(partner);
@@ -485,7 +556,7 @@ function App() {
             setCurrentChannel('general');
           }
         } catch (error: any) {
-          alert(`Failed to delete chat: ${error}`);
+          showToast(`Failed to delete chat: ${error}`, 'error');
         }
       },
     });
@@ -611,7 +682,7 @@ function App() {
       
       {showMembersPanel && (
         <ChannelMembers
-          channel={channels.find(ch => ch.name === currentChannel) || null}
+          channel={[...channels, ...dmChannels].find(ch => ch.name === currentChannel) || null}
           users={getChannelMembers()}
           currentChannel={currentChannel}
           onClose={() => setShowMembersPanel(false)}
@@ -712,8 +783,7 @@ function App() {
         onLeave={groupCall.leaveGroupCall}
       />
 
-
-
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
     </div>
   );

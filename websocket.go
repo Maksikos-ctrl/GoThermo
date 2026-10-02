@@ -211,6 +211,62 @@ func (h *Hub) BroadcastToChannel(channel string, msg Message) {
 	log.Printf("✓ Message sent to %d clients in channel #%s", sentCount, channel)
 }
 
+func (h *Hub) BroadcastChannelCreated(channel Channel) {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	msg := WSMessage{
+		Type:    "channel_created",
+		Payload: channel,
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("Error marshaling channel_created: %v", err)
+		return
+	}
+
+	for username, client := range h.clients {
+		select {
+		case client.Send <- data:
+		default:
+			close(client.Send)
+			delete(h.clients, username)
+		}
+	}
+
+	log.Printf("📢 Broadcast channel_created: #%s", channel.Name)
+}
+
+func (h *Hub) BroadcastChannelDeleted(channelName string) {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	msg := WSMessage{
+		Type: "channel_deleted",
+		Payload: map[string]string{
+			"channel": channelName,
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("Error marshaling channel_deleted: %v", err)
+		return
+	}
+
+	for username, client := range h.clients {
+		select {
+		case client.Send <- data:
+		default:
+			close(client.Send)
+			delete(h.clients, username)
+		}
+	}
+
+	log.Printf("📢 Broadcast channel_deleted: #%s", channelName)
+}
+
 func (h *Hub) BroadcastMessageDeleted(channel, messageID string) {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
