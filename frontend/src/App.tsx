@@ -28,6 +28,10 @@ import { StartGroupCallModal } from './components/StartGroupCallModal';
 import { GroupCallGrid } from './components/GroupCallGrid';
 import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
+import { useSettings } from './hooks/useSettings';
+import { ThemeVariables } from './components/ThemeVariables';
+import { SettingsModal } from './components/SettingsModal';
+import { playNotificationSound } from './hooks/notificationSound';
 
 
 
@@ -59,10 +63,13 @@ function App() {
 
 
   const [dmChannels, setDMChannels] = useState<Channel[]>([]);
-    
+  
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   const { toasts, showToast, removeToast } = useToast();
+  const { settings, updateSettings } = useSettings(currentUser);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const appliedDefaultStatusRef = useRef(false);
 
   const [confirmDialog, setConfirmDialog] = useState<{
     message: string;
@@ -89,6 +96,7 @@ function App() {
     sendSignal: sendMessage,
     onCallEnded: handleCallEnded,
     onError: (msg) => showToast(msg, 'error'),
+    ringtoneVolume: settings.ringtoneVolume,
   });
   const groupCall = useGroupCall({
     currentUser,
@@ -115,7 +123,10 @@ function App() {
             : user
         );
       }
-     
+      // A brand new user we haven't seen yet (e.g. someone just registered
+      // or logged in for the first time this session) - add them instead
+      // of silently dropping the update, so they show up live without a
+      // full users reload.
       return [
         ...prev,
         {
@@ -130,13 +141,18 @@ function App() {
   }
 
   function handleNewMessage(channel: string, message: Message) {
+    if (message.user !== currentUser && settings.messageSoundEnabled) {
+      playNotificationSound(0.5);
+    }
     if (channel === currentChannel) {
       setMessages(prev => {
         const index = prev.findIndex(m => m.id === message.id);
         if (index === -1) {
           return [...prev, message];
         }
-        
+        // Same message id arriving again means it changed (a reaction was
+        // added/removed, or it was edited) - replace it instead of
+        // discarding the update, so those show up live without a reload.
         const next = [...prev];
         next[index] = message;
         return next;
@@ -147,7 +163,7 @@ function App() {
   }
 
   function handleChannelCreated(channel: Channel) {
-    if (channel.isPrivate) return; 
+    if (channel.isPrivate) return; // private/DM channels arrive via their own RPC flow
     setChannels(prev => (prev.some(ch => ch.name === channel.name) ? prev : [...prev, channel]));
   }
 
@@ -292,7 +308,10 @@ function App() {
     }
   }, [currentChannel, isLoggedIn]);
 
-  
+  // WebSocket events now drive real-time updates for messages, channels,
+  // users and unread counts. This is kept only as a rare safety net in
+  // case a single WS event gets missed (e.g. a brief connection hiccup),
+  // not as the primary update mechanism.
   useEffect(() => {
     if (!isLoggedIn) return;
     
@@ -312,10 +331,45 @@ function App() {
     }
   }, [currentChannel, isConnected, subscribeToChannel]);
 
+  // The backend always marks a freshly logged-in user "online"; if their
+  // saved preference is something else, flip it right after connecting -
+  // once per login, not on every reconnect.
+  useEffect(() => {
+    if (!isLoggedIn || !isConnected || appliedDefaultStatusRef.current) return;
+    appliedDefaultStatusRef.current = true;
+    if (settings.defaultStatus !== 'online') {
+      api.users.updateStatus(currentUser, settings.defaultStatus)
+        .then(() => {
+          setCurrentUserStatus(settings.defaultStatus);
+          changeStatus(settings.defaultStatus);
+        })
+        .catch((error) => console.error('Error applying default status:', error));
+    }
+  }, [isLoggedIn, isConnected, currentUser, settings.defaultStatus, changeStatus]);
+
 
   const handleLogin = (username: string) => {
     setCurrentUser(username);
     setIsLoggedIn(true);
+    appliedDefaultStatusRef.current = false;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await api.users.updateStatus(currentUser, 'offline');
+    } catch (error) {
+      console.error('Error setting offline status on logout:', error);
+    }
+    setShowSettingsModal(false);
+    setIsLoggedIn(false);
+    setCurrentUser('');
+    setCurrentUserStatus('online');
+    setMessages([]);
+    setChannels([]);
+    setUsers([]);
+    setDMChannels([]);
+    setUnreadCounts({});
+    setCurrentChannel('general');
   };
 
   const handleSendMessage = async () => {
@@ -328,7 +382,9 @@ function App() {
         }
         setNewMessage('');
         setIsPostMode(false);
-        
+        // The WS broadcast (channel_message) delivers this back to us too
+        // and handleNewMessage now applies it correctly - no need to
+        // force a full reload here anymore.
       } catch (error) {
         console.error('Error sending message:', error);
       }
@@ -371,7 +427,9 @@ function App() {
         }
         return msg;
       }));
-    
+      // WS broadcast reconciles this with the server's version for
+      // everyone (including us) now that handleNewMessage applies
+      // updates instead of ignoring known ids - no reload needed.
     } catch (error) {
       console.error('Error adding reaction:', error);
     }
@@ -396,7 +454,8 @@ function App() {
       setNewChannelDescription('');
       setCurrentChannel(channel.name);
       showToast(`Channel #${channel.name} created`, 'success');
-   
+      // Other clients pick this up via the channel_created WS broadcast;
+      // we already have it locally, no reload needed.
     } catch (error: any) {
       showToast(`Error creating channel: ${error}`, 'error');
     }
@@ -599,6 +658,7 @@ function App() {
 
   return (
     <div className="chat-container">
+      <ThemeVariables />
       <div className={`ws-status ${isConnected ? 'online' : 'offline'}`}>
         {isConnected ? '🟢' : '🔴'}
       </div>
@@ -613,6 +673,7 @@ function App() {
         onStartDirectMessage={startDirectMessage}
         onStartVideoCall={startVideoCall}
         onStartAudioCall={startAudioCall}
+        onOpenSettings={() => setShowSettingsModal(true)}
         onChangeStatusViaWS={changeStatus}
       />
 
@@ -784,6 +845,14 @@ function App() {
       />
 
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
+      <SettingsModal
+        isOpen={showSettingsModal}
+        settings={settings}
+        onUpdate={updateSettings}
+        onClose={() => setShowSettingsModal(false)}
+        onLogout={handleLogout}
+      />
 
     </div>
   );

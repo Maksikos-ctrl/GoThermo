@@ -12,6 +12,7 @@ interface UserPanelProps {
   onStartDirectMessage: (username: string) => void;
   onStartVideoCall: () => void;
   onStartAudioCall: () => void;
+  onOpenSettings: () => void;
   
   onChangeStatusViaWS?: (status: StatusType) => void;
 }
@@ -26,6 +27,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
   onStartDirectMessage,
   onStartVideoCall,
   onStartAudioCall,
+  onOpenSettings,
   onChangeStatusViaWS, 
 }) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
@@ -211,7 +213,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
           <span className="icon">📞</span>
           <span>Audio</span>
         </button>
-        <button className="footer-btn" title="Settings">
+        <button className="footer-btn" title="Settings" onClick={onOpenSettings}>
           <span className="icon">⚙️</span>
         </button>
       </div>

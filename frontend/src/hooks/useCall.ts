@@ -16,12 +16,20 @@ interface UseCallParams {
     durationSeconds: number;
   }) => void;
   onError?: (message: string) => void;
+  ringtoneVolume?: number; // 0 to 1, defaults to a sensible mid-volume
 }
 
 
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
-export function useCall({ currentUser, sendSignal, onCallEnded, onError }: UseCallParams) {
+export function useCall({ currentUser, sendSignal, onCallEnded, onError, ringtoneVolume = 0.5 }: UseCallParams) {
+  // A ref so the ringtone picks up volume changes made mid-call, right
+  // away - same reasoning as the WS callback refs: a value only read
+  // through a closure captured long ago (when the tone-scheduling
+  // setTimeout chain started) would otherwise stay stuck at whatever it
+  // was when that chain began.
+  const ringtoneVolumeRef = useRef(ringtoneVolume);
+  ringtoneVolumeRef.current = ringtoneVolume;
   const [status, setStatus] = useState<CallStatus>('idle');
   const [remoteUser, setRemoteUser] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallInfo | null>(null);
@@ -79,7 +87,9 @@ export function useCall({ currentUser, sendSignal, onCallEnded, onError }: UseCa
     return audioCtxRef.current;
   }, []);
 
-  const playTone = useCallback((freqs: number[], duration: number, gainValue = 0.15) => {
+  const playTone = useCallback((freqs: number[], duration: number, baseGain = 0.3) => {
+    const gainValue = baseGain * ringtoneVolumeRef.current;
+    if (gainValue <= 0) return;
     const ctx = getAudioCtx();
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {});

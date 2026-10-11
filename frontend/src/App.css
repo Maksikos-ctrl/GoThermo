@@ -2033,3 +2033,364 @@ textarea:focus-visible {
 .edit-cancel-btn:hover {
   text-decoration: underline;
 }
+/* ============================================================
+   Light theme overrides
+   Applied when <html data-theme="light"> is set (see ThemeVariables).
+   Layered on top of the dark rules above rather than replacing them,
+   so the default dark theme is completely untouched.
+   Covers the main chrome (panels, sidebar, header, messages, composer,
+   members panel). Some less-common popups/modals may still show dark
+   colors until a follow-up pass reaches them.
+   ============================================================ */
+
+[data-theme="light"] body {
+  background: #ffffff;
+  color: #1e1f22;
+}
+
+[data-theme="light"] .chat-container {
+  background: #ffffff;
+}
+
+/* Left user panel */
+[data-theme="light"] .left-panel {
+  background: #f2f3f5;
+  border-right: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .panel-header {
+  border-bottom: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .workspace-info h3 {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .workspace-status {
+  color: #5c6066;
+}
+
+[data-theme="light"] .panel-toggle {
+  color: #5c6066;
+}
+
+[data-theme="light"] .panel-toggle:hover {
+  background: #e3e5e8;
+  color: #1e1f22;
+}
+
+[data-theme="light"] .current-user-card {
+  border-bottom: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .user-name {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .user-status {
+  color: #5c6066;
+}
+
+[data-theme="light"] .user-status:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .status-menu {
+  background: #ffffff;
+  border: 1px solid #d4d6da;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .status-option:hover {
+  background: #f2f3f5;
+}
+
+[data-theme="light"] .section-title {
+  color: #5c6066;
+}
+
+[data-theme="light"] .section-count {
+  background: #e3e5e8;
+  color: #5c6066;
+}
+
+[data-theme="light"] .users-list::-webkit-scrollbar-thumb {
+  background: #d4d6da;
+}
+
+[data-theme="light"] .user-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .user-item .user-name {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .user-item.offline .user-name {
+  color: #8a8f98;
+}
+
+[data-theme="light"] .panel-footer {
+  border-top: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .footer-btn {
+  background: #e3e5e8;
+  color: #5c6066;
+}
+
+[data-theme="light"] .footer-btn:hover {
+  background: #d4d6da;
+  color: #1e1f22;
+}
+
+/* Channel sidebar */
+[data-theme="light"] .sidebar {
+  background: #f2f3f5;
+  border-right: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .sidebar-header h2 {
+  color: #5c6066;
+}
+
+[data-theme="light"] .channel {
+  color: #5c6066;
+}
+
+[data-theme="light"] .channel:hover {
+  background: #e3e5e8;
+  color: #1e1f22;
+}
+
+[data-theme="light"] .loading-channels,
+[data-theme="light"] .no-channels {
+  color: #5c6066;
+}
+
+[data-theme="light"] .drag-handle {
+  color: #5c6066;
+}
+
+/* Chat header */
+[data-theme="light"] .chat-header {
+  background: #f2f3f5;
+  border-bottom: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .channel-title h3 {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .channel-hashtag,
+[data-theme="light"] .channel-meta {
+  color: #5c6066;
+}
+
+[data-theme="light"] .action-btn,
+[data-theme="light"] .call-btn,
+[data-theme="light"] .video-call-btn,
+[data-theme="light"] .audio-call-btn,
+[data-theme="light"] .members-btn {
+  background: #e3e5e8;
+  color: #5c6066;
+}
+
+[data-theme="light"] .action-btn:hover,
+[data-theme="light"] .call-btn:hover,
+[data-theme="light"] .video-call-btn:hover,
+[data-theme="light"] .audio-call-btn:hover,
+[data-theme="light"] .members-btn:hover {
+  background: #d4d6da;
+  color: #1e1f22;
+}
+
+/* Messages */
+[data-theme="light"] .messages {
+  background: #ffffff;
+}
+
+[data-theme="light"] .messages::-webkit-scrollbar-thumb {
+  background: #d4d6da;
+}
+
+[data-theme="light"] .messages::-webkit-scrollbar-thumb:hover {
+  background: #b8bbc0;
+}
+
+[data-theme="light"] .message {
+  background: #f2f3f5;
+}
+
+[data-theme="light"] .message:hover {
+  background: #e9eaed;
+}
+
+[data-theme="light"] .message-time {
+  color: #8a8f98;
+}
+
+[data-theme="light"] .message-text {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .no-messages {
+  color: #5c6066;
+}
+
+[data-theme="light"] .welcome-card {
+  background: #f2f3f5;
+  border: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .welcome-card h2 {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .welcome-card p {
+  color: #5c6066;
+}
+
+[data-theme="light"] .reaction {
+  background: #e3e5e8;
+  border: 1px solid #d4d6da;
+  color: #1e1f22;
+}
+
+[data-theme="light"] .reaction:hover {
+  background: #d4d6da;
+}
+
+[data-theme="light"] .quick-reaction-btn {
+  background: #e3e5e8;
+  border: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .quick-reaction-btn:hover {
+  background: #d4d6da;
+}
+
+[data-theme="light"] .close-mode-btn {
+  color: #5c6066;
+}
+
+[data-theme="light"] .close-mode-btn:hover {
+  color: #1e1f22;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Composer */
+[data-theme="light"] .composer {
+  background: #f2f3f5;
+  border-top: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .composer-mode-indicator {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .composer-input-wrapper {
+  background: #e3e5e8;
+}
+
+[data-theme="light"] .composer-input-wrapper:focus-within {
+  background: #ffffff;
+}
+
+[data-theme="light"] .composer-textarea {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .composer-textarea::placeholder {
+  color: #8a8f98;
+}
+
+[data-theme="light"] .toolbar-icon-btn {
+  color: #5c6066;
+}
+
+[data-theme="light"] .toolbar-icon-btn:hover {
+  background: #d4d6da;
+  color: #1e1f22;
+}
+
+[data-theme="light"] .emoji-popup {
+  background: #ffffff;
+  border: 1px solid #d4d6da;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .emoji-btn:hover {
+  background: #e3e5e8;
+}
+
+/* Members panel */
+[data-theme="light"] .channel-members-panel {
+  background: #ffffff;
+  border-left: 1px solid #d4d6da;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .channel-members-header {
+  border-bottom: 1px solid #d4d6da;
+}
+
+[data-theme="light"] .channel-info h3 {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .channel-description {
+  background: #e3e5e8;
+  color: #5c6066;
+}
+
+[data-theme="light"] .members-stats {
+  color: #5c6066;
+}
+
+[data-theme="light"] .close-btn {
+  color: #5c6066;
+}
+
+[data-theme="light"] .close-btn:hover {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .section-label {
+  color: #5c6066;
+}
+
+[data-theme="light"] .member-item:hover {
+  background: #f2f3f5;
+}
+
+[data-theme="light"] .member-name {
+  color: #1e1f22;
+}
+
+[data-theme="light"] .member-status .status-text {
+  color: #5c6066;
+}
+
+[data-theme="light"] .channel-members-footer {
+  border-top: 1px solid #d4d6da;
+  color: #5c6066;
+}
+
+[data-theme="light"] .created-date {
+  color: #8a8f98;
+}
+
+[data-theme="light"] .no-members {
+  color: #5c6066;
+}
+
+/* Message editing */
+[data-theme="light"] .edit-message-textarea {
+  background: #ffffff;
+  color: #1e1f22;
+}
+
+[data-theme="light"] .edit-cancel-btn {
+  color: #5c6066;
+}
