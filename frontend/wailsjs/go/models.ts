@@ -113,6 +113,9 @@ export namespace main {
 	    isOnline: boolean;
 	    status: string;
 	    lastSeen?: string;
+	    token?: string;
+	    provider?: string;
+	    providerId?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new User(source);
@@ -126,6 +129,9 @@ export namespace main {
 	        this.isOnline = source["isOnline"];
 	        this.status = source["status"];
 	        this.lastSeen = source["lastSeen"];
+	        this.token = source["token"];
+	        this.provider = source["provider"];
+	        this.providerId = source["providerId"];
 	    }
 	}
 

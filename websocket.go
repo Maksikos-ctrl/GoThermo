@@ -28,19 +28,18 @@ func StartWSServer(hub *Hub) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", ServeWS(hub))
 
-	log.Printf("🚀 WebSocket server listening on :%s", wsServerPort)
-	if err := http.ListenAndServe(":"+wsServerPort, mux); err != nil {
+	addr := "127.0.0.1:" + wsServerPort
+	log.Printf("🚀 WebSocket server listening on %s", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Printf("❌ WebSocket server failed to start: %v", err)
 	}
 }
 
 func ServeWS(hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("🔌 Incoming /ws request: remote=%s username=%s", r.RemoteAddr, r.URL.Query().Get("username"))
-
-		username := r.URL.Query().Get("username")
-		if username == "" {
-			http.Error(w, "username query parameter is required", http.StatusBadRequest)
+		username, ok := GetSessionUsername(r.URL.Query().Get("token"))
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 

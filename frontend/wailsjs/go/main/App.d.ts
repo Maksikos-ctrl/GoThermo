@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function AddReaction(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
+export function CancelGoogleLogin():Promise<void>;
+
 export function CheckAuth(arg1:string):Promise<string>;
 
 export function CreateChannel(arg1:string,arg2:string,arg3:string):Promise<main.Channel>;
@@ -37,6 +39,8 @@ export function JoinChannel(arg1:string,arg2:string):Promise<void>;
 export function LogCall(arg1:string,arg2:string,arg3:string,arg4:number):Promise<main.Message>;
 
 export function Login(arg1:string,arg2:string):Promise<main.User>;
+
+export function LoginWithGoogle(arg1:boolean):Promise<main.User>;
 
 export function Logout(arg1:string):Promise<boolean>;
 

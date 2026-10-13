@@ -32,6 +32,8 @@ import { useSettings } from './hooks/useSettings';
 import { ThemeVariables } from './components/ThemeVariables';
 import { SettingsModal } from './components/SettingsModal';
 import { playNotificationSound } from './hooks/notificationSound';
+import { useIdleStatus } from './hooks/useIdleStatus';
+import { clearAuthToken, getAuthToken } from './services/session';
 
 
 
@@ -105,6 +107,24 @@ function App() {
     onError: (msg) => showToast(msg, 'error'),
   });
 
+  async function setStatusAndBroadcast(status: StatusType) {
+    try {
+      await api.users.updateStatus(currentUser, status);
+      setCurrentUserStatus(status);
+      changeStatus(status);
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  }
+
+  useIdleStatus({
+    enabled: isLoggedIn,
+    currentStatus: currentUserStatus,
+    inCall: call.status !== 'idle' || groupCall.inCall,
+    onGoAway: () => setStatusAndBroadcast('away'),
+    onReturn: () => setStatusAndBroadcast('online'),
+  });
+
   callSignalHandlerRef.current = call.handleSignal;
   groupCallSignalHandlerRef.current = groupCall.handleGroupSignal;
 
@@ -123,10 +143,7 @@ function App() {
             : user
         );
       }
-      // A brand new user we haven't seen yet (e.g. someone just registered
-      // or logged in for the first time this session) - add them instead
-      // of silently dropping the update, so they show up live without a
-      // full users reload.
+      
       return [
         ...prev,
         {
@@ -150,9 +167,7 @@ function App() {
         if (index === -1) {
           return [...prev, message];
         }
-        // Same message id arriving again means it changed (a reaction was
-        // added/removed, or it was edited) - replace it instead of
-        // discarding the update, so those show up live without a reload.
+       
         const next = [...prev];
         next[index] = message;
         return next;
@@ -163,7 +178,7 @@ function App() {
   }
 
   function handleChannelCreated(channel: Channel) {
-    if (channel.isPrivate) return; // private/DM channels arrive via their own RPC flow
+    if (channel.isPrivate) return; 
     setChannels(prev => (prev.some(ch => ch.name === channel.name) ? prev : [...prev, channel]));
   }
 
@@ -308,10 +323,7 @@ function App() {
     }
   }, [currentChannel, isLoggedIn]);
 
-  // WebSocket events now drive real-time updates for messages, channels,
-  // users and unread counts. This is kept only as a rare safety net in
-  // case a single WS event gets missed (e.g. a brief connection hiccup),
-  // not as the primary update mechanism.
+ 
   useEffect(() => {
     if (!isLoggedIn) return;
     
@@ -331,9 +343,7 @@ function App() {
     }
   }, [currentChannel, isConnected, subscribeToChannel]);
 
-  // The backend always marks a freshly logged-in user "online"; if their
-  // saved preference is something else, flip it right after connecting -
-  // once per login, not on every reconnect.
+  
   useEffect(() => {
     if (!isLoggedIn || !isConnected || appliedDefaultStatusRef.current) return;
     appliedDefaultStatusRef.current = true;
@@ -360,6 +370,12 @@ function App() {
     } catch (error) {
       console.error('Error setting offline status on logout:', error);
     }
+    try {
+      await api.auth.logout(getAuthToken());
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+    clearAuthToken();
     setShowSettingsModal(false);
     setIsLoggedIn(false);
     setCurrentUser('');
@@ -382,9 +398,7 @@ function App() {
         }
         setNewMessage('');
         setIsPostMode(false);
-        // The WS broadcast (channel_message) delivers this back to us too
-        // and handleNewMessage now applies it correctly - no need to
-        // force a full reload here anymore.
+       
       } catch (error) {
         console.error('Error sending message:', error);
       }
@@ -427,9 +441,7 @@ function App() {
         }
         return msg;
       }));
-      // WS broadcast reconciles this with the server's version for
-      // everyone (including us) now that handleNewMessage applies
-      // updates instead of ignoring known ids - no reload needed.
+     
     } catch (error) {
       console.error('Error adding reaction:', error);
     }
@@ -477,7 +489,7 @@ function App() {
             }
           }
           showToast(`Channel #${channelName} deleted`, 'success');
-          // Other clients pick this up via the channel_deleted WS broadcast.
+         
         } catch (error: any) {
           showToast(`Error deleting channel: ${error}`, 'error');
         }

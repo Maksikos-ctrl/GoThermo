@@ -24,12 +24,18 @@ import {
   GetFileData,
   SaveFileToDisk, 
   LogCall,
+  Logout,
+  LoginWithGoogle,
+  CancelGoogleLogin,
 } from '../../wailsjs/go/main/App';
 
 export const api = {
   auth: {
     login: Login,
-    register: Register
+    register: Register,
+    logout: Logout,
+    loginWithGoogle: LoginWithGoogle,
+    cancelGoogleLogin: CancelGoogleLogin,
   },
   users: {
     getAll: GetUsers,

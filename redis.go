@@ -215,7 +215,7 @@ func SaveUserToRedis(user *User) error {
 		return err
 	}
 
-	key := fmt.Sprintf("user:%s", user.Email)
+	key := userRedisKey(user)
 	return redisClient.Set(ctx, key, data, 0).Err()
 }
 

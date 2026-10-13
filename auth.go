@@ -3,23 +3,21 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
-
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
 }
 
-
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
-
 
 func ValidateEmail(email string) error {
 	if !strings.Contains(email, "@") {
@@ -31,7 +29,6 @@ func ValidateEmail(email string) error {
 	return nil
 }
 
-
 func ValidatePassword(password string) error {
 	if len(password) < 6 {
 		return fmt.Errorf("Wrong password format: too short")
@@ -39,10 +36,27 @@ func ValidatePassword(password string) error {
 	return nil
 }
 
+// uniqueUsername builds a username from a base string and appends a number
+// if that username is already taken by a different account (e.g.
+// ivan@gmail.com and ivan@mail.ru both want "ivan").
+func uniqueUsername(base, email string) string {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		base = "user"
+	}
+	candidate := base
+	for i := 2; ; i++ {
+		existing, taken := userManager.GetUser(candidate)
+		if !taken || (existing.Email == email && existing.Provider == "") {
+			return candidate
+		}
+		candidate = base + strconv.Itoa(i)
+	}
+}
+
 func (a *App) Register(email, password string) (User, error) {
 	log.Printf("📝 Attempting registration: %s", email)
 
-	
 	if err := ValidateEmail(email); err != nil {
 		return User{}, err
 	}
@@ -51,64 +65,47 @@ func (a *App) Register(email, password string) (User, error) {
 		return User{}, err
 	}
 
-	username := strings.Split(email, "@")[0]
-
-	
 	if _, err := GetUserFromRedis(email); err == nil {
 		log.Printf("❌ User already exists: %s", email)
 		return User{}, fmt.Errorf("user with such email already exists")
 	}
 
-	
+	username := uniqueUsername(strings.Split(email, "@")[0], email)
+
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		return User{}, fmt.Errorf("error hashing password: %v", err)
 	}
-	log.Printf("🔐 Password hashed for: %s", email)
 
-	
 	user := userManager.RegisterUser(username, email)
 
-	
 	if err := SaveUserToRedis(user); err != nil {
 		log.Printf("❌ Error saving user to Redis: %v", err)
 		return User{}, fmt.Errorf("error saving user: %v", err)
 	}
-	log.Printf("💾 User saved to Redis: %s", email)
 
-	
 	if err := SaveUserPasswordToRedis(email, hashedPassword); err != nil {
 		log.Printf("❌ Error saving password to Redis: %v", err)
 		return User{}, fmt.Errorf("error saving password: %v", err)
 	}
-	log.Printf("🔐 Password saved to Redis for: %s", email)
 
-	
-	savedUser, _ := GetUserFromRedis(email)
-	if savedUser != nil {
-		log.Printf("✅ Check: user found in Redis: %s", savedUser.Username)
-	}
-
-	savedPass, _ := GetUserPasswordFromRedis(email)
-	if savedPass != "" {
-		log.Printf("✅ Check: password found in Redis for: %s", email)
+	token, err := CreateSession(username)
+	if err != nil {
+		return User{}, fmt.Errorf("error creating session: %v", err)
 	}
 
 	log.Printf("✅ User registered: %s (ID: %s)", username, user.ID)
 
-	
 	if globalHub != nil {
 		globalHub.BroadcastStatusUpdate(username, "online")
 	}
 
-	return *user, nil
+	return withToken(user, token), nil
 }
-
 
 func (a *App) Login(email, password string) (User, error) {
 	log.Printf("🔐 Attempting login: %s", email)
 
-	
 	if err := ValidateEmail(email); err != nil {
 		return User{}, err
 	}
@@ -117,33 +114,34 @@ func (a *App) Login(email, password string) (User, error) {
 		return User{}, fmt.Errorf("please enter a password")
 	}
 
-	
 	userFromRedis, err := GetUserFromRedis(email)
 	if err != nil {
 		log.Printf("❌ User not found in Redis: %s", email)
 		return User{}, fmt.Errorf("user not found")
 	}
-	log.Printf("✅ Found user: %s", userFromRedis.Username)
 
-	
+	// No password hash stored: this account cannot be logged into with a
+	// password (never silently save whatever password was just typed).
 	savedHash, err := GetUserPasswordFromRedis(email)
-	if err != nil {
-		log.Printf("❌ Password not found for: %s", email)
-		
-		log.Printf("🔄 Restoring password for: %s", email)
-		hashedPassword, _ := HashPassword(password)
-		SaveUserPasswordToRedis(email, hashedPassword)
-		savedHash, _ = GetUserPasswordFromRedis(email)
+	if err != nil || savedHash == "" {
+		log.Printf("❌ No password hash stored for: %s", email)
+		return User{}, fmt.Errorf("incorrect email or password")
 	}
 
-	
 	if !CheckPasswordHash(password, savedHash) {
 		log.Printf("❌ Incorrect password for: %s", email)
 		return User{}, fmt.Errorf("incorrect password")
 	}
 
-	username := strings.Split(email, "@")[0]
+	// Use the username stored with the account (it may differ from the email
+	// prefix now that usernames are made unique).
+	username := userFromRedis.Username
 	user := userManager.RegisterUser(username, email)
+
+	token, err := CreateSession(username)
+	if err != nil {
+		return User{}, fmt.Errorf("error creating session: %v", err)
+	}
 
 	log.Printf("✅ User logged in: %s", username)
 
@@ -151,5 +149,5 @@ func (a *App) Login(email, password string) (User, error) {
 		globalHub.BroadcastStatusUpdate(username, "online")
 	}
 
-	return *user, nil
+	return withToken(user, token), nil
 }

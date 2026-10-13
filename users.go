@@ -10,12 +10,15 @@ import (
 )
 
 type User struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	IsOnline bool   `json:"isOnline"`
-	Status   string `json:"status"` // "online", "away", "offline"
-	LastSeen string `json:"lastSeen,omitempty"`
+	ID         string `json:"id"`
+	Username   string `json:"username"`
+	Email      string `json:"email"`
+	IsOnline   bool   `json:"isOnline"`
+	Status     string `json:"status"`
+	LastSeen   string `json:"lastSeen,omitempty"`
+	Token      string `json:"token,omitempty"`
+	Provider   string `json:"provider,omitempty"`
+	ProviderID string `json:"providerId,omitempty"`
 }
 
 type UserManager struct {
@@ -32,7 +35,6 @@ var userManager = &UserManager{
 func generateID() string {
 	return uuid.New().String()
 }
-
 
 func (um *UserManager) ResetAllStatusesToOffline() {
 	um.mu.Lock()
@@ -160,8 +162,6 @@ func (um *UserManager) RemoveUserToken(token string) {
 	delete(um.userTokens, token)
 }
 
-
-
 func (a *App) GetUsers() []User {
 	return userManager.GetAllUsers()
 }
@@ -180,7 +180,6 @@ func (a *App) UpdateUserStatus(username, status string) bool {
 
 	success := userManager.UpdateUserStatus(username, status)
 
-	
 	if success && globalHub != nil {
 		globalHub.BroadcastStatusUpdate(username, status)
 	}
@@ -189,29 +188,28 @@ func (a *App) UpdateUserStatus(username, status string) bool {
 }
 
 func (a *App) CheckAuth(token string) (string, error) {
-	user, exists := userManager.GetUserByToken(token)
+	username, ok := GetSessionUsername(token)
+	if !ok {
+		return "", nil
+	}
+	user, exists := userManager.GetUser(username)
 	if !exists {
 		return "", nil
 	}
-
 	userJSON, err := json.Marshal(user)
 	if err != nil {
 		return "", err
 	}
-
 	return string(userJSON), nil
 }
 
 func (a *App) Logout(token string) bool {
-	user, exists := userManager.GetUserByToken(token)
-	if exists {
-		userManager.UpdateUserStatus(user.Username, "offline")
-
-		
+	if username, ok := GetSessionUsername(token); ok {
+		userManager.UpdateUserStatus(username, "offline")
 		if globalHub != nil {
-			globalHub.BroadcastStatusUpdate(user.Username, "offline")
+			globalHub.BroadcastStatusUpdate(username, "offline")
 		}
 	}
-	userManager.RemoveUserToken(token)
+	DeleteSession(token)
 	return true
 }

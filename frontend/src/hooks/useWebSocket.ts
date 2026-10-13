@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Message } from '../types';
+import { getAuthToken } from '../services/session';
 
 interface WSMessage {
   type: string;
@@ -19,7 +20,9 @@ export const useWebSocket = (
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
- 
+  const closeRef = useRef<(() => void) | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const onStatusUpdateRef = useRef(onStatusUpdate);
   const onNewMessageRef = useRef(onNewMessage);
   const onMessageDeletedRef = useRef(onMessageDeleted);
@@ -44,21 +47,33 @@ export const useWebSocket = (
   }, [ws, isConnected]);
 
   const connect = useCallback(() => {
-    if (!username) return;
+    // The server identifies the user by the session token, so without one
+    // (not logged in, or just logged out) there is nothing to connect to.
+    const token = getAuthToken();
+    if (!username || !token) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-   
-    const wsUrl = `${protocol}//127.0.0.1:8081/ws?username=${username}`;
+    const wsUrl = `${protocol}//127.0.0.1:8081/ws?token=${encodeURIComponent(token)}`;
 
     const socket = new WebSocket(wsUrl);
+    let manuallyClosed = false;
+
+    closeRef.current = () => {
+      manuallyClosed = true;
+      socket.close();
+    };
 
     socket.onopen = () => {
+      if (manuallyClosed) return;
       setIsConnected(true);
     };
 
     socket.onclose = () => {
+      // An intentional close (logout / user switch) must not touch state or
+      // schedule a reconnect, otherwise it would fight the next login.
+      if (manuallyClosed) return;
       setIsConnected(false);
-      setTimeout(() => connect(), 3000);
+      reconnectTimerRef.current = setTimeout(() => connect(), 3000);
     };
 
     socket.onerror = (error) => {
@@ -66,6 +81,7 @@ export const useWebSocket = (
     };
 
     socket.onmessage = (event) => {
+      if (manuallyClosed) return;
       try {
         const messages = event.data.split('\n').filter(Boolean);
         messages.forEach((raw: string) => {
@@ -179,9 +195,16 @@ export const useWebSocket = (
     }
 
     return () => {
-      if (ws) {
-        ws.close();
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
       }
+      if (closeRef.current) {
+        closeRef.current();
+        closeRef.current = null;
+      }
+      setWs(null);
+      setIsConnected(false);
     };
   }, [username]);
 
