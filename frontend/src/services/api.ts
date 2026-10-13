@@ -27,6 +27,8 @@ import {
   Logout,
   LoginWithGoogle,
   CancelGoogleLogin,
+  ExportChannel,
+  GetLinkPreview,
 } from '../../wailsjs/go/main/App';
 
 export const api = {
@@ -72,6 +74,10 @@ export const api = {
     send: SendFile,
     getData: GetFileData,
     saveToDisk: SaveFileToDisk, 
+    exportChannel: ExportChannel,
+  },
+  links: {
+    getPreview: GetLinkPreview,
   },
   calls: {
     log: LogCall,

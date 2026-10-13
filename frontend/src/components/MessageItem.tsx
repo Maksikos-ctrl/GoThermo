@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, EMOJI_LIST } from '../types';
+import { LinkPreview } from './LinkPreview';
 import { api } from '../services/api'; 
+
 
 interface MessageItemProps {
   message: Message;
@@ -123,7 +125,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
        
         <FileAttachment message={message} />
       ) : (
-        <div className="message-text">{renderTextWithMentions(message.text, knownUsernames, currentUser)}</div>
+        <>
+          <div className="message-text">{renderTextWithMentions(message.text, knownUsernames, currentUser)}</div>
+          <LinkPreview text={message.text} />
+        </>
       )}
       
       {!message.isCall && (

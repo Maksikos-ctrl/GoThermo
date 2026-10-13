@@ -57,7 +57,7 @@ func uniqueUsername(base, email string) string {
 func (a *App) Register(email, password string) (User, error) {
 	log.Printf("📝 Attempting registration: %s", email)
 
-	if err := ValidateEmail(email); err != nil {
+	if err := ValidateNewEmail(email); err != nil {
 		return User{}, err
 	}
 
@@ -114,10 +114,20 @@ func (a *App) Login(email, password string) (User, error) {
 		return User{}, fmt.Errorf("please enter a password")
 	}
 
+	// Locked after too many failed attempts (see ratelimit.go).
+	if err := checkLoginAllowed(email); err != nil {
+		log.Printf("🚫 Login blocked (too many failures): %s", email)
+		return User{}, err
+	}
+
+	// Unknown email and wrong password give the same answer, so the login
+	// form cannot be used to find out which emails are registered. Unknown
+	// emails are counted too, so guessing is limited either way.
 	userFromRedis, err := GetUserFromRedis(email)
 	if err != nil {
 		log.Printf("❌ User not found in Redis: %s", email)
-		return User{}, fmt.Errorf("user not found")
+		recordLoginFailure(email)
+		return User{}, fmt.Errorf("incorrect email or password")
 	}
 
 	// No password hash stored: this account cannot be logged into with a
@@ -125,13 +135,17 @@ func (a *App) Login(email, password string) (User, error) {
 	savedHash, err := GetUserPasswordFromRedis(email)
 	if err != nil || savedHash == "" {
 		log.Printf("❌ No password hash stored for: %s", email)
+		recordLoginFailure(email)
 		return User{}, fmt.Errorf("incorrect email or password")
 	}
 
 	if !CheckPasswordHash(password, savedHash) {
 		log.Printf("❌ Incorrect password for: %s", email)
-		return User{}, fmt.Errorf("incorrect password")
+		recordLoginFailure(email)
+		return User{}, fmt.Errorf("incorrect email or password")
 	}
+
+	clearLoginFailures(email)
 
 	// Use the username stored with the account (it may differ from the email
 	// prefix now that usernames are made unique).

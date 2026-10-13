@@ -43,6 +43,26 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class LinkPreview {
+	    url: string;
+	    title: string;
+	    description: string;
+	    siteName: string;
+	    image: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LinkPreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.title = source["title"];
+	        this.description = source["description"];
+	        this.siteName = source["siteName"];
+	        this.image = source["image"];
+	    }
+	}
 	export class Message {
 	    id: string;
 	    user: string;

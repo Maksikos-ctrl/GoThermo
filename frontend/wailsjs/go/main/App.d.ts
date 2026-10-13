@@ -18,11 +18,15 @@ export function DeleteMessage(arg1:string,arg2:string,arg3:string):Promise<void>
 
 export function EditMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.Message>;
 
+export function ExportChannel(arg1:string,arg2:string,arg3:string):Promise<string>;
+
 export function GetChannels():Promise<Array<main.Channel>>;
 
 export function GetDMChannels(arg1:string):Promise<Array<main.Channel>>;
 
 export function GetFileData(arg1:string):Promise<string>;
+
+export function GetLinkPreview(arg1:string):Promise<main.LinkPreview>;
 
 export function GetMessages(arg1:string):Promise<Array<main.Message>>;
 

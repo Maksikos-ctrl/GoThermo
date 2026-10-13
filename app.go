@@ -28,6 +28,8 @@ func NewApp() *App {
 
 	userManager.ResetAllStatusesToOffline()
 
+	CompactDeletedMessages()
+
 	return &App{hub: hub}
 }
 
@@ -206,6 +208,10 @@ func (a *App) DeleteMessage(messageID, channel, username string) error {
 		return fmt.Errorf("error deleting message: %v", err)
 	}
 
+	if foundMsg.IsFile {
+		removeUpload(foundMsg.FileID)
+	}
+
 	a.hub.BroadcastMessageDeleted(channel, messageID)
 
 	log.Printf("🗑️ %s deleted a message in #%s", username, channel)
@@ -298,9 +304,18 @@ func (a *App) SendFile(user, channel, fileName, mimeType, base64Data string) (Me
 		base64Data = base64Data[idx+1:]
 	}
 
+	if err := checkUploadSize(len(base64Data)); err != nil {
+		return Message{}, err
+	}
+
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
 		return Message{}, fmt.Errorf("invalid file data: %v", err)
+	}
+
+	mimeType, err = validateUpload(mimeType, data)
+	if err != nil {
+		return Message{}, err
 	}
 
 	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
@@ -560,9 +575,11 @@ func (a *App) DeleteDMChannel(channelName, username string) error {
 		return fmt.Errorf("you are not a participant of this chat")
 	}
 
+	fileIDs := channelFileIDs(channelName)
 	if err := DeleteChannel(channelName); err != nil {
 		return fmt.Errorf("failed to delete chat: %v", err)
 	}
+	removeUploads(fileIDs)
 
 	log.Printf("🗑️ DM channel #%s deleted by %s", channelName, username)
 	return nil
@@ -632,9 +649,11 @@ func (a *App) DeleteChannel(name, username string) error {
 	if systemChannels[name] {
 		return fmt.Errorf("cannot delete system channel")
 	}
+	fileIDs := channelFileIDs(name)
 	if err = DeleteChannel(name); err != nil {
 		return fmt.Errorf("failed to delete channel: %v", err)
 	}
+	removeUploads(fileIDs)
 	log.Printf("🗑️ Channel #%s deleted by %s", name, username)
 	a.hub.BroadcastChannelDeleted(name)
 	return nil

@@ -466,8 +466,7 @@ function App() {
       setNewChannelDescription('');
       setCurrentChannel(channel.name);
       showToast(`Channel #${channel.name} created`, 'success');
-      // Other clients pick this up via the channel_created WS broadcast;
-      // we already have it locally, no reload needed.
+     
     } catch (error: any) {
       showToast(`Error creating channel: ${error}`, 'error');
     }
@@ -727,6 +726,7 @@ function App() {
           onStartAudioCall={startAudioCall}
           onShowMembers={() => setShowMembersPanel(true)}
           onOpenSearch={() => setShowSearchModal(true)} 
+          currentUser={currentUser}
         />
 
 

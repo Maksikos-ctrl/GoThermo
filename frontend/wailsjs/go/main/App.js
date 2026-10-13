@@ -34,6 +34,10 @@ export function EditMessage(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['EditMessage'](arg1, arg2, arg3, arg4);
 }
 
+export function ExportChannel(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ExportChannel'](arg1, arg2, arg3);
+}
+
 export function GetChannels() {
   return window['go']['main']['App']['GetChannels']();
 }
@@ -44,6 +48,10 @@ export function GetDMChannels(arg1) {
 
 export function GetFileData(arg1) {
   return window['go']['main']['App']['GetFileData'](arg1);
+}
+
+export function GetLinkPreview(arg1) {
+  return window['go']['main']['App']['GetLinkPreview'](arg1);
 }
 
 export function GetMessages(arg1) {

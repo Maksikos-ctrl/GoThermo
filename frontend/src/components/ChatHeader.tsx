@@ -1,5 +1,6 @@
 import React from 'react';
 import { Channel } from '../types';
+import { ExportMenu } from './ExportMenu';
 
 interface ChatHeaderProps {
   currentChannel: string;
@@ -9,6 +10,7 @@ interface ChatHeaderProps {
   onStartAudioCall: () => void;
   onShowMembers?: () => void;
   onOpenSearch?: () => void;
+  currentUser?: string;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -19,6 +21,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onStartAudioCall,
   onShowMembers,
   onOpenSearch, 
+  currentUser,
 }) => {
   const channel = channels.find(ch => ch.name === currentChannel);
 
@@ -45,6 +48,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         >
           🔍
         </button>
+        {currentUser && (
+          <ExportMenu channel={currentChannel} username={currentUser} />
+        )}
         <button 
           className="members-btn" 
           onClick={onShowMembers}
