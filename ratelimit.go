@@ -21,7 +21,6 @@ func loginFailKey(email string) string {
 	return "loginfail:" + strings.ToLower(strings.TrimSpace(email))
 }
 
-// checkLoginAllowed returns an error if this email is currently locked.
 func checkLoginAllowed(email string) error {
 	key := loginFailKey(email)
 
@@ -37,8 +36,6 @@ func checkLoginAllowed(email string) error {
 	return fmt.Errorf("too many failed attempts, try again in %d min", mins)
 }
 
-// recordLoginFailure counts one failed attempt. The lock window starts at the
-// first failure and is restarted when the limit is reached.
 func recordLoginFailure(email string) {
 	key := loginFailKey(email)
 
@@ -51,7 +48,6 @@ func recordLoginFailure(email string) {
 	}
 }
 
-// clearLoginFailures resets the counter after a successful login.
 func clearLoginFailures(email string) {
 	redisClient.Del(ctx, loginFailKey(email))
 }

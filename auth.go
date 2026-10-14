@@ -114,15 +114,11 @@ func (a *App) Login(email, password string) (User, error) {
 		return User{}, fmt.Errorf("please enter a password")
 	}
 
-	// Locked after too many failed attempts (see ratelimit.go).
 	if err := checkLoginAllowed(email); err != nil {
 		log.Printf("🚫 Login blocked (too many failures): %s", email)
 		return User{}, err
 	}
 
-	// Unknown email and wrong password give the same answer, so the login
-	// form cannot be used to find out which emails are registered. Unknown
-	// emails are counted too, so guessing is limited either way.
 	userFromRedis, err := GetUserFromRedis(email)
 	if err != nil {
 		log.Printf("❌ User not found in Redis: %s", email)
@@ -130,8 +126,6 @@ func (a *App) Login(email, password string) (User, error) {
 		return User{}, fmt.Errorf("incorrect email or password")
 	}
 
-	// No password hash stored: this account cannot be logged into with a
-	// password (never silently save whatever password was just typed).
 	savedHash, err := GetUserPasswordFromRedis(email)
 	if err != nil || savedHash == "" {
 		log.Printf("❌ No password hash stored for: %s", email)
@@ -147,8 +141,6 @@ func (a *App) Login(email, password string) (User, error) {
 
 	clearLoginFailures(email)
 
-	// Use the username stored with the account (it may differ from the email
-	// prefix now that usernames are made unique).
 	username := userFromRedis.Username
 	user := userManager.RegisterUser(username, email)
 

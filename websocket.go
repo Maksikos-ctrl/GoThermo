@@ -63,7 +63,7 @@ type Client struct {
 }
 
 type Hub struct {
-	clients    map[string]*Client // Username -> Client
+	clients    map[string]*Client
 	broadcast  chan []byte
 	register   chan *Client
 	unregister chan *Client
@@ -77,7 +77,7 @@ type WSMessage struct {
 
 type StatusUpdate struct {
 	Username string `json:"username"`
-	Status   string `json:"status"` // online, away, offline
+	Status   string `json:"status"`
 }
 
 type ChannelMessage struct {
@@ -509,8 +509,6 @@ func (c *Client) handleMessage(msg WSMessage) {
 				c.Username, statusPayload.Status)
 		}
 
-	// ✅ НОВОЕ - все сигналы звонка просто пересылаются адресату из payload.to,
-	// сервер не хранит и не разбирает их содержимое (SDP/ICE), только маршрутизирует
 	case "call_offer", "call_answer", "call_ice_candidate", "call_reject", "call_end",
 		"call_renegotiate_offer", "call_renegotiate_answer", "call_screen_share_status",
 		"group_call_invite", "group_call_accept", "group_call_decline", "group_call_join",

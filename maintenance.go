@@ -7,12 +7,6 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// Deleting a message used to overwrite it with the string "DELETED" so list
-// indexes stay stable while the app is running. Those placeholders are
-// useless afterwards, so they are swept out once at startup, when nobody is
-// editing a list yet.
-
-// scanAllKeys iterates keys with SCAN (unlike KEYS it never blocks Redis).
 func scanAllKeys(pattern string) ([]string, error) {
 	var (
 		keys   []string
@@ -31,9 +25,6 @@ func scanAllKeys(pattern string) ([]string, error) {
 	}
 }
 
-// compactMessageList rewrites one list without its "DELETED" entries.
-// WATCH makes the rewrite fail (and retry) if a message is appended while we
-// work, so no new message can be lost.
 func compactMessageList(key string) (int, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		removed := 0
@@ -65,15 +56,13 @@ func compactMessageList(key string) (int, error) {
 		}, key)
 
 		if err == redis.TxFailedErr {
-			continue // the list changed under us, try again
+			continue
 		}
 		return removed, err
 	}
 	return 0, fmt.Errorf("%s kept changing, skipped", key)
 }
 
-// CompactDeletedMessages removes all "DELETED" placeholders from every
-// channel's message list.
 func CompactDeletedMessages() {
 	keys, err := scanAllKeys("channel:*:messages")
 	if err != nil {

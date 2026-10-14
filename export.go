@@ -16,9 +16,6 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// ExportChannel saves a channel's history to a file chosen by the user.
-// format is "json", "csv" or "txt". It returns the path that was written,
-// or "" if the user closed the save dialog.
 func (a *App) ExportChannel(channel, username, format string) (string, error) {
 	format = strings.ToLower(strings.TrimSpace(format))
 	if format != "json" && format != "csv" && format != "txt" {
@@ -55,7 +52,6 @@ func (a *App) ExportChannel(channel, username, format string) (string, error) {
 		return "", nil
 	}
 
-	// Private chats end up in this file, so keep it readable by the owner only.
 	if err := os.WriteFile(savePath, data, 0600); err != nil {
 		return "", fmt.Errorf("failed to write file: %v", err)
 	}
@@ -83,7 +79,6 @@ func exportFilename(channel, format string, now time.Time) string {
 	return fmt.Sprintf("gothermo-%s-%s.%s", name, now.Format("2006-01-02"), format)
 }
 
-// renderExport turns messages into the bytes of the chosen format.
 func renderExport(format, channel string, msgs []Message, now time.Time) ([]byte, error) {
 	switch format {
 	case "json":
@@ -95,8 +90,6 @@ func renderExport(format, channel string, msgs []Message, now time.Time) ([]byte
 	}
 	return nil, fmt.Errorf("unknown export format %q", format)
 }
-
-// ---------- shared text helpers ----------
 
 func exportSize(n int64) string {
 	switch {
@@ -116,7 +109,6 @@ func exportDuration(sec int) string {
 	return fmt.Sprintf("%dm %02ds", sec/60, sec%60)
 }
 
-// messageKind and messageBody give a plain-text view of any message type.
 func messageKind(m Message) string {
 	switch {
 	case m.IsCall:
@@ -147,7 +139,6 @@ func messageBody(m Message) string {
 	return m.Text
 }
 
-// reactionList gives "👍 alice, bob" lines in a stable order.
 func reactionList(m Message) []string {
 	emojis := make([]string, 0, len(m.Reactions))
 	for e, users := range m.Reactions {
@@ -164,8 +155,6 @@ func reactionList(m Message) []string {
 	return out
 }
 
-// ---------- JSON ----------
-
 func exportJSON(channel string, msgs []Message, now time.Time) ([]byte, error) {
 	if msgs == nil {
 		msgs = []Message{}
@@ -179,10 +168,6 @@ func exportJSON(channel string, msgs []Message, now time.Time) ([]byte, error) {
 	return json.MarshalIndent(doc, "", "  ")
 }
 
-// ---------- CSV ----------
-
-// csvSafe stops spreadsheet programs from running a cell as a formula:
-// a text starting with = + - @ (or a tab/CR) gets a leading apostrophe.
 func csvSafe(s string) string {
 	if s != "" && strings.ContainsRune("=+-@\t\r", rune(s[0])) {
 		return "'" + s
@@ -192,7 +177,7 @@ func csvSafe(s string) string {
 
 func exportCSV(msgs []Message) ([]byte, error) {
 	var buf bytes.Buffer
-	buf.WriteString("\xEF\xBB\xBF") // UTF-8 BOM so Excel shows emoji and Cyrillic correctly
+	buf.WriteString("\xEF\xBB\xBF")
 
 	w := csv.NewWriter(&buf)
 	if err := w.Write([]string{"timestamp", "user", "type", "text", "file_name", "file_size", "reactions", "edited"}); err != nil {
@@ -227,8 +212,6 @@ func exportCSV(msgs []Message) ([]byte, error) {
 	w.Flush()
 	return buf.Bytes(), w.Error()
 }
-
-// ---------- TXT (text/template) ----------
 
 type txtLine struct {
 	NewDay    bool

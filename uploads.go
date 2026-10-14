@@ -9,17 +9,12 @@ import (
 	"strings"
 )
 
-// 25 MB per file. The frontend sends files base64-encoded through Wails,
-// so very large files would also eat a lot of memory on both sides.
 const maxUploadBytes = 25 << 20
 
 func tooLargeErr() error {
 	return fmt.Errorf("file is too large (max %d MB)", maxUploadBytes>>20)
 }
 
-// checkUploadSize rejects an oversized upload before it is decoded.
-// Base64 text is 4/3 the size of the data (plus a little for "data:" prefix
-// and padding).
 func checkUploadSize(encodedLen int) error {
 	if encodedLen > maxUploadBytes/3*4+64 {
 		return tooLargeErr()
@@ -27,8 +22,6 @@ func checkUploadSize(encodedLen int) error {
 	return nil
 }
 
-// Types that run code when opened in a browser/webview. They are stored and
-// served as opaque downloads, never rendered.
 var activeContentTypes = map[string]bool{
 	"text/html":              true,
 	"application/xhtml+xml":  true,
@@ -37,9 +30,6 @@ var activeContentTypes = map[string]bool{
 	"application/javascript": true,
 }
 
-// validateUpload enforces the size limit and returns the MIME type to store.
-// The type sent by the client is not trusted: an "image/*" that does not look
-// like an image, or any active content type, becomes application/octet-stream.
 func validateUpload(declaredMime string, data []byte) (string, error) {
 	if len(data) > maxUploadBytes {
 		return "", tooLargeErr()
@@ -62,8 +52,6 @@ func validateUpload(declaredMime string, data []byte) (string, error) {
 	return mime, nil
 }
 
-// insideUploads reports whether path is located in the uploads directory
-// (guards deletes against a tampered Redis entry).
 func insideUploads(path string) bool {
 	abs, err1 := filepath.Abs(path)
 	base, err2 := filepath.Abs(uploadsDir)
@@ -74,7 +62,6 @@ func insideUploads(path string) bool {
 	return err == nil && rel != "." && !strings.HasPrefix(rel, "..")
 }
 
-// removeUpload deletes an uploaded file and its metadata.
 func removeUpload(fileID string) {
 	if fileID == "" {
 		return
@@ -87,8 +74,6 @@ func removeUpload(fileID string) {
 	redisClient.Del(ctx, "file:"+fileID)
 }
 
-// channelFileIDs lists the files attached to messages of a channel. Call it
-// BEFORE deleting the channel, then pass the result to removeUploads.
 func channelFileIDs(channel string) []string {
 	msgs, err := GetMessages(channel, 1000000)
 	if err != nil {

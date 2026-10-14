@@ -12,7 +12,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	_ "image/gif" // decoders used by image.Decode in makeThumbnail
+	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
 	"io"
@@ -26,13 +26,12 @@ import (
 	"time"
 )
 
-// LinkPreview is the small "card" shown under a message that contains a link.
 type LinkPreview struct {
 	URL         string `json:"url"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	SiteName    string `json:"siteName"`
-	Image       string `json:"image"` // small JPEG as a data: URL, or ""
+	Image       string `json:"image"`
 }
 
 const (
@@ -46,11 +45,8 @@ const (
 	previewFailMark  = "-"
 )
 
-// Only a few previews are fetched at once so a channel full of links cannot
-// flood the network.
 var previewSlots = make(chan struct{}, 4)
 
-// Tests point the fetcher at a local server; the app never sets this.
 var allowPrivateTargets = false
 
 // ---------- SSRF guard ----------
@@ -112,7 +108,7 @@ func ssrfControl(network, address string, _ syscall.RawConn) error {
 
 func newPreviewClient() *http.Client {
 	transport := &http.Transport{
-		Proxy:                 nil, // a system proxy would hide the real target from the guard
+		Proxy:                 nil,
 		DialContext:           (&net.Dialer{Timeout: 5 * time.Second, Control: ssrfControl}).DialContext,
 		TLSHandshakeTimeout:   5 * time.Second,
 		ResponseHeaderTimeout: 5 * time.Second,
@@ -133,8 +129,6 @@ func newPreviewClient() *http.Client {
 	}
 }
 
-// ---------- fetching ----------
-
 func normalizePreviewURL(raw string) (*url.URL, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || len(raw) > 2048 {
@@ -148,9 +142,6 @@ func normalizePreviewURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
-// fetch downloads at most max bytes. With strict=true a larger body is an
-// error (images); otherwise it is simply cut off (HTML: the tags we need are
-// at the top).
 func fetch(client *http.Client, u *url.URL, accept string, max int64, strict bool) ([]byte, *http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -185,8 +176,6 @@ func fetch(client *http.Client, u *url.URL, accept string, max int64, strict boo
 	return body, resp, nil
 }
 
-// ---------- parsing (regex) ----------
-
 var (
 	titleRe = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 	metaRe  = regexp.MustCompile(`(?is)<meta\b[^>]*>`)
@@ -201,7 +190,6 @@ func cleanText(s string, max int) string {
 	return s
 }
 
-// parsePage reads title, description, site name and image URL out of HTML.
 func parsePage(doc []byte, base *url.URL) (p LinkPreview, imageURL string) {
 	text := strings.ToValidUTF8(string(doc), "")
 
@@ -262,11 +250,6 @@ func parsePage(doc []byte, base *url.URL) (p LinkPreview, imageURL string) {
 	return p, imageURL
 }
 
-// ---------- thumbnail ----------
-
-// makeThumbnail decodes an image, shrinks it to previewThumbW pixels wide and
-// re-encodes it as JPEG. Re-encoding means whatever the remote server sent is
-// never shown as-is, and the result is small enough to cache in Redis.
 func makeThumbnail(data []byte) (string, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
@@ -328,16 +311,11 @@ func makeThumbnail(data []byte) (string, error) {
 	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }
 
-// ---------- the Wails method ----------
-
 func previewCacheKey(u *url.URL) string {
 	sum := sha256.Sum256([]byte(u.String()))
 	return "linkpreview:" + hex.EncodeToString(sum[:])
 }
 
-// GetLinkPreview returns the preview card for a link, or an error if the page
-// has nothing usable (the frontend then simply shows no card). Results are
-// cached in Redis for a day.
 func (a *App) GetLinkPreview(rawURL string) (LinkPreview, error) {
 	u, err := normalizePreviewURL(rawURL)
 	if err != nil {
