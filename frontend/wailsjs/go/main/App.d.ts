@@ -12,9 +12,13 @@ export function CheckAuth(arg1:string):Promise<string>;
 
 export function CreateChannel(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean,arg6:Array<string>):Promise<main.Channel>;
 
+export function CreateEvent(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number):Promise<main.Event>;
+
 export function DeleteChannel(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function DeleteDMChannel(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function DeleteEvent(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function DeleteMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
@@ -25,6 +29,10 @@ export function ExportChannel(arg1:string,arg2:string,arg3:string,arg4:string):P
 export function GetChannels(arg1:string):Promise<Array<main.Channel>>;
 
 export function GetDMChannels(arg1:string,arg2:string):Promise<Array<main.Channel>>;
+
+export function GetDueReminders(arg1:string):Promise<Array<main.Event>>;
+
+export function GetEvents(arg1:string,arg2:string,arg3:string):Promise<Array<main.Event>>;
 
 export function GetFileData(arg1:string,arg2:string):Promise<string>;
 
@@ -54,6 +62,8 @@ export function MarkChannelRead(arg1:string,arg2:string,arg3:string):Promise<voi
 
 export function Register(arg1:string,arg2:string):Promise<main.User>;
 
+export function RespondToEvent(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.Event>;
+
 export function SaveFileToDisk(arg1:string,arg2:string):Promise<void>;
 
 export function SearchMessages(arg1:string,arg2:string,arg3:string):Promise<Array<main.Message>>;
@@ -63,5 +73,7 @@ export function SendFile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:st
 export function SendMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 
 export function SendPost(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
+
+export function UpdateEvent(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number):Promise<main.Event>;
 
 export function UpdateUserStatus(arg1:string,arg2:string,arg3:string):Promise<boolean>;

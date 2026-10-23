@@ -22,12 +22,20 @@ export function CreateChannel(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CreateChannel'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
+export function CreateEvent(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CreateEvent'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function DeleteChannel(arg1, arg2, arg3) {
   return window['go']['main']['App']['DeleteChannel'](arg1, arg2, arg3);
 }
 
 export function DeleteDMChannel(arg1, arg2, arg3) {
   return window['go']['main']['App']['DeleteDMChannel'](arg1, arg2, arg3);
+}
+
+export function DeleteEvent(arg1, arg2, arg3) {
+  return window['go']['main']['App']['DeleteEvent'](arg1, arg2, arg3);
 }
 
 export function DeleteMessage(arg1, arg2, arg3, arg4) {
@@ -48,6 +56,14 @@ export function GetChannels(arg1) {
 
 export function GetDMChannels(arg1, arg2) {
   return window['go']['main']['App']['GetDMChannels'](arg1, arg2);
+}
+
+export function GetDueReminders(arg1) {
+  return window['go']['main']['App']['GetDueReminders'](arg1);
+}
+
+export function GetEvents(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetEvents'](arg1, arg2, arg3);
 }
 
 export function GetFileData(arg1, arg2) {
@@ -106,6 +122,10 @@ export function Register(arg1, arg2) {
   return window['go']['main']['App']['Register'](arg1, arg2);
 }
 
+export function RespondToEvent(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['RespondToEvent'](arg1, arg2, arg3, arg4);
+}
+
 export function SaveFileToDisk(arg1, arg2) {
   return window['go']['main']['App']['SaveFileToDisk'](arg1, arg2);
 }
@@ -124,6 +144,10 @@ export function SendMessage(arg1, arg2, arg3, arg4) {
 
 export function SendPost(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['SendPost'](arg1, arg2, arg3, arg4);
+}
+
+export function UpdateEvent(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['UpdateEvent'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
 export function UpdateUserStatus(arg1, arg2, arg3) {

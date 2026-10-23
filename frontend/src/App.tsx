@@ -16,6 +16,8 @@ import { ChatHeader } from './components/ChatHeader';
 import { MessagesList } from './components/MessagesList';
 import { MessageComposer } from './components/MessageComposer';
 import { ChannelMembers } from './components/ChannelMembers';
+import { CalendarModal, CalendarEvent } from './components/CalendarModal';
+import { EventReminders } from './components/EventReminders';
 import { ConfirmModal } from './components/ConfirmModal';
 
 import { SearchModal } from './components/SearchModal';
@@ -69,6 +71,8 @@ function App() {
   const [dmChannels, setDMChannels] = useState<Channel[]>([]);
   
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [reminders, setReminders] = useState<CalendarEvent[]>([]);
   // Always points at the channel on screen, so async callbacks never see a stale one.
   const currentChannelRef = useRef(currentChannel);
   currentChannelRef.current = currentChannel;
@@ -396,6 +400,36 @@ function App() {
     return () => clearInterval(interval);
   }, [isLoggedIn, currentChannel]);
 
+  // Event reminders: ask the backend every 30 s for events that are about to
+  // start and that the user is going to. Each one comes back only once.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const due = (await api.calendar.getDueReminders()) as unknown as CalendarEvent[];
+        if (cancelled || !due || due.length === 0) return;
+        setReminders(prev => {
+          const known = new Set(prev.map(r => r.id));
+          const fresh = due.filter(ev => !known.has(ev.id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+        if (settings.messageSoundEnabled) playNotificationSound(0.6);
+      } catch (error) {
+        console.error('Error checking reminders:', error);
+      }
+    };
+
+    const first = setTimeout(poll, 3000);
+    const timer = setInterval(poll, 30000);
+    return () => {
+      cancelled = true;
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, [isLoggedIn, settings.messageSoundEnabled]);
+
   useEffect(() => {
     if (currentChannel && isConnected) {
       subscribeToChannel(currentChannel);
@@ -436,6 +470,8 @@ function App() {
     }
     clearAuthToken();
     setShowSettingsModal(false);
+    setShowCalendar(false);
+    setReminders([]);
     setIsLoggedIn(false);
     setCurrentUser('');
     setCurrentUserStatus('online');
@@ -828,6 +864,8 @@ function App() {
           onStartAudioCall={startAudioCall}
           onShowMembers={() => setShowMembersPanel(true)}
           onOpenSearch={() => setShowSearchModal(true)} 
+          onOpenCalendar={() => setShowCalendar(true)}
+          currentUser={currentUser}
         />
 
 
@@ -964,6 +1002,21 @@ function App() {
       />
 
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
+      <CalendarModal
+        isOpen={showCalendar}
+        onClose={() => setShowCalendar(false)}
+        currentUser={currentUser}
+        channels={channels}
+        currentChannel={currentChannel}
+        showToast={showToast}
+      />
+
+      <EventReminders
+        reminders={reminders}
+        onDismiss={(id) => setReminders(prev => prev.filter(r => r.id !== id))}
+        onOpenCalendar={() => setShowCalendar(true)}
+      />
 
       <SettingsModal
         isOpen={showSettingsModal}

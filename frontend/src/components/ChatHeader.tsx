@@ -10,6 +10,7 @@ interface ChatHeaderProps {
   onStartAudioCall: () => void;
   onShowMembers?: () => void;
   onOpenSearch?: () => void;
+  onOpenCalendar?: () => void;
   currentUser?: string;
 }
 
@@ -21,6 +22,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onStartAudioCall,
   onShowMembers,
   onOpenSearch, 
+  onOpenCalendar,
   currentUser,
 }) => {
   const channel = channels.find(ch => ch.name === currentChannel);
@@ -48,6 +50,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         >
           🔍
         </button>
+        {onOpenCalendar && (
+          <button
+            className="search-btn"
+            onClick={onOpenCalendar}
+            title="Calendar"
+          >
+            📅
+          </button>
+        )}
         {currentUser && (
           <ExportMenu channel={currentChannel} username={currentUser} />
         )}

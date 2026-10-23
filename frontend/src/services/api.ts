@@ -5,6 +5,12 @@ import {
   Login,
   Register,
   AddReaction,
+  CreateEvent,
+  GetEvents,
+  RespondToEvent,
+  UpdateEvent,
+  DeleteEvent,
+  GetDueReminders,
   AddChannelMember,
   CreateChannel,
   GetChannels,
@@ -96,6 +102,17 @@ export const api = {
   },
   links: {
     getPreview: (url: string) => GetLinkPreview(t(), url),
+  },
+  calendar: {
+    getEvents: (fromISO: string, toISO: string) => GetEvents(t(), fromISO, toISO),
+    create: (channel: string, title: string, description: string, startISO: string, durationMin: number) =>
+      CreateEvent(t(), channel, title, description, startISO, durationMin),
+    update: (eventId: string, username: string, title: string, description: string, startISO: string, durationMin: number) =>
+      UpdateEvent(t(), eventId, username, title, description, startISO, durationMin),
+    respond: (eventId: string, username: string, status: string) =>
+      RespondToEvent(t(), eventId, username, status),
+    delete: (eventId: string, username: string) => DeleteEvent(t(), eventId, username),
+    getDueReminders: () => GetDueReminders(t()),
   },
   calls: {
     log: (channel: string, initiator: string, callStatus: string, durationSeconds: number) =>

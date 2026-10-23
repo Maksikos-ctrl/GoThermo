@@ -657,6 +657,7 @@ func (a *App) DeleteDMChannel(token, channelName, username string) error {
 		return fmt.Errorf("failed to delete chat: %v", err)
 	}
 	removeUploads(fileIDs)
+	deleteChannelEvents(channelName)
 
 	log.Printf("🗑️ DM channel #%s deleted by %s", channelName, username)
 	return nil
@@ -740,6 +741,7 @@ func (a *App) DeleteChannel(token, name, username string) error {
 		return fmt.Errorf("failed to delete channel: %v", err)
 	}
 	removeUploads(fileIDs)
+	deleteChannelEvents(name)
 	log.Printf("🗑️ Channel #%s deleted by %s", name, username)
 	if channel.IsPrivate {
 		a.hub.BroadcastChannelDeleted(name, channel.Members...)
