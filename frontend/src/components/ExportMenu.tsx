@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Download } from 'lucide-react';
 import { api } from '../services/api';
 
 interface ExportMenuProps {
@@ -18,7 +19,7 @@ export const ExportMenu: React.FC<ExportMenuProps> = ({ channel, username }) => 
   const [note, setNote] = useState<{ text: string; error: boolean } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
-
+  // close when clicking elsewhere
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -28,7 +29,7 @@ export const ExportMenu: React.FC<ExportMenuProps> = ({ channel, username }) => 
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
- 
+  // hide the result message after a moment
   useEffect(() => {
     if (!note) return;
     const t = setTimeout(() => setNote(null), note.error ? 5000 : 3000);
@@ -40,7 +41,7 @@ export const ExportMenu: React.FC<ExportMenuProps> = ({ channel, username }) => 
     setBusy(true);
     try {
       const path = await api.files.exportChannel(channel, username, format);
-      if (path) setNote({ text: 'Saved ✓', error: false }); 
+      if (path) setNote({ text: 'Saved ✓', error: false }); // empty path = dialog closed
     } catch (err: any) {
       setNote({ text: String(err?.message || err), error: true });
     } finally {
@@ -51,13 +52,14 @@ export const ExportMenu: React.FC<ExportMenuProps> = ({ channel, username }) => 
   return (
     <div ref={rootRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
-        className="search-btn"
+        className="search-btn hdr-btn"
+        aria-label="Export chat history"
         onClick={() => setOpen(!open)}
         disabled={busy}
         title="Export chat history"
         style={{ cursor: busy ? 'wait' : undefined, opacity: busy ? 0.5 : undefined }}
       >
-        ⬇️
+        <Download size={18} />
       </button>
 
       {open && (

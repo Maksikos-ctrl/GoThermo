@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useLayoutEffect } from 'react';
 import { Message } from '../types';
 import { MessageItem } from './MessageItem';
+import { channelTag } from './channelName';
 
 interface MessagesListProps {
   messages: Message[];
@@ -18,6 +19,19 @@ interface MessagesListProps {
 
 // How close to the top (px) the user has to scroll to trigger loading.
 const TOP_THRESHOLD = 100;
+
+// Messages from the same person this close together are shown as one block.
+const GROUP_WINDOW_MS = 5 * 60 * 1000;
+
+const startsGroup = (prev: Message | undefined, cur: Message): boolean => {
+  if (!prev) return false;
+  const a = prev as any;
+  const b = cur as any;
+  if (a.isCall || b.isCall || a.isPost || b.isPost) return false;
+  if (prev.user !== cur.user) return false;
+  const gap = new Date(cur.timestamp).getTime() - new Date(prev.timestamp).getTime();
+  return gap >= 0 && gap < GROUP_WINDOW_MS;
+};
 
 export const MessagesList: React.FC<MessagesListProps> = ({
   messages,
@@ -119,7 +133,7 @@ export const MessagesList: React.FC<MessagesListProps> = ({
     return (
       <div className="messages" ref={containerRef}>
         <div className="welcome-card">
-          <h2>Welcome to #{currentChannel}!</h2>
+          <h2>Welcome to {channelTag(currentChannel, currentUser)}!</h2>
           <p>This is the beginning of this channel.</p>
           <p>Send a message to start the conversation.</p>
         </div>
@@ -134,22 +148,24 @@ export const MessagesList: React.FC<MessagesListProps> = ({
       ref={containerRef}
       onScroll={handleScroll}
       // We keep the position ourselves; the browser's own scroll anchoring
-      // (Chromium / WebView2 only) would add a second, conflicting correction.
-      style={{ overflowAnchor: 'none' }}
+      // (Chromium / WebView2 only) would add a second, conflicting correction,
+      // and CSS smooth scrolling would turn our correction into a visible slide.
+      style={{ overflowAnchor: 'none', scrollBehavior: 'auto' }}
     >
       {loadingOlder && (
-        <div style={{ textAlign: 'center', color: '#8a8f98', fontSize: '12px', padding: '8px 0' }}>
+        <div className="history-note">
           Loading older messages…
         </div>
       )}
       {!hasMoreOlder && !loadingOlder && (
-        <div style={{ textAlign: 'center', color: '#8a8f98', fontSize: '12px', padding: '8px 0' }}>
-          This is the beginning of #{currentChannel}
+        <div className="history-note">
+          This is the beginning of {channelTag(currentChannel, currentUser)}
         </div>
       )}
-      {messages.map((msg) => (
+      {messages.map((msg, i) => (
         <MessageItem
           key={msg.id}
+          isGrouped={startsGroup(messages[i - 1], msg)}
           message={msg}
           currentUser={currentUser}
           onAddReaction={onAddReaction}

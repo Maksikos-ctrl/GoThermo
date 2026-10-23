@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus, Lock, Hash, AtSign, X, GripVertical } from 'lucide-react';
 import { Channel } from '../types';
 
 interface ChannelSidebarProps {
@@ -47,17 +48,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
     const count = unreadCounts[channelName] || 0;
     if (count === 0) return null;
     return (
-      <span
-        style={{
-          background: '#e01e5a',
-          color: 'white',
-          borderRadius: '10px',
-          padding: '1px 7px',
-          fontSize: '11px',
-          fontWeight: 700,
-          marginLeft: 'auto',
-        }}
-      >
+      <span className="unread-badge">
         {count > 99 ? '99+' : count}
       </span>
     );
@@ -71,8 +62,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           className="create-channel-btn"
           onClick={onCreateChannel}
           title="Create channel"
+          aria-label="Create channel"
         >
-          +
+          <Plus size={14} strokeWidth={2.5} />
         </button>
       </div>
 
@@ -86,6 +78,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             <div
               key={channel.id}
               className={`channel ${currentChannel === channel.name ? 'active' : ''} ${
+                (unreadCounts[channel.name] || 0) > 0 ? 'has-unread' : ''
+              } ${
                 isDragging === channel.id ? 'dragging' : ''
               } ${dragOver === channel.id ? 'drag-over' : ''}`}
               onClick={() => onChannelChange(channel.name)}
@@ -97,8 +91,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               onDrop={(e) => onDrop(e, channel.id)}
             >
               <div className="channel-content">
-                <span className="drag-handle">⋮⋮</span>
-                <span className="channel-hashtag">{channel.isPrivate ? '🔒' : '#'}</span>
+                <span className="drag-handle"><GripVertical size={14} /></span>
+                <span className="channel-hashtag">
+                  {channel.isPrivate ? <Lock size={15} /> : <Hash size={15} />}
+                </span>
                 <span className="channel-name">{channel.name}</span>
               </div>
 
@@ -113,8 +109,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     onDeleteChannel(channel.name);
                   }}
                   title="Delete channel"
+                  aria-label="Delete channel"
                 >
-                  ×
+                  <X size={14} />
                 </button>
               )}
             </div>
@@ -131,12 +128,14 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             {dmChannels.map((channel) => (
               <div
                 key={channel.id}
-                className={`channel ${currentChannel === channel.name ? 'active' : ''}`}
+                className={`channel ${currentChannel === channel.name ? 'active' : ''} ${
+                  (unreadCounts[channel.name] || 0) > 0 ? 'has-unread' : ''
+                }`}
                 onClick={() => onChannelChange(channel.name)}
                 title={getDMPartnerName(channel.name)}
               >
                 <div className="channel-content">
-                  <span className="channel-hashtag">@</span>
+                  <span className="channel-hashtag"><AtSign size={15} /></span>
                   <span className="channel-name">{getDMPartnerName(channel.name)}</span>
                 </div>
 
@@ -151,8 +150,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     onDeleteDM(channel.name);
                   }}
                   title="Delete chat"
+                  aria-label="Delete chat"
                 >
-                  ×
+                  <X size={14} />
                 </button>
               </div>
             ))}

@@ -36,6 +36,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { playNotificationSound } from './hooks/notificationSound';
 import { useIdleStatus } from './hooks/useIdleStatus';
 import { clearAuthToken, getAuthToken } from './services/session';
+import './styles/polish.css'; // UI polish: icons, spacing, animations. Delete this line to go back to the old look.
 
 
 
@@ -935,6 +936,7 @@ function App() {
           onShowMembers={() => setShowMembersPanel(true)}
           onOpenSearch={() => setShowSearchModal(true)} 
           onOpenCalendar={() => setShowCalendar(true)}
+          onStartGroupCall={() => setShowStartGroupCallModal(true)}
           currentUser={currentUser}
         />
 
@@ -960,6 +962,7 @@ function App() {
           onMessageChange={setNewMessage}
           onTogglePostMode={() => setIsPostMode(!isPostMode)}
           mentionableUsers={allUsernames}
+          currentUser={currentUser}
           onSendFile={handleSendFile}
         />
       </div>
@@ -1015,28 +1018,6 @@ function App() {
         onToggleScreenShare={call.toggleScreenShare}
         onEndCall={call.endCall}
       />
-
-      <button
-        onClick={() => setShowStartGroupCallModal(true)}
-        title="Start a group call"
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          left: showUserPanel ? '260px' : '20px',
-          zIndex: 9998,
-          width: '44px',
-          height: '44px',
-          borderRadius: '50%',
-          background: '#5865f2',
-          border: 'none',
-          color: 'white',
-          fontSize: '18px',
-          cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-        }}
-      >
-        👥
-      </button>
 
       <StartGroupCallModal
         isOpen={showStartGroupCallModal}

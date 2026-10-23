@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { PenLine, Paperclip, Loader2, Smile, SendHorizontal, X, Pin, AlertTriangle } from 'lucide-react';
 import { EMOJI_LIST } from '../types';
+import { channelTag } from './channelName';
 
 // Same limit as the backend (uploads.go). Checked here too so a huge file is
 // rejected before it is read into memory.
@@ -33,6 +35,7 @@ interface MessageComposerProps {
   onMessageChange: (message: string) => void;
   onTogglePostMode: () => void;
   mentionableUsers?: string[];
+  currentUser?: string;
   onSendFile?: (fileName: string, mimeType: string, base64Data: string) => void | Promise<void>;
 }
 
@@ -44,6 +47,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   onMessageChange,
   onTogglePostMode,
   mentionableUsers = [],
+  currentUser,
   onSendFile, 
 }) => {
   const [showEmojiPopup, setShowEmojiPopup] = useState(false);
@@ -293,24 +297,26 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             background: '#2b2d31', color: '#fff', padding: '18px 28px',
             borderRadius: '12px', fontSize: '18px', fontWeight: 600,
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', gap: '10px',
           }}>
-            📎 Drop files to send to #{currentChannel}
+            <Paperclip size={20} /> Drop files to send to {channelTag(currentChannel, currentUser)}
           </div>
         </div>
       )}
       {uploadError && (
-        <div style={{ color: '#f23f42', fontSize: '13px', padding: '4px 8px' }}>
-          ⚠️ {uploadError}
+        <div style={{ color: '#f23f42', fontSize: '13px', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <AlertTriangle size={14} /> {uploadError}
         </div>
       )}
       {isPostMode && (
         <div className="composer-mode-indicator">
-          <span>📌 Creating a post</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Pin size={14} /> Creating a post</span>
           <button 
             onClick={onTogglePostMode}
             className="close-mode-btn"
+            aria-label="Cancel post"
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       )}
@@ -318,7 +324,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       <div className="composer-input-wrapper" style={{ position: 'relative' }}>
         <textarea
           ref={textareaRef}
-          placeholder={`Message #${currentChannel}`}
+          placeholder={`Message ${channelTag(currentChannel, currentUser)}`}
           value={message}
           onChange={handleChange}
           onKeyDown={handleKeyPress}
@@ -383,8 +389,9 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             className={`toolbar-icon-btn ${isPostMode ? 'active-icon' : ''}`}
             onClick={onTogglePostMode}
             title={isPostMode ? "Switch to message" : "Create a post"}
+            aria-label={isPostMode ? "Switch to message" : "Create a post"}
           >
-            📝
+            <PenLine size={18} />
           </button>
 
           
@@ -403,7 +410,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
                 title="Attach file"
                 disabled={isUploading}
               >
-                {isUploading ? '⏳' : '📎'}
+                {isUploading ? <Loader2 size={18} className="icon-spin" /> : <Paperclip size={18} />}
               </button>
             </>
           )}
@@ -413,8 +420,9 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
               className="toolbar-icon-btn" 
               onClick={() => setShowEmojiPopup(!showEmojiPopup)}
               title="Emoji"
+              aria-label="Emoji"
             >
-              😊
+              <Smile size={18} />
             </button>
             
             {showEmojiPopup && (
@@ -442,11 +450,9 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           onClick={onSend}
           disabled={!message.trim()}
           title="Send message (Enter)"
+          aria-label="Send message"
         >
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M2.5 3l15 7-15 7V3zm2 2.5v9L14.5 10 4.5 5.5z"/>
-          </svg>
-          Send
+          <SendHorizontal size={18} />
         </button>
       </div>
     </div>

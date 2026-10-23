@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { Message, EMOJI_LIST } from '../types';
+import { avatarColor } from './avatarColor';
 import { LinkPreview } from './LinkPreview';
 import { MessageText } from './MessageText';
 import { api } from '../services/api'; 
@@ -12,6 +14,8 @@ interface MessageItemProps {
   onEditMessage: (messageId: string, newText: string) => void;
   onDeleteMessage: (messageId: string) => void;
   knownUsernames?: string[];
+  // Same author as the message right above, a few minutes apart: no avatar/name repeated.
+  isGrouped?: boolean;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -21,6 +25,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onEditMessage,
   onDeleteMessage,
   knownUsernames = [], 
+  isGrouped = false,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false); 
@@ -78,13 +83,29 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     onDeleteMessage(message.id);
   };
 
+  // A message that has just arrived slides in; the whole history does not.
+  const isFresh = Date.now() - new Date(message.timestamp).getTime() < 3000;
+  const grouped = isGrouped && !message.isCall && !message.isPost;
+
   return (
     <div 
-      className={`message ${message.isPost ? 'post-message' : ''} ${isOwnMessage ? 'my-message' : ''} ${mentionsCurrentUser ? 'mentions-me' : ''}`}
+      className={`message ${message.isPost ? 'post-message' : ''} ${isOwnMessage ? 'my-message' : ''} ${mentionsCurrentUser ? 'mentions-me' : ''} ${message.isCall ? 'is-call' : ''} ${grouped ? 'grouped' : ''} ${isFresh ? 'msg-enter' : ''}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {!message.isCall && (
+        grouped ? (
+          <div className="msg-gutter" title={new Date(message.timestamp).toLocaleString()}>
+            {formatTime(message.timestamp).replace(/\s?[AP]M$/i, '')}
+          </div>
+        ) : (
+          <div className="msg-avatar" style={{ background: avatarColor(message.user) }}>
+            {message.user.charAt(0).toUpperCase()}
+          </div>
+        )
+      )}
+      <div className="msg-main">
+      {!message.isCall && !grouped && (
         <div className="message-header">
           <span className="message-user">{message.user}</span>
           <span className="message-time">{formatTime(message.timestamp)}</span>
@@ -173,15 +194,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   className="quick-reaction-btn"
                   onClick={() => setIsEditing(true)}
                   title="Edit message"
+                  aria-label="Edit message"
                 >
-                  ✏️
+                  <Pencil size={14} />
                 </button>
                 <button
                   className="quick-reaction-btn"
                   onClick={handleDeleteClick}
                   title="Delete message"
+                  aria-label="Delete message"
                 >
-                  🗑️
+                  <Trash2 size={14} />
                 </button>
               </>
             )}
@@ -189,6 +212,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         )}
       </div>
       )}
+      </div>
     </div>
   );
 };
@@ -226,8 +250,8 @@ function CallLogBubble({ message, isOwnMessage }: { message: Message; isOwnMessa
         display: 'inline-flex',
         alignItems: 'center',
         gap: '10px',
-        background: '#2b2d31',
-        border: `1px solid ${isDeclinedOrCancelled ? 'rgba(218,55,60,0.35)' : '#3f4147'}`,
+        background: 'var(--bg-secondary, #2b2d31)',
+        border: `1px solid ${isDeclinedOrCancelled ? 'rgba(218,55,60,0.35)' : 'var(--border-color, #3f4147)'}`,
         borderRadius: '10px',
         padding: '10px 16px',
         marginTop: '2px',
@@ -250,7 +274,7 @@ function CallLogBubble({ message, isOwnMessage }: { message: Message; isOwnMessa
       </span>
       <span
         style={{
-          color: isDeclinedOrCancelled ? '#da373c' : '#f2f3f5',
+          color: isDeclinedOrCancelled ? '#da373c' : 'var(--text-primary, #f2f3f5)',
           fontSize: '14px',
           fontWeight: 600,
         }}
@@ -372,8 +396,8 @@ function FileAttachment({ message }: { message: Message }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '10px',
-        background: '#2b2d31',
-        border: '1px solid #3f4147',
+        background: 'var(--bg-secondary, #2b2d31)',
+        border: '1px solid var(--border-color, #3f4147)',
         borderRadius: '8px',
         padding: '10px 14px',
         cursor: 'pointer',
@@ -382,7 +406,7 @@ function FileAttachment({ message }: { message: Message }) {
     >
       <span style={{ fontSize: '22px' }}>📄</span>
       <div style={{ overflow: 'hidden' }}>
-        <div style={{ color: '#f2f3f5', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ color: 'var(--text-primary, #f2f3f5)', fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {message.fileName}
         </div>
         <div style={{ color: '#8a8f98', fontSize: '12px' }}>

@@ -1,5 +1,7 @@
 import React, { useRef, useState } from 'react';
+import { Video, Phone, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Check } from 'lucide-react';
 import { User, STATUS_OPTIONS, StatusType } from '../types';
+import { avatarColor } from './avatarColor';
 import { api } from '../services/api';
 
 interface UserPanelProps {
@@ -64,22 +66,18 @@ export const UserPanel: React.FC<UserPanelProps> = ({
   };
 
 
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'online': return '🟢';
-      case 'away': return '🟡';
-      case 'offline': return '🔴';
-      default: return '⚪';
-    }
-  };
+  const getStatusIcon = (status: string) => (
+    <span className={`presence-dot ${['online', 'away', 'offline'].includes(status) ? status : 'offline'}`} />
+  );
 
   if (!showUserPanel) {
     return (
       <button 
         className="show-panel-btn"
         onClick={onTogglePanel}
+        aria-label="Show panel"
       >
-        →
+        <ChevronsRight size={18} />
       </button>
     );
   }
@@ -101,13 +99,14 @@ export const UserPanel: React.FC<UserPanelProps> = ({
           className="panel-toggle"
           onClick={onTogglePanel}
           title="Hide panel"
+          aria-label="Hide panel"
         >
-          ←
+          <ChevronsLeft size={18} />
         </button>
       </div>
 
       <div className="current-user-card" ref={statusMenuRef}>
-        <div className="user-avatar large">{currentUser.charAt(0).toUpperCase()}</div>
+        <div className="user-avatar large" style={{ background: avatarColor(currentUser) }}>{currentUser.charAt(0).toUpperCase()}</div>
         <div className="user-details">
           <div className="user-name">{currentUser}</div>
           <div 
@@ -117,7 +116,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
           >
             <span className={`status-dot ${currentUserStatus}`}></span>
             <span>{STATUS_OPTIONS.find(s => s.value === currentUserStatus)?.label}</span>
-            <span className="status-arrow">▼</span>
+            <ChevronDown size={14} className="status-arrow" />
           </div>
         </div>
         
@@ -131,7 +130,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
               >
                 <span className="status-dot" style={{ backgroundColor: status.color }}></span>
                 <span>{status.label}</span>
-                {currentUserStatus === status.value && <span style={{ marginLeft: '8px' }}>✓</span>}
+                {currentUserStatus === status.value && <Check size={14} style={{ marginLeft: '8px' }} />}
               </div>
             ))}
           </div>
@@ -151,7 +150,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
                 className="user-item"
                 onClick={() => onStartDirectMessage(user.username)}
               >
-                <div className="user-avatar small">{user.username.charAt(0).toUpperCase()}</div>
+                <div className="user-avatar small" style={{ background: avatarColor(user.username) }}>{user.username.charAt(0).toUpperCase()}</div>
                 <div className="user-name">{user.username}</div>
                 <span className="status-icon">{getStatusIcon(user.status || 'online')}</span>
               </div>
@@ -173,7 +172,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
                 className="user-item"
                 onClick={() => onStartDirectMessage(user.username)}
               >
-                <div className="user-avatar small">{user.username.charAt(0).toUpperCase()}</div>
+                <div className="user-avatar small" style={{ background: avatarColor(user.username) }}>{user.username.charAt(0).toUpperCase()}</div>
                 <div className="user-name">{user.username}</div>
                 <span className="status-icon">{getStatusIcon(user.status || 'away')}</span>
               </div>
@@ -195,7 +194,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
                 className="user-item offline"
                 onClick={() => onStartDirectMessage(user.username)}
               >
-                <div className="user-avatar small">{user.username.charAt(0).toUpperCase()}</div>
+                <div className="user-avatar small" style={{ background: avatarColor(user.username) }}>{user.username.charAt(0).toUpperCase()}</div>
                 <div className="user-name">{user.username}</div>
                 <span className="status-icon">{getStatusIcon(user.status || 'offline')}</span>
               </div>
@@ -206,15 +205,15 @@ export const UserPanel: React.FC<UserPanelProps> = ({
 
       <div className="panel-footer">
         <button className="footer-btn" onClick={onStartVideoCall} title="Video call">
-          <span className="icon">📹</span>
+          <Video size={16} className="icon" />
           <span>Video</span>
         </button>
         <button className="footer-btn" onClick={onStartAudioCall} title="Audio call">
-          <span className="icon">📞</span>
+          <Phone size={16} className="icon" />
           <span>Audio</span>
         </button>
-        <button className="footer-btn" title="Settings" onClick={onOpenSettings}>
-          <span className="icon">⚙️</span>
+        <button className="footer-btn" title="Settings" aria-label="Settings" onClick={onOpenSettings}>
+          <Settings size={16} className="icon" />
         </button>
       </div>
     </div>
