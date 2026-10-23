@@ -5,6 +5,7 @@ import {
   Login,
   Register,
   AddReaction,
+  AddChannelMember,
   CreateChannel,
   GetChannels,
   DeleteChannel,
@@ -32,7 +33,8 @@ import {
 } from '../../wailsjs/go/main/App';
 import { getAuthToken } from './session';
 
-
+// The backend checks the session token on every call. The token is added
+// here, so components keep calling api.* exactly as before.
 const t = () => getAuthToken();
 
 export const api = {
@@ -49,8 +51,15 @@ export const api = {
   },
   channels: {
     getAll: () => GetChannels(t()),
-    create: (name: string, description: string, createdBy: string) =>
-      CreateChannel(t(), name, description, createdBy),
+    create: (
+      name: string,
+      description: string,
+      createdBy: string,
+      isPrivate: boolean = false,
+      members: string[] = []
+    ) => CreateChannel(t(), name, description, createdBy, isPrivate, members),
+    addMember: (channelName: string, caller: string, newMember: string) =>
+      AddChannelMember(t(), channelName, caller, newMember),
     delete: (name: string, username: string) => DeleteChannel(t(), name, username),
     join: (channelName: string, username: string) => JoinChannel(t(), channelName, username),
   },

@@ -54,6 +54,8 @@ function App() {
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDescription, setNewChannelDescription] = useState('');
+  const [newChannelPrivate, setNewChannelPrivate] = useState(false);
+  const [newChannelMembers, setNewChannelMembers] = useState<string[]>([]);
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [isPostMode, setIsPostMode] = useState(false);
   const [newMessage, setNewMessage] = useState('');
@@ -67,6 +69,9 @@ function App() {
   const [dmChannels, setDMChannels] = useState<Channel[]>([]);
   
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  // Always points at the channel on screen, so async callbacks never see a stale one.
+  const currentChannelRef = useRef(currentChannel);
+  currentChannelRef.current = currentChannel;
 
   const { toasts, showToast, removeToast } = useToast();
   const { settings, updateSettings } = useSettings(currentUser);
@@ -162,6 +167,12 @@ function App() {
       playNotificationSound(0.5);
     }
     if (channel === currentChannel) {
+      // The user is looking at this channel, so the message is read at once.
+      // Without this the backend counts it as unread after lastRead (set when
+      // the channel was opened) and the badge comes back on the next refresh.
+      if (message.user !== currentUser) {
+        void markChannelReadNow(channel);
+      }
       setMessages(prev => {
         const index = prev.findIndex(m => m.id === message.id);
         if (index === -1) {
@@ -177,9 +188,24 @@ function App() {
     }
   }
 
+  async function markChannelReadNow(channel: string) {
+    if (!currentUser) return;
+    try {
+      await api.unread.markRead(currentUser, channel);
+    } catch (error) {
+      console.error('Error marking channel as read:', error);
+    }
+  }
+
   function handleChannelCreated(channel: Channel) {
-    if (channel.isPrivate) return; 
-    setChannels(prev => (prev.some(ch => ch.name === channel.name) ? prev : [...prev, channel]));
+    // DMs are managed elsewhere. A private channel is only ever sent to its
+    // members; an event for a channel we already have is an update (new member).
+    if (channel.isPrivate && channel.name.startsWith('dm_')) return;
+    setChannels(prev =>
+      prev.some(ch => ch.name === channel.name)
+        ? prev.map(ch => (ch.name === channel.name ? { ...ch, ...channel, order: ch.order } : ch))
+        : [...prev, channel]
+    );
   }
 
   function handleChannelDeleted(channelName: string) {
@@ -212,6 +238,16 @@ function App() {
     durationSeconds: number;
     status: 'completed' | 'cancelled';
   }) {
+    const originChannel = groupCallChannelRef.current;
+    groupCallChannelRef.current = null;
+    if (originChannel) {
+      try {
+        await api.calls.log(originChannel, currentUser, info.status, info.durationSeconds);
+      } catch (error) {
+        console.error('Error logging channel call:', error);
+      }
+      return;
+    }
     try {
       const groupChannel = await api.dm.getOrCreateGroup(info.participants, currentUser);
       await api.calls.log(groupChannel.name, currentUser, info.status, info.durationSeconds);
@@ -238,6 +274,27 @@ function App() {
   const getGroupMembers = (): string[] => {
     const channel = dmChannels.find(ch => ch.name === currentChannel);
     return channel ? channel.members.filter(m => m !== currentUser) : [];
+  };
+
+  // Members of the open channel when it is a private channel (calls there
+  // are group calls with everyone in it).
+  const getPrivateChannelMembers = (): string[] | null => {
+    const channel = channels.find(ch => ch.name === currentChannel);
+    if (!channel || !channel.isPrivate) return null;
+    return (channel.members || []).filter(m => m !== currentUser);
+  };
+
+  // Which channel the current group call was started from, so the call log
+  // goes there. null = a regular group call (logged to its own group chat).
+  const groupCallChannelRef = useRef<string | null>(null);
+
+  const startGroupCallFromChannel = (members: string[]) => {
+    if (members.length === 0) {
+      showToast('No one else in this channel yet', 'error');
+      return;
+    }
+    groupCallChannelRef.current = currentChannel;
+    groupCall.startGroupCall(members);
   };
 
   const getDMPartner = (): string | null => {
@@ -318,8 +375,10 @@ function App() {
       loadChannels();
       loadDMChannels();
       loadUsers();
-      loadUnreadCounts();        
-      markCurrentChannelAsRead(); 
+      // Order matters: save "read" first, then ask for counts. Run together,
+      // the counts could be computed before lastRead is saved and bring the
+      // badge of the open channel back.
+      markCurrentChannelAsRead().then(loadUnreadCounts);
     }
   }, [currentChannel, isLoggedIn]);
 
@@ -447,6 +506,18 @@ function App() {
     }
   };
 
+  const handleAddChannelMember = async (channelName: string, username: string) => {
+    try {
+      const updated = await api.channels.addMember(channelName, currentUser, username);
+      setChannels(prev =>
+        prev.map(ch => (ch.name === channelName ? { ...ch, ...updated, order: ch.order } : ch))
+      );
+      showToast(`${username} added to #${channelName}`, 'success');
+    } catch (error: any) {
+      showToast(`Could not add member: ${error}`, 'error');
+    }
+  };
+
   const handleCreateChannel = async () => {
     if (!newChannelName.trim()) {
       showToast('Please enter a channel name', 'error');
@@ -457,16 +528,21 @@ function App() {
       const channel = await api.channels.create(
         newChannelName.trim(),
         newChannelDescription.trim(),
-        currentUser
+        currentUser,
+        newChannelPrivate,
+        newChannelMembers
       );
       
       setChannels(prev => [...prev, { ...channel, order: prev.length }]);
       setShowCreateChannelModal(false);
       setNewChannelName('');
       setNewChannelDescription('');
+      setNewChannelPrivate(false);
+      setNewChannelMembers([]);
       setCurrentChannel(channel.name);
       showToast(`Channel #${channel.name} created`, 'success');
-     
+      // Other clients pick this up via the channel_created WS broadcast;
+      // we already have it locally, no reload needed.
     } catch (error: any) {
       showToast(`Error creating channel: ${error}`, 'error');
     }
@@ -557,12 +633,18 @@ function App() {
         showToast('No one else in this group chat yet', 'error');
         return;
       }
+      groupCallChannelRef.current = null;
       groupCall.startGroupCall(members);
+      return;
+    }
+    const privateMembers = getPrivateChannelMembers();
+    if (privateMembers) {
+      startGroupCallFromChannel(privateMembers);
       return;
     }
     const partner = getDMPartner();
     if (!partner) {
-      showToast('Video calls are only available in direct messages for now', 'error');
+      showToast('Calls are available in direct messages and private channels', 'error');
       return;
     }
     call.startCall(partner, true);
@@ -575,12 +657,18 @@ function App() {
         showToast('No one else in this group chat yet', 'error');
         return;
       }
+      groupCallChannelRef.current = null;
       groupCall.startGroupCall(members);
+      return;
+    }
+    const privateMembers = getPrivateChannelMembers();
+    if (privateMembers) {
+      startGroupCallFromChannel(privateMembers);
       return;
     }
     const partner = getDMPartner();
     if (!partner) {
-      showToast('Audio calls are only available in direct messages for now', 'error');
+      showToast('Calls are available in direct messages and private channels', 'error');
       return;
     }
     call.startCall(partner);
@@ -595,7 +683,8 @@ function App() {
   const loadUnreadCounts = async() => {
     try {
       const counts = await api.unread.getCounts(currentUser);
-      setUnreadCounts(counts || {});
+      // The open channel is never unread, whatever the server says.
+      setUnreadCounts({ ...(counts || {}), [currentChannelRef.current]: 0 });
     }
     catch (error) {
       console.error('Error loading unread counts:', error);
@@ -696,7 +785,11 @@ function App() {
         isLoading={isLoadingChannels}
         currentUser={currentUser}
         onChannelChange={setCurrentChannel}
-        onCreateChannel={() => setShowCreateChannelModal(true)}
+        onCreateChannel={() => {
+          setNewChannelPrivate(false);
+          setNewChannelMembers([]);
+          setShowCreateChannelModal(true);
+        }}
         onDeleteChannel={handleDeleteChannel}
         onDeleteDM={handleDeleteDM}  
         isDragging={isDragging}
@@ -711,10 +804,19 @@ function App() {
         isOpen={showCreateChannelModal}
         channelName={newChannelName}
         channelDescription={newChannelDescription}
+        isPrivate={newChannelPrivate}
+        availableUsers={users.map(u => u.username).filter(n => n !== currentUser)}
+        selectedMembers={newChannelMembers}
         onClose={() => setShowCreateChannelModal(false)}
         onCreate={handleCreateChannel}
         onNameChange={setNewChannelName}
         onDescriptionChange={setNewChannelDescription}
+        onPrivateChange={setNewChannelPrivate}
+        onToggleMember={(name) =>
+          setNewChannelMembers(prev =>
+            prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+          )
+        }
       />
 
       <div className="main-content">
@@ -726,7 +828,6 @@ function App() {
           onStartAudioCall={startAudioCall}
           onShowMembers={() => setShowMembersPanel(true)}
           onOpenSearch={() => setShowSearchModal(true)} 
-          currentUser={currentUser}
         />
 
 
@@ -759,6 +860,9 @@ function App() {
           users={getChannelMembers()}
           currentChannel={currentChannel}
           onClose={() => setShowMembersPanel(false)}
+          currentUser={currentUser}
+          allUsers={users}
+          onAddMember={(username) => handleAddChannelMember(currentChannel, username)}
         />
       )}
       <ConfirmModal
@@ -827,7 +931,10 @@ function App() {
         users={users}
         currentUser={currentUser}
         onClose={() => setShowStartGroupCallModal(false)}
-        onStart={(usernames) => groupCall.startGroupCall(usernames)}
+        onStart={(usernames) => {
+          groupCallChannelRef.current = null;
+          groupCall.startGroupCall(usernames);
+        }}
       />
 
       <GroupCallInviteModal

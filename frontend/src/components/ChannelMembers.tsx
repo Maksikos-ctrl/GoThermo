@@ -6,26 +6,49 @@ interface ChannelMembersProps {
   users: User[];
   currentChannel: string;
   onClose: () => void;
+  // Private channels only: who is looking, everyone who exists, and how to invite.
+  currentUser?: string;
+  allUsers?: User[];
+  onAddMember?: (username: string) => void;
 }
 
 export const ChannelMembers: React.FC<ChannelMembersProps> = ({
   channel,
   users,
   currentChannel,
-  onClose
+  onClose,
+  currentUser,
+  allUsers = [],
+  onAddMember,
 }) => {
   const [members, setMembers] = useState<User[]>([]);
+  const [inviteName, setInviteName] = useState('');
+
+  const isPrivateChannel = !!channel?.isPrivate && !channel.name.startsWith('dm_');
+  const memberNames = channel?.members ?? [];
 
   
   useEffect(() => {
     
-    const sorted = [...users].sort((a, b) => {
+    // In a private channel the list is its real member list, not message authors.
+    const source: User[] = isPrivateChannel
+      ? memberNames.map(
+          name =>
+            allUsers.find(u => u.username === name) ||
+            ({ id: name, username: name, email: '', isOnline: false, status: 'offline' } as User)
+        )
+      : users;
+    const sorted = [...source].sort((a, b) => {
       if (a.status === 'online' && b.status !== 'online') return -1;
       if (a.status !== 'online' && b.status === 'online') return 1;
       return a.username.localeCompare(b.username);
     });
     setMembers(sorted);
-  }, [users]);
+  }, [users, allUsers, channel, isPrivateChannel]);
+
+  const candidates = allUsers.filter(u => !memberNames.includes(u.username));
+  const canInvite =
+    isPrivateChannel && !!onAddMember && !!currentUser && memberNames.includes(currentUser);
 
   const getStatusIcon = (status: string = 'offline') => {
     switch(status) {
@@ -54,7 +77,7 @@ export const ChannelMembers: React.FC<ChannelMembersProps> = ({
     <div className="channel-members-panel">
       <div className="channel-members-header">
         <div className="channel-info">
-          <h3># {currentChannel}</h3>
+          <h3>{isPrivateChannel ? '🔒' : '#'} {currentChannel}</h3>
           {channel.description && (
             <span className="channel-description">{channel.description}</span>
           )}
@@ -115,6 +138,41 @@ export const ChannelMembers: React.FC<ChannelMembersProps> = ({
           </>
         )}
       </div>
+
+      {canInvite && (
+        <div style={{ padding: '10px 12px', borderTop: '1px solid #3f4147' }}>
+          <div className="section-label">ADD MEMBER</div>
+          {candidates.length === 0 ? (
+            <div className="no-members">Everyone is already here</div>
+          ) : (
+            <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+              <select
+                value={inviteName}
+                onChange={e => setInviteName(e.target.value)}
+                className="modal-input"
+                style={{ flex: 1, minWidth: 0 }}
+              >
+                <option value="">Choose a user…</option>
+                {candidates.map(u => (
+                  <option key={u.username} value={u.username}>
+                    {u.username}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="modal-create-btn"
+                disabled={!inviteName}
+                onClick={() => {
+                  onAddMember!(inviteName);
+                  setInviteName('');
+                }}
+              >
+                Add
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="channel-members-footer">
         <div className="channel-created">

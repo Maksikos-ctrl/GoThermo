@@ -259,7 +259,7 @@ func (a *App) SearchMessages(token, username, query string) ([]Message, error) {
 	}
 	lowerQuery := strings.ToLower(query)
 
-	publicChannels, err := listPublicChannels()
+	publicChannels, err := listVisibleChannels(username)
 	if err != nil {
 		return []Message{}, nil
 	}
@@ -465,7 +465,7 @@ func sanitizeFileName(name string) string {
 	return replacer.Replace(name)
 }
 
-func (a *App) CreateChannel(token, name, description, createdBy string) (Channel, error) {
+func (a *App) CreateChannel(token, name, description, createdBy string, isPrivate bool, members []string) (Channel, error) {
 	if err := requireUser(token, createdBy); err != nil {
 		return Channel{}, err
 	}
@@ -479,37 +479,33 @@ func (a *App) CreateChannel(token, name, description, createdBy string) (Channel
 	if err == nil && existingChannel != nil {
 		return Channel{}, fmt.Errorf("channel #%s already exists", name)
 	}
-	channel := Channel{ID: uuid.New().String(), Name: name, Description: description, Members: []string{createdBy}, CreatedBy: createdBy, CreatedAt: time.Now(), IsPrivate: false}
+	memberList := []string{createdBy}
+	if isPrivate {
+		memberList, err = normalizeMembers(createdBy, members)
+		if err != nil {
+			return Channel{}, err
+		}
+	}
+	channel := Channel{ID: uuid.New().String(), Name: name, Description: description, Members: memberList, CreatedBy: createdBy, CreatedAt: time.Now(), IsPrivate: isPrivate}
 	if err = SaveChannel(channel); err != nil {
 		return Channel{}, fmt.Errorf("failed to create channel: %v", err)
 	}
-	log.Printf("📢 Channel #%s created by %s", name, createdBy)
+	log.Printf("📢 Channel #%s created by %s (private=%v)", name, createdBy, isPrivate)
 	a.hub.BroadcastChannelCreated(channel)
 	return channel, nil
 }
 
 func (a *App) GetChannels(token string) ([]Channel, error) {
-	if _, err := sessionUser(token); err != nil {
+	username, err := sessionUser(token)
+	if err != nil {
 		return nil, err
 	}
-	return listPublicChannels()
-}
-
-func listPublicChannels() ([]Channel, error) {
-	channels, err := GetAllChannels()
+	channels, err := listVisibleChannels(username)
 	if err != nil {
 		log.Printf("Error fetching channels: %v", err)
 		return []Channel{}, nil
 	}
-
-	publicChannels := make([]Channel, 0, len(channels))
-	for _, ch := range channels {
-		if !ch.IsPrivate {
-			publicChannels = append(publicChannels, ch)
-		}
-	}
-
-	return publicChannels, nil
+	return channels, nil
 }
 
 func (a *App) GetDMChannels(token, username string) ([]Channel, error) {
@@ -679,7 +675,7 @@ func (a *App) GetUnreadCounts(token, username string) (map[string]int, error) {
 	}
 	result := make(map[string]int)
 
-	publicChannels, err := listPublicChannels()
+	publicChannels, err := listVisibleChannels(username)
 	if err != nil {
 		return result, err
 	}
@@ -745,7 +741,11 @@ func (a *App) DeleteChannel(token, name, username string) error {
 	}
 	removeUploads(fileIDs)
 	log.Printf("🗑️ Channel #%s deleted by %s", name, username)
-	a.hub.BroadcastChannelDeleted(name)
+	if channel.IsPrivate {
+		a.hub.BroadcastChannelDeleted(name, channel.Members...)
+	} else {
+		a.hub.BroadcastChannelDeleted(name)
+	}
 	return nil
 }
 

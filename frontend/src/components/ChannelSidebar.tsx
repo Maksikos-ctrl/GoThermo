@@ -98,7 +98,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             >
               <div className="channel-content">
                 <span className="drag-handle">⋮⋮</span>
-                <span className="channel-hashtag">#</span>
+                <span className="channel-hashtag">{channel.isPrivate ? '🔒' : '#'}</span>
                 <span className="channel-name">{channel.name}</span>
               </div>
 

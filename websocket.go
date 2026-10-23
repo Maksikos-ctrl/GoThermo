@@ -173,7 +173,19 @@ func (h *Hub) Run() {
 	}
 }
 
+// shouldDeliver decides whether a client gets an event of a channel. Private
+// channels and DMs go to their members only, whatever a client has subscribed
+// to; public channels go to subscribers (or to clients with no subscriptions).
+func shouldDeliver(client *Client, ch *Channel, channel string) bool {
+	if ch != nil && ch.IsPrivate {
+		return channelHasMember(ch.Members, client.Username)
+	}
+	return len(client.Channels) == 0 || contains(client.Channels, channel)
+}
+
 func (h *Hub) BroadcastToChannel(channel string, msg Message) {
+	ch, _ := GetChannel(channel)
+
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 
@@ -196,7 +208,7 @@ func (h *Hub) BroadcastToChannel(channel string, msg Message) {
 	sentCount := 0
 	for username, client := range h.clients {
 
-		if len(client.Channels) == 0 || contains(client.Channels, channel) {
+		if shouldDeliver(client, ch, channel) {
 			select {
 			case client.Send <- data:
 				sentCount++
@@ -226,6 +238,10 @@ func (h *Hub) BroadcastChannelCreated(channel Channel) {
 	}
 
 	for username, client := range h.clients {
+		// A private channel is announced to its members only.
+		if channel.IsPrivate && !channelHasMember(channel.Members, username) {
+			continue
+		}
 		select {
 		case client.Send <- data:
 		default:
@@ -237,7 +253,9 @@ func (h *Hub) BroadcastChannelCreated(channel Channel) {
 	log.Printf("📢 Broadcast channel_created: #%s", channel.Name)
 }
 
-func (h *Hub) BroadcastChannelDeleted(channelName string) {
+// BroadcastChannelDeleted tells clients a channel is gone. For a private
+// channel pass its members: only they are told.
+func (h *Hub) BroadcastChannelDeleted(channelName string, recipients ...string) {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 
@@ -255,6 +273,9 @@ func (h *Hub) BroadcastChannelDeleted(channelName string) {
 	}
 
 	for username, client := range h.clients {
+		if len(recipients) > 0 && !contains(recipients, username) {
+			continue
+		}
 		select {
 		case client.Send <- data:
 		default:
@@ -267,6 +288,8 @@ func (h *Hub) BroadcastChannelDeleted(channelName string) {
 }
 
 func (h *Hub) BroadcastMessageDeleted(channel, messageID string) {
+	ch, _ := GetChannel(channel)
+
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 
@@ -285,7 +308,7 @@ func (h *Hub) BroadcastMessageDeleted(channel, messageID string) {
 	}
 
 	for username, client := range h.clients {
-		if len(client.Channels) == 0 || contains(client.Channels, channel) {
+		if shouldDeliver(client, ch, channel) {
 			select {
 			case client.Send <- data:
 			default:
@@ -469,12 +492,15 @@ func (c *Client) handleMessage(msg WSMessage) {
 
 	case "subscribe_channel":
 		if channel, ok := msg.Payload.(string); ok {
-			c.Hub.AddChannelToClient(c.Username, channel)
+			allowed := requireChannelAccess(c.Username, channel) == nil
+			if allowed {
+				c.Hub.AddChannelToClient(c.Username, channel)
+			}
 			response := WSMessage{
 				Type: "subscribed",
 				Payload: map[string]interface{}{
 					"channel": channel,
-					"success": true,
+					"success": allowed,
 				},
 			}
 			data, _ := json.Marshal(response)
