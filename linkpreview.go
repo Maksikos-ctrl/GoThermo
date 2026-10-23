@@ -272,7 +272,6 @@ func makeThumbnail(data []byte) (string, error) {
 		h = 1
 	}
 
-	// White background (JPEG has no transparency), then box-average the pixels.
 	dst := image.NewRGBA(image.Rect(0, 0, w, h))
 	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
 
@@ -293,7 +292,7 @@ func makeThumbnail(data []byte) (string, error) {
 			for sy := sy0; sy < sy1; sy++ {
 				for sx := sx0; sx < sx1; sx++ {
 					pr, pg, pb, pa := src.At(sx, sy).RGBA()
-					// composite over white using the alpha
+
 					r += uint64(pr) + uint64(0xffff-pa)
 					g += uint64(pg) + uint64(0xffff-pa)
 					bl += uint64(pb) + uint64(0xffff-pa)
@@ -316,7 +315,10 @@ func previewCacheKey(u *url.URL) string {
 	return "linkpreview:" + hex.EncodeToString(sum[:])
 }
 
-func (a *App) GetLinkPreview(rawURL string) (LinkPreview, error) {
+func (a *App) GetLinkPreview(token, rawURL string) (LinkPreview, error) {
+	if _, err := sessionUser(token); err != nil {
+		return LinkPreview{}, err
+	}
 	u, err := normalizePreviewURL(rawURL)
 	if err != nil {
 		return LinkPreview{}, err

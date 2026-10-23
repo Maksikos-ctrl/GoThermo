@@ -162,11 +162,19 @@ func (um *UserManager) RemoveUserToken(token string) {
 	delete(um.userTokens, token)
 }
 
-func (a *App) GetUsers() []User {
-	return userManager.GetAllUsers()
+func (a *App) GetUsers(token string) ([]User, error) {
+	if _, err := sessionUser(token); err != nil {
+		return nil, err
+	}
+	return userManager.GetAllUsers(), nil
 }
 
-func (a *App) UpdateUserStatus(username, status string) bool {
+func (a *App) UpdateUserStatus(token, username, status string) bool {
+	if err := requireUser(token, username); err != nil {
+		log.Printf("UpdateUserStatus denied for %q: %v", username, err)
+		return false
+	}
+
 	validStatuses := map[string]bool{
 		"online":  true,
 		"away":    true,

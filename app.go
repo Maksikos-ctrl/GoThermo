@@ -63,7 +63,13 @@ func (a *App) initDefaultChannels() {
 	}
 }
 
-func (a *App) SendMessage(user, text, channel string) (string, error) {
+func (a *App) SendMessage(token, user, text, channel string) (string, error) {
+	if err := requireUser(token, user); err != nil {
+		return "", err
+	}
+	if err := requireChannelAccess(user, channel); err != nil {
+		return "", err
+	}
 	if text == "" {
 		return "", fmt.Errorf("message cannot be empty")
 	}
@@ -76,7 +82,13 @@ func (a *App) SendMessage(user, text, channel string) (string, error) {
 	return msg.ID, nil
 }
 
-func (a *App) SendPost(user, text, channel string) (string, error) {
+func (a *App) SendPost(token, user, text, channel string) (string, error) {
+	if err := requireUser(token, user); err != nil {
+		return "", err
+	}
+	if err := requireChannelAccess(user, channel); err != nil {
+		return "", err
+	}
 	if text == "" {
 		return "", fmt.Errorf("post cannot be empty")
 	}
@@ -89,7 +101,14 @@ func (a *App) SendPost(user, text, channel string) (string, error) {
 	return msg.ID, nil
 }
 
-func (a *App) GetMessages(channel string) ([]Message, error) {
+func (a *App) GetMessages(token, channel string) ([]Message, error) {
+	username, err := sessionUser(token)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireChannelAccess(username, channel); err != nil {
+		return nil, err
+	}
 	messages, err := GetMessages(channel, 100)
 	if err != nil {
 		log.Printf("Error fetching messages from #%s: %v", channel, err)
@@ -98,7 +117,13 @@ func (a *App) GetMessages(channel string) ([]Message, error) {
 	return messages, nil
 }
 
-func (a *App) AddReaction(messageID, emoji, username, channel string) error {
+func (a *App) AddReaction(token, messageID, emoji, username, channel string) error {
+	if err := requireUser(token, username); err != nil {
+		return err
+	}
+	if err := requireChannelAccess(username, channel); err != nil {
+		return err
+	}
 	messages, err := GetMessages(channel, 1000)
 	if err != nil {
 		return fmt.Errorf("error fetching messages: %v", err)
@@ -141,7 +166,10 @@ func (a *App) AddReaction(messageID, emoji, username, channel string) error {
 	return nil
 }
 
-func (a *App) EditMessage(messageID, channel, username, newText string) (Message, error) {
+func (a *App) EditMessage(token, messageID, channel, username, newText string) (Message, error) {
+	if err := requireUser(token, username); err != nil {
+		return Message{}, err
+	}
 	if newText == "" {
 		return Message{}, fmt.Errorf("message cannot be empty")
 	}
@@ -184,7 +212,10 @@ func (a *App) EditMessage(messageID, channel, username, newText string) (Message
 	return *foundMsg, nil
 }
 
-func (a *App) DeleteMessage(messageID, channel, username string) error {
+func (a *App) DeleteMessage(token, messageID, channel, username string) error {
+	if err := requireUser(token, username); err != nil {
+		return err
+	}
 	messages, err := GetMessages(channel, 1000)
 	if err != nil {
 		return fmt.Errorf("error fetching messages: %v", err)
@@ -218,18 +249,21 @@ func (a *App) DeleteMessage(messageID, channel, username string) error {
 	return nil
 }
 
-func (a *App) SearchMessages(username, query string) ([]Message, error) {
+func (a *App) SearchMessages(token, username, query string) ([]Message, error) {
+	if err := requireUser(token, username); err != nil {
+		return nil, err
+	}
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return []Message{}, nil
 	}
 	lowerQuery := strings.ToLower(query)
 
-	publicChannels, err := a.GetChannels()
+	publicChannels, err := listPublicChannels()
 	if err != nil {
 		return []Message{}, nil
 	}
-	dmChannels, err := a.GetDMChannels(username)
+	dmChannels, err := listDMChannels(username)
 	if err != nil {
 		return []Message{}, nil
 	}
@@ -263,7 +297,13 @@ func (a *App) SearchMessages(username, query string) ([]Message, error) {
 
 const uploadsDir = "uploads"
 
-func (a *App) LogCall(channel, initiator, callStatus string, durationSeconds int) (Message, error) {
+func (a *App) LogCall(token, channel, initiator, callStatus string, durationSeconds int) (Message, error) {
+	if err := requireUser(token, initiator); err != nil {
+		return Message{}, err
+	}
+	if err := requireChannelAccess(initiator, channel); err != nil {
+		return Message{}, err
+	}
 	validStatuses := map[string]bool{"completed": true, "declined": true, "cancelled": true}
 	if !validStatuses[callStatus] {
 		return Message{}, fmt.Errorf("invalid call status: %s", callStatus)
@@ -295,7 +335,13 @@ func (a *App) LogCall(channel, initiator, callStatus string, durationSeconds int
 	return msg, nil
 }
 
-func (a *App) SendFile(user, channel, fileName, mimeType, base64Data string) (Message, error) {
+func (a *App) SendFile(token, user, channel, fileName, mimeType, base64Data string) (Message, error) {
+	if err := requireUser(token, user); err != nil {
+		return Message{}, err
+	}
+	if err := requireChannelAccess(user, channel); err != nil {
+		return Message{}, err
+	}
 	if fileName == "" {
 		return Message{}, fmt.Errorf("file name cannot be empty")
 	}
@@ -358,7 +404,10 @@ func (a *App) SendFile(user, channel, fileName, mimeType, base64Data string) (Me
 	return msg, nil
 }
 
-func (a *App) SaveFileToDisk(fileID string) error {
+func (a *App) SaveFileToDisk(token, fileID string) error {
+	if _, err := sessionUser(token); err != nil {
+		return err
+	}
 	path, _, fileName, err := GetFileMeta(fileID)
 	if err != nil {
 		return fmt.Errorf("file not found: %v", err)
@@ -388,7 +437,10 @@ func (a *App) SaveFileToDisk(fileID string) error {
 	return nil
 }
 
-func (a *App) GetFileData(fileID string) (string, error) {
+func (a *App) GetFileData(token, fileID string) (string, error) {
+	if _, err := sessionUser(token); err != nil {
+		return "", err
+	}
 	path, mimeType, _, err := GetFileMeta(fileID)
 	if err != nil {
 		return "", fmt.Errorf("file not found: %v", err)
@@ -413,7 +465,10 @@ func sanitizeFileName(name string) string {
 	return replacer.Replace(name)
 }
 
-func (a *App) CreateChannel(name, description, createdBy string) (Channel, error) {
+func (a *App) CreateChannel(token, name, description, createdBy string) (Channel, error) {
+	if err := requireUser(token, createdBy); err != nil {
+		return Channel{}, err
+	}
 	if name == "" {
 		return Channel{}, fmt.Errorf("channel name cannot be empty")
 	}
@@ -433,7 +488,14 @@ func (a *App) CreateChannel(name, description, createdBy string) (Channel, error
 	return channel, nil
 }
 
-func (a *App) GetChannels() ([]Channel, error) {
+func (a *App) GetChannels(token string) ([]Channel, error) {
+	if _, err := sessionUser(token); err != nil {
+		return nil, err
+	}
+	return listPublicChannels()
+}
+
+func listPublicChannels() ([]Channel, error) {
 	channels, err := GetAllChannels()
 	if err != nil {
 		log.Printf("Error fetching channels: %v", err)
@@ -450,7 +512,14 @@ func (a *App) GetChannels() ([]Channel, error) {
 	return publicChannels, nil
 }
 
-func (a *App) GetDMChannels(username string) ([]Channel, error) {
+func (a *App) GetDMChannels(token, username string) ([]Channel, error) {
+	if err := requireUser(token, username); err != nil {
+		return nil, err
+	}
+	return listDMChannels(username)
+}
+
+func listDMChannels(username string) ([]Channel, error) {
 	channels, err := GetAllChannels()
 	if err != nil {
 		log.Printf("Error fetching channels: %v", err)
@@ -473,7 +542,10 @@ func (a *App) GetDMChannels(username string) ([]Channel, error) {
 	return dmChannels, nil
 }
 
-func (a *App) GetOrCreateDMChannel(user1, user2 string) (Channel, error) {
+func (a *App) GetOrCreateDMChannel(token, user1, user2 string) (Channel, error) {
+	if err := requireUser(token, user1); err != nil {
+		return Channel{}, err
+	}
 	if user1 == "" || user2 == "" {
 		return Channel{}, fmt.Errorf("both usernames are required")
 	}
@@ -514,7 +586,13 @@ func (a *App) GetOrCreateDMChannel(user1, user2 string) (Channel, error) {
 // people). The name is deterministic from the sorted, de-duplicated
 // member list, so any caller with the same participants always lands on
 // the same channel - same idea as the 1:1 "dm_user1_user2" naming.
-func (a *App) GetOrCreateGroupChannel(usernames []string, createdBy string) (Channel, error) {
+func (a *App) GetOrCreateGroupChannel(token string, usernames []string, createdBy string) (Channel, error) {
+	if err := requireUser(token, createdBy); err != nil {
+		return Channel{}, err
+	}
+	if !channelHasMember(usernames, createdBy) {
+		return Channel{}, fmt.Errorf("you must be one of the participants")
+	}
 	unique := make(map[string]bool)
 	members := make([]string, 0, len(usernames))
 	for _, u := range usernames {
@@ -554,7 +632,10 @@ func (a *App) GetOrCreateGroupChannel(usernames []string, createdBy string) (Cha
 	return channel, nil
 }
 
-func (a *App) DeleteDMChannel(channelName, username string) error {
+func (a *App) DeleteDMChannel(token, channelName, username string) error {
+	if err := requireUser(token, username); err != nil {
+		return err
+	}
 	channel, err := GetChannel(channelName)
 	if err != nil {
 		return fmt.Errorf("chat not found")
@@ -585,18 +666,24 @@ func (a *App) DeleteDMChannel(channelName, username string) error {
 	return nil
 }
 
-func (a *App) MarkChannelRead(username, channel string) error {
+func (a *App) MarkChannelRead(token, username, channel string) error {
+	if err := requireUser(token, username); err != nil {
+		return err
+	}
 	return SaveLastRead(username, channel)
 }
 
-func (a *App) GetUnreadCounts(username string) (map[string]int, error) {
+func (a *App) GetUnreadCounts(token, username string) (map[string]int, error) {
+	if err := requireUser(token, username); err != nil {
+		return nil, err
+	}
 	result := make(map[string]int)
 
-	publicChannels, err := a.GetChannels()
+	publicChannels, err := listPublicChannels()
 	if err != nil {
 		return result, err
 	}
-	dmChannels, err := a.GetDMChannels(username)
+	dmChannels, err := listDMChannels(username)
 	if err != nil {
 		return result, err
 	}
@@ -637,7 +724,10 @@ func (a *App) GetUnreadCounts(username string) (map[string]int, error) {
 	return result, nil
 }
 
-func (a *App) DeleteChannel(name, username string) error {
+func (a *App) DeleteChannel(token, name, username string) error {
+	if err := requireUser(token, username); err != nil {
+		return err
+	}
 	channel, err := GetChannel(name)
 	if err != nil {
 		return fmt.Errorf("channel not found")
@@ -659,10 +749,16 @@ func (a *App) DeleteChannel(name, username string) error {
 	return nil
 }
 
-func (a *App) JoinChannel(channelName, username string) error {
+func (a *App) JoinChannel(token, channelName, username string) error {
+	if err := requireUser(token, username); err != nil {
+		return err
+	}
 	channel, err := GetChannel(channelName)
 	if err != nil {
 		return fmt.Errorf("channel not found")
+	}
+	if channel.IsPrivate {
+		return fmt.Errorf("you cannot join a private chat")
 	}
 	for _, member := range channel.Members {
 		if member == username {
