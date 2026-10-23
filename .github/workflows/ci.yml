@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go:
+    # macOS: the Wails packages need Cocoa, which is not on Linux runners.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # main.go embeds frontend/dist, so the folder has to exist.
+      - run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+
+  frontend:
+    runs-on: ubuntu-latest
+    # Starts as informational. Remove the next line once it is green.
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
