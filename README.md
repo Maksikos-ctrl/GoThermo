@@ -1,586 +1,237 @@
-# GoThermo - Enterprise Team Chat Desktop Application
+# GoThermo
 
+[![CI](https://github.com/Maksikos-ctrl/GoThermo/actions/workflows/ci.yml/badge.svg)](https://github.com/Maksikos-ctrl/GoThermo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)](https://golang.org/)
 [![Wails](https://img.shields.io/badge/Wails-DF0024?logo=wails&logoColor=white)](https://wails.io/)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-## 📋 Overview
+GoThermo is a real-time team chat desktop app in the spirit of Slack and Teams. The backend is Go, the UI is React + TypeScript, they are glued together with [Wails v2](https://wails.io/), and everything is stored in Redis.
 
-GoThermo is a modern, real-time enterprise team chat desktop application designed to facilitate seamless communication within organizations. Built with Wails (Go + React), GoThermo provides a secure, native, and efficient cross-platform desktop solution for team collaboration.
+> Status: actively developed, tested on macOS. Windows and Linux builds are possible with Wails but have not been tested yet.
 
-## ✨ Features
+## Features
 
-- 💬 **Real-time Messaging**: Instant message delivery with typing indicators
-- 🔐 **User Authentication**: Secure login with email/password
-- 🖥️ **Native Desktop App**: Cross-platform support (Windows, macOS, Linux)
-- 🎨 **Clean UI**: Modern, intuitive interface built with React
-- 🏢 **Enterprise Ready**: Built with scalability and security in mind
-- 🌍 **Russian & English Support**: Multi-language interface
-- ⚡ **High Performance**: Go-powered backend with native performance
-- 📴 **Offline Support**: Work offline with local data synchronization
-- 🔔 **System Notifications**: Native desktop notifications
-- 🚀 **Fast Startup**: Quick launch times with small binary size
+**Messaging**
+- Public channels, **private channels** (invite-only, hidden from non-members) and direct messages
+- Real-time delivery over WebSocket, typing indicators, online / away / DND presence (auto-away when idle)
+- Edit and delete your messages, emoji reactions, "Post" messages, unread badges per channel
+- Message search, link previews, export of a channel to JSON / CSV / TXT
+- File sharing: file picker, **drag & drop** and **paste from clipboard** (screenshots and images from other apps), 25 MB limit
 
-## 🛠️ Tech Stack
+**Calls**
+- 1:1 audio and video calls (WebRTC)
+- Group calls (mesh WebRTC); in a private channel the call goes to the channel members
+- Call history is written into the chat
 
-### Frontend
-- React with TypeScript
-- React Hooks for state management
-- CSS Modules for styling
-- Wails Runtime for Go ↔ React communication
+**Team calendar**
+- Events belong to a channel and are visible only to people who can see that channel
+- RSVP: Going / Maybe / Can't go, with a list of who answered what
+- Reminder 15 minutes before the start for everyone who answered Going or Maybe
+- Month view, edit and delete (creator only), a chat message is posted when an event is created
 
-### Backend (Go)
-- Wails v2 framework
-- Native Go performance
-- WebSocket for real-time communication
-- JWT-based authentication
-- Concurrent message processing
-- Cross-platform system integration
+**Accounts and security**
+- Email + password registration (the email domain is checked via DNS) and **Sign in with Google** (OAuth 2.0 with PKCE)
+- Passwords are hashed with bcrypt, sessions are random 256-bit tokens that expire after 30 days
+- Every backend method checks the session token, the WebSocket is authenticated too
+- Brute-force protection: 5 wrong passwords lock the email for 15 minutes
+- Private channel events are delivered only to members, never by subscription alone
+- Upload limits and content-type sniffing, SSRF protection in link previews
 
-## 📁 Project Structure
+## Tech stack
+
+| Layer | What |
+| --- | --- |
+| Desktop shell | Wails v2 |
+| Backend | Go, gorilla/websocket, go-redis |
+| Frontend | React, TypeScript, Vite, plain CSS |
+| Storage | Redis (AOF + RDB persistence) |
+| Real-time | WebSocket hub on `127.0.0.1:8081`, WebRTC for calls |
+| Tests | `go test` with miniredis (never touches a real Redis), GitHub Actions on macOS |
+
+## Project structure
+
 ```
 GoThermo/
-├── build/
-│   └── assets/              # Build assets and resources
-├── frontend/
-│   ├── src/
-│   │   ├── assets/          # Images, fonts, static files
-│   │   ├── components/      # React components
-│   │   │   ├── ChannelModal.tsx
-│   │   │   ├── ChannelSidebar.tsx
-│   │   │   ├── ChatHeader.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── MessageComposer.tsx
-│   │   │   ├── MessageList.tsx
-│   │   │   └── UserPanel.tsx
-│   │   ├── hooks/           # Custom React hooks
-│   │   │   └── useWebSocket.ts
-│   │   ├── services/        # API services
-│   │   │   └── api.ts
-│   │   ├── types/           # TypeScript type definitions
-│   │   │   └── index.ts
-│   │   ├── App.css          # Main styles
-│   │   ├── App.tsx          # Main App component
-│   │   ├── main.tsx         # Entry point
-│   │   └── style.css        # Global styles
-│   ├── index.html
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── tsconfig.json
-│   ├── tsconfig.node.json
-│   └── vite-env.d.ts
-├── wailsjs/                 # Auto-generated Wails bindings
-│   ├── go/                  # Go to JS bindings
-│   └── runtime/             # Wails runtime
-├── go/
-│   ├── main/
-│   │   ├── app.go           # Main application logic
-│   │   └── main.go          # Entry point
-│   ├── models/              # Data models
-│   ├── runtime/             # Runtime configuration
-│   ├── go.mod
-│   ├── go.sum
-│   ├── wails.json
-│   └── wails.go
-├── app.go                   # App initialization
-├── go.mod                   # Go module file
-├── go.sum                   # Go dependencies
-├── main.go                  # Application entry
+├── main.go                  # Wails entry point
+├── app.go                   # App methods exposed to the frontend (messages, channels, files, calls)
+├── auth.go                  # Register, login, logout
+├── sessions.go              # Session tokens in Redis
+├── authz.go                 # Token → user, private channel access checks
+├── ratelimit.go             # Login brute-force protection
+├── google_oauth.go          # Sign in with Google
+├── emailcheck.go            # Email DNS validation
+├── users.go                 # Users, in-memory cache loaded from Redis
+├── privatechannels.go       # Private channel members and visibility
+├── events.go                # Team calendar and reminders
+├── export.go                # Channel export (json / csv / txt)
+├── linkpreview.go           # Link previews with SSRF guard and Redis cache
+├── maintenance.go           # Cleanup tasks (deleted-message compaction, etc.)
+├── websocket.go             # WebSocket hub and delivery rules
+├── redis.go                 # Redis client
 ├── models.go                # Data models
-├── redis.go                 # Redis integration
-├── users.go                 # User management
-├── wails.go                 # Wails configuration
-├── wails.json               # Wails project config
-└── README.md
+├── *_test.go                # Go tests (miniredis)
+├── cmd/gothermo-admin/      # Admin CLI (users, locked accounts, sessions, orphan uploads)
+├── frontend/
+│   └── src/
+│       ├── components/      # Login, ChannelSidebar, ChatHeader, MessageList, MessageComposer,
+│       │                    # CalendarModal, EventReminders, ChannelModal, ChannelMembers,
+│       │                    # call UI (CallBar, GroupCallGrid, IncomingCallModal, ...)
+│       ├── hooks/           # useWebSocket, useIdleStatus, group call hook
+│       ├── services/        # api.ts (Wails calls + session token), session.ts
+│       └── App.tsx
+├── uploads/                 # Uploaded files (not tracked in git)
+├── .github/workflows/ci.yml # Go tests on every push
+└── wails.json
 ```
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
-- Go (v1.19 or higher)
-- Node.js (v16 or higher)
-- npm or yarn
-- Git
+- Go 1.26 or newer (see `go.mod`)
+- Node.js 18 or newer and npm
+- [Wails v2](https://wails.io/docs/gettingstarted/installation): `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+- Redis 7 or newer
+- macOS: Xcode Command Line Tools (`xcode-select --install`)
 
-**Platform-specific requirements:**
+### Redis with persistence
 
-**Windows:**
-- WebView2 (usually pre-installed on Windows 10/11)
-- GCC compiler (MinGW-w64 or TDM-GCC)
+Redis keeps data in memory, so persistence has to be switched on or everything is lost on restart. On macOS:
 
-**macOS:**
-- Xcode Command Line Tools: `xcode-select --install`
-
-**Linux:**
-- WebKit2GTK
 ```bash
-# Debian/Ubuntu
-sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev
-
-# Fedora
-sudo dnf install gtk3-devel webkit2gtk3-devel
-
-# Arch
-sudo pacman -S webkit2gtk gtk3
+brew install redis
 ```
 
-### Setup Instructions
+Add this to the Redis config (`/opt/homebrew/etc/redis.conf` on Apple Silicon, `/usr/local/etc/redis.conf` on Intel):
 
-1. **Install Wails**
-```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+```
+appendonly yes
+appendfsync everysec
 ```
 
-2. **Clone the repository**
+Start it as a background service and check:
+
 ```bash
-git clone https://github.com/yourusername/gothermo.git
-cd gothermo
+brew services start redis
+redis-cli ping                    # PONG
+redis-cli CONFIG GET appendonly   # appendonly yes
 ```
 
-3. **Install Go dependencies**
+With `everysec`, a sudden power loss costs at most the last second of data. GoThermo expects Redis on `localhost:6379`.
+
+### Run the app
+
 ```bash
+git clone https://github.com/Maksikos-ctrl/GoThermo.git
+cd GoThermo
 go mod download
-go mod tidy
+cd frontend && npm install && cd ..
+
+wails dev            # desktop window with hot reload
 ```
 
-4. **Install frontend dependencies**
+`wails dev` also serves the same UI at `http://localhost:34115`, so you can open a second account in a browser and test chats and calls between two users.
+
+### Sign in with Google (optional)
+
+1. In Google Cloud Console create an OAuth client of type **Desktop app**.
+2. Download the JSON and save it as `google_oauth.json` next to the app (in the project root while developing). The file is in `.gitignore`, never commit it.
+   Alternatively set the `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables.
+
+Without it the email + password login still works.
+
+### Production build
+
 ```bash
-cd frontend
-npm install
-cd ..
+wails build            # binary in build/bin/
+wails build -clean
 ```
 
-5. **Environment Configuration**
+## Tests
 
-Create a `.env` file in the root directory:
-```env
-# Application
-APP_NAME=GoThermo
-APP_VERSION=1.0.0
-ENVIRONMENT=development
-
-# Redis Configuration
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_DB=0
-
-# Security
-JWT_SECRET=your_jwt_secret_here
-ENCRYPTION_KEY=your_encryption_key_here
-
-# WebSocket
-WS_SERVER_URL=wss://your-server.com/ws
-WS_RECONNECT_INTERVAL=5
-
-# Logging
-LOG_LEVEL=debug
-LOG_FILE=./logs/app.log
-```
-
-## 🏃 Running the Application
-
-### Development Mode
 ```bash
-# Run in development mode with hot reload
-wails dev
-
-# Or with specific flags
-wails dev -browser
+go test ./...            # all Go tests, uses miniredis, never touches real Redis
+go test -race ./...      # with the race detector (this is what CI runs)
+go test -cover ./...
 ```
 
-The application will launch with hot-reload enabled for both frontend and backend.
+CI runs the Go tests on every push and pull request. The frontend job (type check and build) is informational for now.
 
-### Production Build
+## Admin tool
 
-Build for your current platform:
 ```bash
-# Build for current platform
-wails build
-
-# Build with specific flags
-wails build -clean -upx -ldflags "-X main.version=1.0.0"
+go run ./cmd/gothermo-admin users            # list accounts
+go run ./cmd/gothermo-admin locked           # emails blocked after failed logins
+go run ./cmd/gothermo-admin unlock <email>   # unblock an email
+go run ./cmd/gothermo-admin sessions         # active sessions per user
+go run ./cmd/gothermo-admin revoke <user>    # log a user out everywhere
+go run ./cmd/gothermo-admin uploads          # find uploaded files no message uses (add -clean to delete)
 ```
 
-Build for specific platforms:
-```bash
-# Build for Windows
-wails build -platform windows/amd64
+## How data is stored
 
-# Build for macOS (Intel)
-wails build -platform darwin/amd64
+Redis is the primary database, not a cache.
 
-# Build for macOS (Apple Silicon)
-wails build -platform darwin/arm64
+| Key | Contents |
+| --- | --- |
+| `user:<email>` / `user:<email>:password` | profile JSON / bcrypt hash |
+| `channel:<name>`, set `channels` | channel info (private flag, members) |
+| `channel:<name>:messages` | list of messages |
+| `file:<id>` | file metadata (the file itself is in `uploads/`) |
+| `user:<name>:lastread:<channel>` | last read position for unread badges |
+| `event:<id>`, ZSET `events:index` | calendar events, indexed by start time |
+| `session:<token>` | session → username, TTL 30 days |
+| `loginfail:<email>` | failed login counter, TTL 15 minutes |
+| `linkpreview:<hash>` | cached link previews, TTL 24 hours |
 
-# Build for Linux
-wails build -platform linux/amd64
-```
+When the user base grows, the plan is to move users, channels and messages to PostgreSQL and keep Redis for sessions, counters and caches.
 
-The compiled binary will be in `build/bin/`.
+## Security notes
 
-### Build All Platforms
-```bash
-# Build for all platforms
-wails build -platform windows/amd64,darwin/amd64,darwin/arm64,linux/amd64
-```
+- The WebSocket hub listens on `127.0.0.1` and uses plain `ws://`. That is fine for a local desktop app, but a hosted multi-user version needs TLS (`wss://`) and a reverse proxy.
+- Messages are not end-to-end encrypted.
+- Keep `google_oauth.json`, `.env` files and `uploads/` out of git.
 
-## 📖 Usage
+## Roadmap
 
-### First Launch
+Done:
+- [x] Authentication: email + password, Sign in with Google, session tokens, brute-force protection
+- [x] Real-time messaging, typing indicators, presence
+- [x] Public and private channels, direct messages
+- [x] File sharing with drag & drop and clipboard paste
+- [x] Voice and video calls (1:1 and group)
+- [x] Message search, reactions, edit / delete
+- [x] Link previews, channel export
+- [x] Team calendar with RSVP and reminders
+- [x] Go test suite and CI
 
-1. Launch GoThermo application
-2. On first run, you'll see the login screen
-3. Enter your work email and password
-4. Click "Sign In" to access the application
+Next up:
+- [ ] Markdown and code blocks in messages
+- [ ] Infinite scroll for message history (only the last 100 messages are loaded now)
+- [ ] Leave a private channel
+- [ ] Video in group calls, screen sharing
+- [ ] Thread replies
+- [ ] Frontend tests (Vitest)
+- [ ] Sign in with Apple
+- [ ] Migrate users / channels / messages to PostgreSQL
+- [ ] Custom themes
+- [ ] End-to-end encryption
+- [ ] Integrations (GitHub, Jira, ...)
+- [ ] Mobile companion app
 
-### Starting a Chat
-
-1. Click on a team member or channel from the sidebar
-2. Type your message in the MessageComposer
-3. Press Enter or click Send
-
-### Creating Channels
-
-1. Click on the "+" button in ChannelSidebar
-2. Enter channel name and description
-3. Add team members
-4. Click Create
-
-### Keyboard Shortcuts
-
-- `Ctrl/Cmd + N` - New chat
-- `Ctrl/Cmd + K` - Quick search
-- `Ctrl/Cmd + ,` - Settings
-- `Ctrl/Cmd + Q` - Quit application
-- `Esc` - Close current modal/dialog
-
-## 🔌 Component Structure
-
-### Frontend Components
-
-#### Core Components
-```typescript
-// Login.tsx - Authentication component
-interface LoginProps {
-  onLogin: (username: string, password: string) => void;
-}
-
-// ChannelSidebar.tsx - Channel list and navigation
-interface ChannelSidebarProps {
-  channels: Channel[];
-  onChannelSelect: (channelId: string) => void;
-}
-
-// ChatHeader.tsx - Chat header with channel info
-interface ChatHeaderProps {
-  channel: Channel;
-  onSettingsClick: () => void;
-}
-
-// MessageList.tsx - Display chat messages
-interface MessageListProps {
-  messages: Message[];
-  currentUser: User;
-}
-
-// MessageComposer.tsx - Message input component
-interface MessageComposerProps {
-  onSendMessage: (content: string) => void;
-  placeholder?: string;
-}
-
-// UserPanel.tsx - User profile panel
-interface UserPanelProps {
-  user: User;
-  onLogout: () => void;
-}
-```
-
-### Backend API Methods
-
-#### User Management
-```go
-// Login authenticates user
-func (a *App) Login(email, password string) (*User, error)
-
-// GetCurrentUser returns logged-in user info
-func (a *App) GetCurrentUser() (*User, error)
-
-// UpdateUserStatus updates user online status
-func (a *App) UpdateUserStatus(status string) error
-```
-
-#### Channel Operations
-```go
-// GetChannels retrieves all channels
-func (a *App) GetChannels() ([]*Channel, error)
-
-// CreateChannel creates a new channel
-func (a *App) CreateChannel(name, description string) (*Channel, error)
-
-// JoinChannel adds user to channel
-func (a *App) JoinChannel(channelId string) error
-```
-
-#### Message Operations
-```go
-// GetMessages retrieves messages for a channel
-func (a *App) GetMessages(channelId string, limit int) ([]*Message, error)
-
-// SendMessage sends a new message
-func (a *App) SendMessage(channelId, content string) (*Message, error)
-
-// DeleteMessage deletes a message
-func (a *App) DeleteMessage(messageId string) error
-```
-
-### WebSocket Integration
-```typescript
-// useWebSocket.ts - Custom hook for WebSocket
-export const useWebSocket = (url: string) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  
-  // Connect, disconnect, send message handlers
-  // Real-time message updates
-};
-```
-
-## 🤝 Contributing
-
-We welcome contributions to GoThermo! Please follow these steps:
+## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create a branch (`git checkout -b feature/my-feature`)
+3. Run `go vet ./... && go test ./...` before committing
+4. Push and open a pull request
 
-### Development Guidelines
+## License
 
-#### Code Style
+MIT, see [LICENSE](LICENSE).
 
-**Go**
-- Follow Go standard conventions
-- Use `gofmt` for code formatting
-- Run `go vet` before committing
-- Write unit tests for all packages
-- Use context for cancellation and timeouts
-- Document exported functions and types
+## Contact
 
-**TypeScript/React**
-- Use TypeScript for type safety
-- Follow React Hooks best practices
-- Use functional components
-- Implement proper error handling
-- Write meaningful commit messages
-- Use CSS Modules for component styling
-
-### Testing
-```bash
-# Run Go tests
-go test ./...
-
-# Run with coverage
-go test -cover ./...
-
-# Run frontend tests
-cd frontend
-npm test
-
-# Run Wails doctor to check setup
-wails doctor
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**"Wails command not found"**
-```bash
-# Ensure GOPATH/bin is in your PATH
-export PATH=$PATH:$(go env GOPATH)/bin
-
-# Or reinstall Wails
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
-```
-
-**Build failures on Windows**
-- Install MinGW-w64 or TDM-GCC
-- Ensure WebView2 is installed
-- Run as Administrator if needed
-
-**Build failures on macOS**
-```bash
-# Install Xcode Command Line Tools
-xcode-select --install
-
-# Accept license
-sudo xcodebuild -license accept
-```
-
-**Build failures on Linux**
-```bash
-# Install required dependencies
-sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev
-```
-
-**Redis connection errors**
-- Ensure Redis server is running: `redis-cli ping`
-- Check REDIS_HOST and REDIS_PORT in .env
-- Verify firewall settings
-
-**WebSocket connection issues**
-- Check WS_SERVER_URL configuration
-- Verify network connectivity
-- Check firewall settings
-
-**Application won't start**
-- Check logs in `./logs/app.log`
-- Run `wails doctor` to diagnose issues
-- Verify all dependencies are installed
-
-### Getting Help
-
-- Check the [issues](https://github.com/yourusername/gothermo/issues) section
-- Visit [Wails Documentation](https://wails.io/docs/introduction)
-- Create a new issue with detailed description
-- Include error logs and system information
-
-## 🏗️ Architecture
-
-GoThermo uses a modern desktop application architecture:
-```
-┌─────────────────────────────────────────┐
-│         Frontend (React + TS)           │
-│  ┌─────────────────────────────────┐   │
-│  │ Components (Login, Chat, etc)   │   │
-│  │ Hooks (useWebSocket)            │   │
-│  │ Services (API)                  │   │
-│  └─────────────────────────────────┘   │
-└──────────────┬──────────────────────────┘
-               │ Wails Runtime
-┌──────────────┴──────────────────────────┐
-│         Backend (Go)                    │
-│  ┌─────────────────────────────────┐   │
-│  │ App Logic (app.go, main.go)     │   │
-│  │ Models (User, Channel, Message) │   │
-│  │ WebSocket Hub                   │   │
-│  │ Redis Integration               │   │
-│  └─────────────────────────────────┘   │
-└─────────────────────────────────────────┘
-```
-
-### Data Flow
-
-1. User interacts with React UI
-2. Component calls Wails-bound Go function
-3. Go processes request (auth, data fetch, etc.)
-4. Redis stores/retrieves data
-5. WebSocket pushes real-time updates
-6. UI updates automatically
-
-## 📊 Performance
-
-- Native performance with Go backend
-- Small binary size (~20-30MB compressed)
-- Fast startup time (<1 second)
-- Low memory footprint (~50-100MB)
-- Efficient concurrent message processing
-- Redis for fast data access
-- Local-first architecture for offline support
-
-## 📦 Distribution
-
-### Creating Installers
-
-**Windows (NSIS):**
-```bash
-wails build -nsis
-```
-
-**macOS (DMG):**
-```bash
-wails build -dmg
-```
-
-**Linux (AppImage/DEB/RPM):**
-```bash
-# AppImage
-wails build -appimage
-
-# Debian package
-wails build -deb
-
-# RPM package
-wails build -rpm
-```
-
-### Code Signing
-
-**macOS:**
-```bash
-wails build -codesign "Developer ID Application: Your Name"
-```
-
-**Windows:**
-```bash
-# Use SignTool after build
-signtool sign /f cert.pfx /p password build/bin/GoThermo.exe
-```
-
-## 🔐 Security
-
-- JWT-based authentication
-- Secure password hashing
-- Secure WebSocket connections (WSS)
-- Redis for session management
-- No credentials stored in plain text
-- Regular security updates
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Wails](https://wails.io/) - Amazing Go + Web framework
-- [Redis](https://redis.io/) - In-memory data store
-- Built with modern web and native technologies
-- Inspired by Slack, Discord, and Microsoft Teams
-- Thanks to all contributors and testers
-- Go and React communities
-
-## 📧 Contact
-
-**Project Maintainer:** [Max Chernikov]
-
-- Email: maksikos973@gmail.com
-- GitHub: [@Maksikos-ctrl](https://github.com/Maksikos-ctrl)
-- Website: https://maksymchernikovportfolio.vercel.app/
-
-## 🗺️ Roadmap
-
-- [x] Basic authentication and login
-- [x] Real-time messaging with WebSocket
-- [x] Channel management
-- [x] User presence indicators
-- [ ] End-to-end encryption
-- [ ] Voice and video calls
-- [ ] Screen sharing
-- [ ] File sharing with drag & drop
-- [ ] Message search and history
-- [ ] Custom emoji and reactions
-- [ ] Thread replies
-- [ ] Mobile companion app
-- [ ] Plugin system
-- [ ] Custom themes
-- [ ] Integration with popular tools (Jira, GitHub, etc.)
-
----
-
-**Happy collaborating with GoThermo!** 🚀💬
+**Maintainer:** Max Chernikov, [@Maksikos-ctrl](https://github.com/Maksikos-ctrl), maksikos973@gmail.com, [portfolio](https://maksymchernikovportfolio.vercel.app/)

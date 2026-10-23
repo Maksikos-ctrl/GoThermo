@@ -14,18 +14,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Team calendar.
-//
-// An event belongs to a channel and is visible to everyone who can see that
-// channel (public: all users, private channel or DM: its members). People
-// answer with going / maybe / declined, and "going" people get a reminder
-// shortly before the start.
-//
-// Redis layout:
-//   event:<id>             JSON of the event
-//   events:index           sorted set, member = event id, score = start (unix)
-//   event:<id>:reminded    set of users who already got the reminder
-
 const (
 	eventsIndexKey = "events:index"
 	reminderLead   = 15 * time.Minute
@@ -56,7 +44,6 @@ type Event struct {
 	CreatedAt   time.Time         `json:"createdAt"`
 }
 
-// eventMu serializes read-modify-write cycles on events.
 var eventMu sync.Mutex
 
 func eventKey(id string) string         { return "event:" + id }
@@ -93,7 +80,6 @@ func removeEvent(id string) {
 	redisClient.ZRem(ctx, eventsIndexKey, id)
 }
 
-// deleteChannelEvents drops every event of a channel that is being deleted.
 func deleteChannelEvents(channel string) {
 	ids, err := redisClient.ZRange(ctx, eventsIndexKey, 0, -1).Result()
 	if err != nil {
@@ -102,7 +88,7 @@ func deleteChannelEvents(channel string) {
 	for _, id := range ids {
 		ev, err := loadEvent(id)
 		if err != nil {
-			redisClient.ZRem(ctx, eventsIndexKey, id) // stale index entry
+			redisClient.ZRem(ctx, eventsIndexKey, id)
 			continue
 		}
 		if ev.Channel == channel {
@@ -111,8 +97,6 @@ func deleteChannelEvents(channel string) {
 	}
 }
 
-// eventVisible reports whether a user may see an event: its channel must
-// still exist, and a private channel only shows to its members.
 func eventVisible(username string, ev *Event, cache map[string]*Channel) bool {
 	ch, seen := cache[ev.Channel]
 	if !seen {
@@ -129,7 +113,6 @@ func eventVisible(username string, ev *Event, cache map[string]*Channel) bool {
 	return !ch.IsPrivate || channelHasMember(ch.Members, username)
 }
 
-// parseEventTimes validates user input and returns clean values.
 func parseEventTimes(startISO string, durationMin int) (time.Time, time.Time, error) {
 	start, err := time.Parse(time.RFC3339, strings.TrimSpace(startISO))
 	if err != nil {
@@ -159,7 +142,6 @@ func cleanEventText(title, description string) (string, string, error) {
 	return title, description, nil
 }
 
-// CreateEvent adds an event to a channel and announces it in the chat.
 func (a *App) CreateEvent(token, channel, title, description, startISO string, durationMin int) (Event, error) {
 	username, err := sessionUser(token)
 	if err != nil {
@@ -200,7 +182,6 @@ func (a *App) CreateEvent(token, channel, title, description, startISO string, d
 	}
 	log.Printf("📅 %s created event %q in #%s", username, title, channel)
 
-	// A chat message so the channel notices the event.
 	text := fmt.Sprintf("📅 New event: %s, %s–%s", title,
 		start.Local().Format("Mon 2 Jan, 15:04"), end.Local().Format("15:04"))
 	msg := Message{ID: uuid.New().String(), User: username, Text: text, Channel: channel,
@@ -211,8 +192,6 @@ func (a *App) CreateEvent(token, channel, title, description, startISO string, d
 	return ev, nil
 }
 
-// GetEvents returns the events between two instants that the user may see,
-// ordered by start time.
 func (a *App) GetEvents(token, fromISO, toISO string) ([]Event, error) {
 	username, err := sessionUser(token)
 	if err != nil {
@@ -230,8 +209,6 @@ func (a *App) GetEvents(token, fromISO, toISO string) ([]Event, error) {
 		return nil, fmt.Errorf("range is too long")
 	}
 
-	// An event is in range if it overlaps it; starts can be up to a day
-	// before `from` for an event that is still running.
 	ids, err := redisClient.ZRangeByScore(ctx, eventsIndexKey, &redis.ZRangeBy{
 		Min: strconv.FormatInt(from.Add(-maxEventMinutes*time.Minute).Unix(), 10),
 		Max: strconv.FormatInt(to.Unix(), 10),
@@ -255,7 +232,6 @@ func (a *App) GetEvents(token, fromISO, toISO string) ([]Event, error) {
 	return events, nil
 }
 
-// RespondToEvent sets the user's answer: going, maybe, declined, or "" to clear.
 func (a *App) RespondToEvent(token, eventID, username, status string) (Event, error) {
 	if err := requireUser(token, username); err != nil {
 		return Event{}, err
@@ -283,7 +259,6 @@ func (a *App) RespondToEvent(token, eventID, username, status string) (Event, er
 	return *ev, nil
 }
 
-// UpdateEvent lets the creator change an event.
 func (a *App) UpdateEvent(token, eventID, username, title, description, startISO string, durationMin int) (Event, error) {
 	if err := requireUser(token, username); err != nil {
 		return Event{}, err
@@ -314,12 +289,11 @@ func (a *App) UpdateEvent(token, eventID, username, title, description, startISO
 		return Event{}, fmt.Errorf("failed to save event: %v", err)
 	}
 	if moved {
-		redisClient.Del(ctx, eventRemindedKey(ev.ID)) // remind again for the new time
+		redisClient.Del(ctx, eventRemindedKey(ev.ID))
 	}
 	return *ev, nil
 }
 
-// DeleteEvent lets the creator remove an event.
 func (a *App) DeleteEvent(token, eventID, username string) error {
 	if err := requireUser(token, username); err != nil {
 		return err
@@ -340,8 +314,6 @@ func (a *App) DeleteEvent(token, eventID, username string) error {
 	return nil
 }
 
-// GetDueReminders returns the events that start within the reminder window
-// and that this user is going to. Each event is returned once per user.
 func (a *App) GetDueReminders(token string) ([]Event, error) {
 	username, err := sessionUser(token)
 	if err != nil {
@@ -360,7 +332,8 @@ func (a *App) GetDueReminders(token string) ([]Event, error) {
 	due := []Event{}
 	for _, id := range ids {
 		ev, err := loadEvent(id)
-		if err != nil || ev.RSVP[username] != rsvpGoing || !eventVisible(username, ev, cache) {
+		answer := ev.RSVP[username]
+		if err != nil || (answer != rsvpGoing && answer != rsvpMaybe) || !eventVisible(username, ev, cache) {
 			continue
 		}
 		// SADD returns 1 only the first time, so a reminder is sent once.

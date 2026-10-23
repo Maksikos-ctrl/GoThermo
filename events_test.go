@@ -64,7 +64,7 @@ func TestCreateEventValidation(t *testing.T) {
 	if ev.End.Sub(ev.Start) != defaultEventMins*time.Minute {
 		t.Errorf("default duration: %v", ev.End.Sub(ev.Start))
 	}
-	// the chat gets an announcement
+
 	msgs, _ := GetMessages("general", 10)
 	if len(msgs) != 1 || !strings.Contains(msgs[0].Text, "Team sync") {
 		t.Errorf("no chat announcement: %+v", msgs)
@@ -109,7 +109,6 @@ func TestGetEventsRangeAndVisibility(t *testing.T) {
 	_ = pub
 	_ = later
 
-	// an event that started before the window but still runs is included
 	if evs, _ := e.a.GetEvents(e.tk["alice"], iso(base.Add(30*time.Minute)), iso(base.Add(40*time.Minute))); len(evs) != 1 || evs[0].Title != "public" {
 		t.Errorf("running event: %+v", evs)
 	}
@@ -126,7 +125,6 @@ func TestGetEventsRangeAndVisibility(t *testing.T) {
 		t.Error("huge range accepted")
 	}
 
-	// private events are closed to outsiders for every action
 	if _, err := e.a.RespondToEvent(e.tk["carol"], sec.ID, "carol", rsvpGoing); err == nil {
 		t.Error("outsider answered a private event")
 	}
@@ -198,25 +196,36 @@ func TestReminders(t *testing.T) {
 	if err != nil || len(due) != 2 {
 		t.Fatalf("alice should get the two near events: %+v %v", due, err)
 	}
-	// only once
+
 	if again, _ := e.a.GetDueReminders(e.tk["alice"]); len(again) != 0 {
 		t.Errorf("reminder repeated: %+v", again)
 	}
-	// bob has not answered: nothing; after "going" he gets the public one but never the same twice
+
 	if d, _ := e.a.GetDueReminders(e.tk["bob"]); len(d) != 0 {
 		t.Errorf("bob was not going: %+v", d)
 	}
 	e.a.RespondToEvent(e.tk["bob"], soon.ID, "bob", rsvpGoing)
 	e.a.RespondToEvent(e.tk["bob"], secret.ID, "bob", rsvpMaybe)
-	if d, _ := e.a.GetDueReminders(e.tk["bob"]); len(d) != 1 || d[0].Title != "soon" {
+
+	if d, _ := e.a.GetDueReminders(e.tk["bob"]); len(d) != 2 {
 		t.Errorf("bob: %+v", d)
 	}
-	// declined people get nothing
+
+	maybeEv, _ := e.a.CreateEvent(e.tk["alice"], "general", "maybe one", "", iso(time.Now().Add(8*time.Minute)), 30)
+	e.a.RespondToEvent(e.tk["bob"], maybeEv.ID, "bob", rsvpMaybe)
+	if d, _ := e.a.GetDueReminders(e.tk["bob"]); len(d) != 1 || d[0].ID != maybeEv.ID {
+		t.Errorf("maybe must be reminded: %+v", d)
+	}
+
+	declEv, _ := e.a.CreateEvent(e.tk["alice"], "general", "declined one", "", iso(time.Now().Add(9*time.Minute)), 30)
+	e.a.RespondToEvent(e.tk["bob"], declEv.ID, "bob", rsvpDeclined)
 	e.a.RespondToEvent(e.tk["bob"], secret.ID, "bob", rsvpDeclined)
 	if d, _ := e.a.GetDueReminders(e.tk["bob"]); len(d) != 0 {
 		t.Errorf("declined: %+v", d)
 	}
-	// moving an event re-arms its reminder
+
+	e.a.GetDueReminders(e.tk["alice"])
+
 	e.a.UpdateEvent(e.tk["alice"], soon.ID, "alice", "soon", "", iso(time.Now().Add(12*time.Minute)), 30)
 	if d, _ := e.a.GetDueReminders(e.tk["alice"]); len(d) != 1 || d[0].ID != soon.ID {
 		t.Errorf("moved event must remind again: %+v", d)
