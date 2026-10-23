@@ -10,6 +10,7 @@ interface ChannelMembersProps {
   currentUser?: string;
   allUsers?: User[];
   onAddMember?: (username: string) => void;
+  onLeave?: () => void;
 }
 
 export const ChannelMembers: React.FC<ChannelMembersProps> = ({
@@ -20,6 +21,7 @@ export const ChannelMembers: React.FC<ChannelMembersProps> = ({
   currentUser,
   allUsers = [],
   onAddMember,
+  onLeave,
 }) => {
   const [members, setMembers] = useState<User[]>([]);
   const [inviteName, setInviteName] = useState('');
@@ -171,6 +173,26 @@ export const ChannelMembers: React.FC<ChannelMembersProps> = ({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {isPrivateChannel && !!onLeave && !!currentUser && memberNames.includes(currentUser) && (
+        <div style={{ padding: '10px 12px', borderTop: '1px solid #3f4147' }}>
+          <button
+            onClick={onLeave}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              background: 'transparent',
+              color: '#da373c',
+              border: '1px solid #da373c',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            Leave channel
+          </button>
         </div>
       )}
 

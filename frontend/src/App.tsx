@@ -77,6 +77,12 @@ function App() {
   const currentChannelRef = useRef(currentChannel);
   currentChannelRef.current = currentChannel;
 
+  // History paging: the newest messages load first, older ones on scroll-up.
+  const [hasMoreOlder, setHasMoreOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingOlderRef = useRef(false);
+  const loadedChannelRef = useRef<string | null>(null);
+
   const { toasts, showToast, removeToast } = useToast();
   const { settings, updateSettings } = useSettings(currentUser);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -261,15 +267,57 @@ function App() {
   }
 
   
+  const INITIAL_PAGE = 100;
+  const OLDER_PAGE = 50;
+
+  const uniqueById = (list: Message[]) =>
+    list.filter((msg, index, self) => index === self.findIndex(m => m.id === msg.id));
+
+  // Loads the newest messages of the open channel. It runs on every channel
+  // switch and as a periodic refresh, so it must not throw away older pages
+  // the user has already scrolled back to.
   const loadMessages = async () => {
+    const channel = currentChannelRef.current;
     try {
-      const msgs = await api.messages.getByChannel(currentChannel);
-      const uniqueMessages = msgs.filter((msg, index, self) =>
-        index === self.findIndex((m) => m.id === msg.id)
-      );
-      setMessages(uniqueMessages || []);
+      const page = await api.messages.getPage(channel, '', INITIAL_PAGE);
+      if (channel !== currentChannelRef.current) return; // switched while loading
+      const fresh = uniqueById(page.messages || []);
+      const sameChannel = loadedChannelRef.current === channel;
+      loadedChannelRef.current = channel;
+
+      if (!sameChannel) {
+        setHasMoreOlder(!!page.hasMore);
+        setMessages(fresh);
+        return;
+      }
+      setMessages(prev => {
+        if (fresh.length === 0) return [];
+        const firstTime = new Date(fresh[0].timestamp).getTime();
+        const older = prev.filter(m => new Date(m.timestamp).getTime() < firstTime);
+        return [...older, ...fresh];
+      });
     } catch (error) {
       console.error('Error loading messages:', error);
+    }
+  };
+
+  // Called by the message list when the user scrolls to the top.
+  const loadOlderMessages = async () => {
+    if (loadingOlderRef.current || !hasMoreOlder || messages.length === 0) return;
+    const channel = currentChannelRef.current;
+    const oldestId = messages[0].id;
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const page = await api.messages.getPage(channel, oldestId, OLDER_PAGE);
+      if (channel !== currentChannelRef.current) return;
+      setMessages(prev => uniqueById([...(page.messages || []), ...prev]));
+      setHasMoreOlder(!!page.hasMore);
+    } catch (error) {
+      console.error('Error loading older messages:', error);
+    } finally {
+      loadingOlderRef.current = false;
+      setLoadingOlder(false);
     }
   };
 
@@ -476,6 +524,8 @@ function App() {
     setCurrentUser('');
     setCurrentUserStatus('online');
     setMessages([]);
+    setHasMoreOlder(false);
+    loadedChannelRef.current = null;
     setChannels([]);
     setUsers([]);
     setDMChannels([]);
@@ -582,6 +632,26 @@ function App() {
     } catch (error: any) {
       showToast(`Error creating channel: ${error}`, 'error');
     }
+  };
+
+  const handleLeaveChannel = (channelName: string) => {
+    setConfirmDialog({
+      message: `Leave "${channelName}"? You will lose access until someone adds you again.`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await api.channels.leave(channelName, currentUser);
+          setChannels(prev => prev.filter(ch => ch.name !== channelName));
+          setShowMembersPanel(false);
+          if (channelName === currentChannelRef.current) {
+            setCurrentChannel('general');
+          }
+          showToast(`You left #${channelName}`, 'success');
+        } catch (error: any) {
+          showToast(`${error}`, 'error');
+        }
+      },
+    });
   };
 
   const handleDeleteChannel = (channelName: string) => {
@@ -877,6 +947,9 @@ function App() {
           onEditMessage={handleEditMessage}
           onDeleteMessage={handleDeleteMessage}
           knownUsernames={allUsernames}
+          hasMoreOlder={hasMoreOlder}
+          loadingOlder={loadingOlder}
+          onLoadOlder={loadOlderMessages}
         />
 
         <MessageComposer
@@ -901,6 +974,7 @@ function App() {
           currentUser={currentUser}
           allUsers={users}
           onAddMember={(username) => handleAddChannelMember(currentChannel, username)}
+          onLeave={() => handleLeaveChannel(currentChannel)}
         />
       )}
       <ConfirmModal

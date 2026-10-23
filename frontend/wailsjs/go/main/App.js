@@ -78,6 +78,10 @@ export function GetMessages(arg1, arg2) {
   return window['go']['main']['App']['GetMessages'](arg1, arg2);
 }
 
+export function GetMessagesPage(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['GetMessagesPage'](arg1, arg2, arg3, arg4);
+}
+
 export function GetOrCreateDMChannel(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetOrCreateDMChannel'](arg1, arg2, arg3);
 }
@@ -96,6 +100,10 @@ export function GetUsers(arg1) {
 
 export function JoinChannel(arg1, arg2, arg3) {
   return window['go']['main']['App']['JoinChannel'](arg1, arg2, arg3);
+}
+
+export function LeaveChannel(arg1, arg2, arg3) {
+  return window['go']['main']['App']['LeaveChannel'](arg1, arg2, arg3);
 }
 
 export function LogCall(arg1, arg2, arg3, arg4, arg5) {

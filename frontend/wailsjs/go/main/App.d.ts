@@ -40,6 +40,8 @@ export function GetLinkPreview(arg1:string,arg2:string):Promise<main.LinkPreview
 
 export function GetMessages(arg1:string,arg2:string):Promise<Array<main.Message>>;
 
+export function GetMessagesPage(arg1:string,arg2:string,arg3:string,arg4:number):Promise<main.MessagePage>;
+
 export function GetOrCreateDMChannel(arg1:string,arg2:string,arg3:string):Promise<main.Channel>;
 
 export function GetOrCreateGroupChannel(arg1:string,arg2:Array<string>,arg3:string):Promise<main.Channel>;
@@ -49,6 +51,8 @@ export function GetUnreadCounts(arg1:string,arg2:string):Promise<Record<string, 
 export function GetUsers(arg1:string):Promise<Array<main.User>>;
 
 export function JoinChannel(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function LeaveChannel(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function LogCall(arg1:string,arg2:string,arg3:string,arg4:string,arg5:number):Promise<main.Message>;
 

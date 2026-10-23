@@ -2,6 +2,7 @@ import {
   SendMessage,
   SendPost,
   GetMessages,
+  GetMessagesPage,
   Login,
   Register,
   AddReaction,
@@ -12,6 +13,7 @@ import {
   DeleteEvent,
   GetDueReminders,
   AddChannelMember,
+  LeaveChannel,
   CreateChannel,
   GetChannels,
   DeleteChannel,
@@ -67,6 +69,7 @@ export const api = {
     addMember: (channelName: string, caller: string, newMember: string) =>
       AddChannelMember(t(), channelName, caller, newMember),
     delete: (name: string, username: string) => DeleteChannel(t(), name, username),
+    leave: (name: string, username: string) => LeaveChannel(t(), name, username),
     join: (channelName: string, username: string) => JoinChannel(t(), channelName, username),
   },
   dm: {
@@ -82,6 +85,9 @@ export const api = {
   },
   messages: {
     getByChannel: (channel: string) => GetMessages(t(), channel),
+    // beforeID '' = newest page, otherwise the page right before that message
+    getPage: (channel: string, beforeID: string, limit: number) =>
+      GetMessagesPage(t(), channel, beforeID, limit),
     send: (user: string, text: string, channel: string) => SendMessage(t(), user, text, channel),
     sendPost: (user: string, text: string, channel: string) => SendPost(t(), user, text, channel),
     addReaction: (messageId: string, emoji: string, username: string, channel: string) =>
