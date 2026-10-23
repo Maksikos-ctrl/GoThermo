@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, EMOJI_LIST } from '../types';
 import { LinkPreview } from './LinkPreview';
+import { MessageText } from './MessageText';
 import { api } from '../services/api'; 
 
 
@@ -126,7 +127,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         <FileAttachment message={message} />
       ) : (
         <>
-          <div className="message-text">{renderTextWithMentions(message.text, knownUsernames, currentUser)}</div>
+          <div className="message-text"><MessageText text={message.text} knownUsernames={knownUsernames} currentUser={currentUser} /></div>
           <LinkPreview text={message.text} />
         </>
       )}
@@ -261,56 +262,6 @@ function CallLogBubble({ message, isOwnMessage }: { message: Message; isOwnMessa
       </span>
     </div>
   );
-}
-
-
-function renderTextWithMentions(text: string, knownUsernames: string[], currentUser: string): React.ReactNode {
-  if (knownUsernames.length === 0) return text;
-
-  const knownSet = new Set(knownUsernames.map(u => u.toLowerCase()));
-  const parts: React.ReactNode[] = [];
-  const regex = /@([a-zA-Z0-9_]+)/g;
-
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let key = 0;
-
-  while ((match = regex.exec(text)) !== null) {
-    const username = match[1];
-    const isKnown = knownSet.has(username.toLowerCase());
-
-    if (!isKnown) continue; // не подсвечиваем "@" перед случайным словом
-
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
-    }
-
-    const isSelf = username.toLowerCase() === currentUser.toLowerCase();
-
-    parts.push(
-      <span
-        key={`mention-${key++}`}
-        style={{
-          background: isSelf ? '#5865f2' : 'rgba(255, 255, 255, 0.18)',
-          color: isSelf ? 'white' : '#ffffff',
-          borderRadius: '4px',
-          padding: '1px 5px',
-          fontWeight: 700,
-          boxShadow: isSelf ? 'none' : 'inset 0 0 0 1px rgba(255,255,255,0.25)',
-        }}
-      >
-        @{username}
-      </span>
-    );
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : text;
 }
 
 

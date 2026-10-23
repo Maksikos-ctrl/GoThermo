@@ -1,0 +1,153 @@
+/* Message Markdown (MessageText.tsx). Uses the theme variables, so it follows
+   the light / dark theme automatically. */
+
+.md {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.md-p + .md-p {
+  margin-top: 6px;
+}
+
+.md > * + * {
+  margin-top: 6px;
+}
+
+.md strong {
+  font-weight: 700;
+}
+
+.md del {
+  opacity: 0.7;
+}
+
+.md-link {
+  color: #00a8fc;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.md-link:hover {
+  text-decoration: underline;
+}
+
+.md-code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--bg-secondary, #2b2d31);
+  border: 1px solid var(--border-color, #3f4147);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: pre-wrap;
+}
+
+.md-quote {
+  margin-left: 0;
+  padding: 2px 0 2px 12px;
+  border-left: 4px solid var(--border-color, #3f4147);
+  color: var(--text-secondary, #b5bac1);
+}
+
+.md-list {
+  margin-left: 0;
+  padding-left: 22px;
+  list-style: disc outside;
+}
+
+ol.md-list {
+  list-style: decimal outside;
+}
+
+.md-list li + li {
+  margin-top: 2px;
+}
+
+.md-mention {
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 700;
+}
+
+.md-mention-self {
+  background: #5865f2;
+  box-shadow: none;
+}
+
+[data-theme='light'] .md-mention {
+  background: rgba(88, 101, 242, 0.14);
+  box-shadow: none;
+  color: #3c45a5;
+}
+
+[data-theme='light'] .md-mention-self {
+  background: #5865f2;
+  color: #ffffff;
+}
+
+/* The chat container centers text; code, quotes and lists must stay left-aligned. */
+.md-codeblock,
+.md-quote,
+.md-list {
+  text-align: left;
+}
+
+/* fenced code block */
+.md-codeblock {
+  margin: 2px 0;
+  background: var(--bg-secondary, #2b2d31);
+  border: 1px solid var(--border-color, #3f4147);
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.md-codeblock-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 4px 12px;
+  border-bottom: 1px solid var(--border-color, #3f4147);
+  font-size: 11px;
+  color: var(--text-secondary, #8a8f98);
+}
+
+.md-codeblock-lang {
+  text-transform: lowercase;
+  letter-spacing: 0.3px;
+}
+
+.md-codeblock-copy {
+  background: transparent;
+  border: 1px solid var(--border-color, #3f4147);
+  color: inherit;
+  font-size: 11px;
+  border-radius: 5px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.md-codeblock-copy:hover {
+  color: var(--text-primary, #f2f3f5);
+  border-color: var(--text-secondary, #8a8f98);
+}
+
+.md-codeblock pre {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 420px;
+  overflow: auto;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre;
+  color: var(--text-primary, #f2f3f5);
+  tab-size: 2;
+}
+
+.md-codeblock code {
+  font-family: inherit;
+}
