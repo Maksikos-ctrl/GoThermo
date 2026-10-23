@@ -127,6 +127,11 @@ export namespace main {
 	    fileName?: string;
 	    fileSize?: number;
 	    mimeType?: string;
+	    replyCount?: number;
+	    // Go type: time
+	    lastReplyAt?: any;
+	    replyUsers?: string[];
+	    threadId?: string;
 	    isCall?: boolean;
 	    callStatus?: string;
 	    callDuration?: number;
@@ -151,6 +156,10 @@ export namespace main {
 	        this.fileName = source["fileName"];
 	        this.fileSize = source["fileSize"];
 	        this.mimeType = source["mimeType"];
+	        this.replyCount = source["replyCount"];
+	        this.lastReplyAt = this.convertValues(source["lastReplyAt"], null);
+	        this.replyUsers = source["replyUsers"];
+	        this.threadId = source["threadId"];
 	        this.isCall = source["isCall"];
 	        this.callStatus = source["callStatus"];
 	        this.callDuration = source["callDuration"];
@@ -187,6 +196,38 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.messages = this.convertValues(source["messages"], Message);
 	        this.hasMore = source["hasMore"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Thread {
+	    parent: Message;
+	    replies: Message[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Thread(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.parent = this.convertValues(source["parent"], Message);
+	        this.replies = this.convertValues(source["replies"], Message);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

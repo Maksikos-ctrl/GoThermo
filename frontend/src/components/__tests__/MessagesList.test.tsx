@@ -8,6 +8,8 @@ const T0 = new Date('2026-01-01T12:00:00Z').getTime();
 const at = (min: number) => new Date(T0 + min * 60_000).toISOString();
 const msg = (id: string, user: string, min: number, extra: Partial<Message> = {}): Message => ({
   id,
+  channel: "general",
+  reactions: {},
   user,
   text: `text ${id}`,
   timestamp: at(min),

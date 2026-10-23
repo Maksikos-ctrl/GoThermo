@@ -584,9 +584,41 @@ button:focus-visible,
   background: rgba(240, 178, 50, 0.14);
 }
 
+/* A run of messages from one person reads as ONE block: the corners that
+   touch a neighbour are square (so the colour bar on the left is a straight
+   line, not a chain of curved pills) and only the first / last corners of the
+   run are rounded. :has() is supported by WebKit (the macOS app) and current
+   Firefox / Chrome; where it is missing the corners just stay rounded. */
 .message.grouped {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+/* square the corners only where two tinted messages really touch */
+.message.my-message.grouped,
+.message.mentions-me + .message.mentions-me.grouped {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.message.my-message:has(+ .message.my-message.grouped),
+.message.mentions-me:has(+ .message.mentions-me.grouped) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.message:has(+ .message.grouped) {
+  padding-bottom: 3px;
+}
+
+/* a message that ends with reactions gets room under the pills */
+.message:has(.reactions) {
+  padding-bottom: 8px;
+}
+
+/* the first line of a follow-up message lines up with the text above it */
+.message.grouped .message-text {
   padding-top: 1px;
-  padding-bottom: 1px;
 }
 
 /* a new speaker gets some air above; follow-up messages stay tight */

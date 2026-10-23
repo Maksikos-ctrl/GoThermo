@@ -89,6 +89,7 @@ func DeleteChannel(name string) error {
 
 	msgKey := fmt.Sprintf("channel:%s:messages", name)
 	redisClient.Del(ctx, msgKey)
+	deleteChannelThreads(name)
 
 	lastreadKeys, err := redisClient.Keys(ctx, fmt.Sprintf("user:*:lastread:%s", name)).Result()
 	if err == nil && len(lastreadKeys) > 0 {

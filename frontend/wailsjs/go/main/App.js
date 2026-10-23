@@ -10,6 +10,10 @@ export function AddReaction(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['AddReaction'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function AddReplyReaction(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['AddReplyReaction'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function CancelGoogleLogin() {
   return window['go']['main']['App']['CancelGoogleLogin']();
 }
@@ -42,8 +46,16 @@ export function DeleteMessage(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['DeleteMessage'](arg1, arg2, arg3, arg4);
 }
 
+export function DeleteReply(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['DeleteReply'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function EditMessage(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['EditMessage'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function EditReply(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['EditReply'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function ExportChannel(arg1, arg2, arg3, arg4) {
@@ -88,6 +100,10 @@ export function GetOrCreateDMChannel(arg1, arg2, arg3) {
 
 export function GetOrCreateGroupChannel(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetOrCreateGroupChannel'](arg1, arg2, arg3);
+}
+
+export function GetThread(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetThread'](arg1, arg2, arg3);
 }
 
 export function GetUnreadCounts(arg1, arg2) {
@@ -152,6 +168,10 @@ export function SendMessage(arg1, arg2, arg3, arg4) {
 
 export function SendPost(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['SendPost'](arg1, arg2, arg3, arg4);
+}
+
+export function SendReply(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SendReply'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function UpdateEvent(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {

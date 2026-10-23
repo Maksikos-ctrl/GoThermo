@@ -6,6 +6,8 @@ export function AddChannelMember(arg1:string,arg2:string,arg3:string,arg4:string
 
 export function AddReaction(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
 
+export function AddReplyReaction(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<void>;
+
 export function CancelGoogleLogin():Promise<void>;
 
 export function CheckAuth(arg1:string):Promise<string>;
@@ -22,7 +24,11 @@ export function DeleteEvent(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function DeleteMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
+export function DeleteReply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
+
 export function EditMessage(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.Message>;
+
+export function EditReply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<main.Message>;
 
 export function ExportChannel(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 
@@ -45,6 +51,8 @@ export function GetMessagesPage(arg1:string,arg2:string,arg3:string,arg4:number)
 export function GetOrCreateDMChannel(arg1:string,arg2:string,arg3:string):Promise<main.Channel>;
 
 export function GetOrCreateGroupChannel(arg1:string,arg2:Array<string>,arg3:string):Promise<main.Channel>;
+
+export function GetThread(arg1:string,arg2:string,arg3:string):Promise<main.Thread>;
 
 export function GetUnreadCounts(arg1:string,arg2:string):Promise<Record<string, number>>;
 
@@ -77,6 +85,8 @@ export function SendFile(arg1:string,arg2:string,arg3:string,arg4:string,arg5:st
 export function SendMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 
 export function SendPost(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
+
+export function SendReply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.Message>;
 
 export function UpdateEvent(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number):Promise<main.Event>;
 

@@ -238,6 +238,7 @@ func (a *App) DeleteMessage(token, messageID, channel, username string) error {
 	if err := DeleteMessageInRedis(channel, messageID); err != nil {
 		return fmt.Errorf("error deleting message: %v", err)
 	}
+	deleteThread(channel, messageID)
 
 	if foundMsg.IsFile {
 		removeUpload(foundMsg.FileID)
