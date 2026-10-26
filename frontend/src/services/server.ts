@@ -10,6 +10,27 @@ try {
   /* storage can be unavailable; fall back to local mode */
 }
 
+// Some servers only let people register who know an invite code.
+const INVITE_KEY = 'gothermo.inviteCode';
+let inviteCode = '';
+try {
+  inviteCode = localStorage.getItem(INVITE_KEY) || '';
+} catch {
+  /* ignore */
+}
+
+export const getInviteCode = () => inviteCode;
+
+export function setInviteCode(code: string) {
+  inviteCode = code.trim();
+  try {
+    if (inviteCode) localStorage.setItem(INVITE_KEY, inviteCode);
+    else localStorage.removeItem(INVITE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export const getServerUrl = () => serverUrl;
 export const isRemote = () => serverUrl !== '';
 

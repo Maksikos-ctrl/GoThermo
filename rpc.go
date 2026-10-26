@@ -65,7 +65,7 @@ func setCORS(w http.ResponseWriter) {
 	// may call; without a valid token every method refuses.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Invite-Code")
 	w.Header().Set("Access-Control-Max-Age", "600")
 }
 
@@ -92,6 +92,13 @@ func ServeRPC(app *App) http.HandlerFunc {
 		if !method.IsValid() {
 			writeRPC(w, http.StatusNotFound, rpcReply{Error: "unknown method"})
 			return
+		}
+
+		if name == "Register" {
+			if msg, status := checkInvite(r); msg != "" {
+				writeRPC(w, status, rpcReply{Error: msg})
+				return
+			}
 		}
 
 		r.Body = http.MaxBytesReader(w, r.Body, maxRPCBody)
@@ -183,6 +190,9 @@ func StartServer(app *App, hub *Hub, addr string) error {
 		Handler:           newServerMux(app, hub),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
+	}
+	if inviteRequired() == "" {
+		log.Printf("⚠️  Registration is open: anyone who can reach this server can create an account. Set GOTHERMO_INVITE_CODE to close it.")
 	}
 	log.Printf("🚀 GoThermo server listening on %s", addr)
 	return srv.ListenAndServe()

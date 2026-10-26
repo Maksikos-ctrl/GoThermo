@@ -1,5 +1,5 @@
 import * as wails from '../../wailsjs/go/main/App';
-import { getServerUrl } from './server';
+import { getInviteCode, getServerUrl } from './server';
 
 // Every backend call goes through here. With no server address it is the
 // Wails binding, exactly as before. With one, the same call is sent to the
@@ -12,11 +12,14 @@ const DESKTOP_ONLY = new Set(['SaveFileToDisk', 'ExportChannel', 'LoginWithGoogl
 
 export async function rpc(name: string, args: unknown[]): Promise<any> {
   const base = getServerUrl();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const invite = getInviteCode();
+  if (name === 'Register' && invite) headers['X-Invite-Code'] = invite;
   let res: Response;
   try {
     res = await fetch(`${base}/rpc/${name}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(args),
     });
   } catch {

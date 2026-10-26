@@ -1,5 +1,6 @@
 # One command starts the whole team server:
-#   DOMAIN=chat.example.com docker compose up -d --build
+#   DOMAIN=chat.example.com INVITE_CODE=$(openssl rand -hex 12) docker compose up -d --build
+# Keep INVITE_CODE in a .env file next to this one so it survives restarts.
 services:
   redis:
     image: redis:7-alpine
@@ -12,6 +13,8 @@ services:
     build: .
     environment:
       REDIS_ADDR: redis:6379
+      GOTHERMO_INVITE_CODE: ${INVITE_CODE:-}
+      GOTHERMO_TRUST_PROXY: "1"
     volumes:
       - uploads:/data
     depends_on:

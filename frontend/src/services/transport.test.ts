@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { setServerUrl } from './server';
+import { setServerUrl, setInviteCode } from './server';
 
 const local = vi.fn();
 vi.mock('../../wailsjs/go/main/App', () => {
-  const names = ['GetChannels', 'SendMessage', 'Logout', 'ExportChannel', 'LoginWithGoogle', 'SaveFileToDisk', 'CancelGoogleLogin'];
+  const names = ['Register', 'GetChannels', 'SendMessage', 'Logout', 'ExportChannel', 'LoginWithGoogle', 'SaveFileToDisk', 'CancelGoogleLogin'];
   const o: Record<string, unknown> = {};
   for (const n of names) o[n] = (...a: unknown[]) => local(n, ...a);
   return o;
 });
 
-import { GetChannels, SendMessage, Logout, ExportChannel, LoginWithGoogle } from './transport';
+import { Register, GetChannels, SendMessage, Logout, ExportChannel, LoginWithGoogle } from './transport';
 
 const reply = (body: unknown, ok = true, status = 200) =>
   vi.fn().mockResolvedValue({ ok, status, json: async () => body });
@@ -54,6 +54,19 @@ describe('server mode', () => {
   it('rejects with the server error text, like Wails does', async () => {
     vi.stubGlobal('fetch', reply({ result: null, error: 'incorrect email or password' }));
     await expect(Logout('x')).rejects.toBe('incorrect email or password');
+  });
+
+  it('sends the invite code with Register only', async () => {
+    setInviteCode('abc123');
+    const f = reply({ result: null });
+    vi.stubGlobal('fetch', f);
+    await Register('a@b.c', 'pw');
+    await GetChannels('t');
+    expect(f.mock.calls[0][1].headers['X-Invite-Code']).toBe('abc123');
+    expect(f.mock.calls[1][1].headers['X-Invite-Code']).toBeUndefined();
+    setInviteCode('');
+    await Register('a@b.c', 'pw');
+    expect(f.mock.calls[2][1].headers['X-Invite-Code']).toBeUndefined();
   });
 
   it('turns a network failure into a readable message', async () => {

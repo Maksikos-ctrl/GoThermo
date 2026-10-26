@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getServerUrl, parseServerInput, pingServer, setServerUrl } from '../services/server';
+import { getInviteCode, getServerUrl, parseServerInput, pingServer, setInviteCode, setServerUrl } from '../services/server';
 import '../styles/server.css';
 
 // Small control on the sign-in screen: use the backend inside this app
@@ -8,6 +8,7 @@ export function ServerPicker() {
   const [current, setCurrent] = useState(getServerUrl());
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(current);
+  const [invite, setInvite] = useState(getInviteCode());
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -32,6 +33,7 @@ export function ServerPicker() {
       return;
     }
     setServerUrl(parsed.url);
+    setInviteCode(invite);
     setCurrent(parsed.url);
     setText(parsed.url);
     setOpen(false);
@@ -71,6 +73,16 @@ export function ServerPicker() {
             spellCheck={false}
             autoCapitalize="off"
             onChange={(e) => setText(e.target.value)}
+          />
+          <label htmlFor="server-invite">Invite code (only needed to register)</label>
+          <input
+            id="server-invite"
+            type="text"
+            value={invite}
+            placeholder="optional"
+            spellCheck={false}
+            autoCapitalize="off"
+            onChange={(e) => setInvite(e.target.value)}
           />
           {error && (
             <div className="server-error" role="alert">

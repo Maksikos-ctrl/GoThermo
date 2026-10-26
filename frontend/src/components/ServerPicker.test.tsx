@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ServerPicker } from './ServerPicker';
-import { getServerUrl, setServerUrl } from '../services/server';
+import { getInviteCode, getServerUrl, setInviteCode, setServerUrl } from '../services/server';
 
-beforeEach(() => setServerUrl(''));
+beforeEach(() => {
+  setServerUrl('');
+  setInviteCode('');
+});
 
 describe('ServerPicker', () => {
   it('shows the local backend by default', () => {
@@ -38,5 +41,16 @@ describe('ServerPicker', () => {
     fireEvent.click(screen.getByText('Use this computer'));
     expect(getServerUrl()).toBe('');
     expect(screen.getByText(/Server: this computer/)).toBeTruthy();
+  });
+
+  it('saves the invite code together with the server', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ ok: true, app: 'gothermo' }) }));
+    render(<ServerPicker />);
+    fireEvent.click(screen.getByLabelText('Change server'));
+    fireEvent.change(screen.getByLabelText('Server address'), { target: { value: 'chat.example.com' } });
+    fireEvent.change(screen.getByLabelText(/Invite code/), { target: { value: '  s3cret ' } });
+    fireEvent.click(screen.getByText('Connect'));
+    await waitFor(() => expect(getServerUrl()).toBe('https://chat.example.com'));
+    expect(getInviteCode()).toBe('s3cret');
   });
 });

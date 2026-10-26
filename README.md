@@ -249,7 +249,7 @@ Also done: Markdown and code blocks, infinite scroll for history, leaving a priv
 
 Next up:
 - [x] **Server mode**: run the backend on a server and connect any client by URL (first version; export and Google sign-in are not available over a server yet)
-- [ ] Invite codes / closed registration for servers
+- [x] Invite code for registering on a server
 - [ ] Export and Google sign-in in server mode
 - [ ] Thread search and export, unread markers inside threads
 - [ ] Pinned messages
