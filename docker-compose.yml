@@ -1,0 +1,38 @@
+# One command starts the whole team server:
+#   DOMAIN=chat.example.com docker compose up -d --build
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  gothermo:
+    build: .
+    environment:
+      REDIS_ADDR: redis:6379
+    volumes:
+      - uploads:/data
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN, for example chat.example.com}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - gothermo
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  uploads:
+  caddy-data:

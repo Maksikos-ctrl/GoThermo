@@ -25,7 +25,7 @@ Grab the build for your system from the [Releases page](https://github.com/Maksi
 
 Things to know before you run it:
 - Each copy talks to a **Redis on `localhost:6379`** and its own WebSocket on `127.0.0.1:8081`. Install and start Redis first (`brew install redis`, `apt install redis-server` or `docker run -d -p 6379:6379 redis`).
-- Because of that, a copy only chats with itself and with other windows on the same machine. Sharing one workspace between computers needs the planned server mode (see the roadmap).
+- By default a copy only chats with itself and with other windows on the same machine. To share one workspace between computers, run a GoThermo server and connect the apps to it (see [Server mode](#server-mode)).
 - The builds are not code-signed. Windows SmartScreen: More info, then Run anyway. macOS: right-click the app, then Open.
 
 ## Features
@@ -57,6 +57,12 @@ Things to know before you run it:
 - Brute-force protection: 5 wrong passwords lock the email for 15 minutes
 - Private channel events are delivered only to members, never by subscription alone
 - Upload limits and content-type sniffing, SSRF protection in link previews
+
+## Server mode
+
+One backend on a server, many desktop apps connected to it. The same Go code runs headless (`go build -tags server`), the app sends its calls to `POST /rpc/<Method>` and receives live updates over `wss://`. Setup with Docker, HTTPS included: [SERVER.md](SERVER.md).
+
+On the sign-in screen click **Server: this computer, Change**, type your server address and press **Connect**. Leave it empty to keep using the local mode.
 
 ## Tech stack
 
@@ -242,7 +248,9 @@ Done:
 Also done: Markdown and code blocks, infinite scroll for history, leaving a private channel, threads, frontend tests (Vitest), landing page and release builds.
 
 Next up:
-- [ ] **Server mode**: run the backend on a server and connect any client by URL, so a whole team shares one workspace
+- [x] **Server mode**: run the backend on a server and connect any client by URL (first version; export and Google sign-in are not available over a server yet)
+- [ ] Invite codes / closed registration for servers
+- [ ] Export and Google sign-in in server mode
 - [ ] Thread search and export, unread markers inside threads
 - [ ] Pinned messages
 - [ ] Custom themes

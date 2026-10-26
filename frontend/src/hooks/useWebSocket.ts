@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Message } from '../types';
 import { getAuthToken } from '../services/session';
+import { wsUrl } from '../services/server';
 
 interface WSMessage {
   type: string;
@@ -58,10 +59,7 @@ export const useWebSocket = (
     const token = getAuthToken();
     if (!username || !token) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//127.0.0.1:8081/ws?token=${encodeURIComponent(token)}`;
-
-    const socket = new WebSocket(wsUrl);
+    const socket = new WebSocket(wsUrl(token));
     let manuallyClosed = false;
 
     closeRef.current = () => {

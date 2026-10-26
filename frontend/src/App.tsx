@@ -9,6 +9,7 @@ import {
 import { api } from './services/api';
 import { useWebSocket } from './hooks/useWebSocket';
 import { Login } from './components/Login';
+import { ServerPicker } from './components/ServerPicker';
 import { UserPanel } from './components/UserPanel';
 import { ChannelSidebar } from './components/ChannelSidebar';
 import { ChannelModal } from './components/ChannelModal';
@@ -929,7 +930,12 @@ function App() {
 
 
   if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <>
+        <Login onLogin={handleLogin} />
+        <ServerPicker />
+      </>
+    );
   }
 
   const loadUnreadCounts = async() => {

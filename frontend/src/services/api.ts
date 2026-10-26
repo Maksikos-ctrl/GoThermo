@@ -43,7 +43,7 @@ import {
   EditReply,
   DeleteReply,
   AddReplyReaction,
-} from '../../wailsjs/go/main/App';
+} from './transport';
 import { getAuthToken } from './session';
 
 // The backend checks the session token on every call. The token is added

@@ -1,0 +1,5 @@
+# Caddy gets and renews the HTTPS certificate for DOMAIN by itself and
+# forwards both the API and the WebSocket to the GoThermo server.
+{$DOMAIN} {
+	reverse_proxy gothermo:8081
+}
