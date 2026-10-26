@@ -9,13 +9,32 @@
 
 GoThermo is a real-time team chat desktop app in the spirit of Slack and Teams. The backend is Go, the UI is React + TypeScript, they are glued together with [Wails v2](https://wails.io/), and everything is stored in Redis.
 
-> Status: actively developed, tested on macOS. Windows and Linux builds are possible with Wails but have not been tested yet.
+> Status: actively developed, tested on macOS. Windows and Linux builds are produced by GitHub Actions but have not been tested by hand yet.
+
+**Website:** https://maksikos-ctrl.github.io/GoThermo/ · **Downloads:** [latest release](https://github.com/Maksikos-ctrl/GoThermo/releases/latest)
+
+## Download
+
+Grab the build for your system from the [Releases page](https://github.com/Maksikos-ctrl/GoThermo/releases/latest):
+
+| System | File |
+|---|---|
+| Windows | `GoThermo-windows-amd64.zip` |
+| macOS | `GoThermo-macos.zip` |
+| Linux | `GoThermo-linux-amd64.tar.gz` |
+
+Things to know before you run it:
+- Each copy talks to a **Redis on `localhost:6379`** and its own WebSocket on `127.0.0.1:8081`. Install and start Redis first (`brew install redis`, `apt install redis-server` or `docker run -d -p 6379:6379 redis`).
+- Because of that, a copy only chats with itself and with other windows on the same machine. Sharing one workspace between computers needs the planned server mode (see the roadmap).
+- The builds are not code-signed. Windows SmartScreen: More info, then Run anyway. macOS: right-click the app, then Open.
 
 ## Features
 
 **Messaging**
 - Public channels, **private channels** (invite-only, hidden from non-members) and direct messages
 - Real-time delivery over WebSocket, typing indicators, online / away / DND presence (auto-away when idle)
+- **Threads**: reply to any message in a side panel; the parent shows the reply count, avatars and the time of the last reply, and everything updates live
+- Markdown and code blocks (with a copy button), @mentions
 - Edit and delete your messages, emoji reactions, "Post" messages, unread badges per channel
 - Message search, link previews, export of a channel to JSON / CSV / TXT
 - File sharing: file picker, **drag & drop** and **paste from clipboard** (screenshots and images from other apps), 25 MB limit
@@ -149,12 +168,25 @@ wails build            # binary in build/bin/
 wails build -clean
 ```
 
+### Releasing
+
+Pushing a tag builds Windows, macOS and Linux packages in GitHub Actions (`.github/workflows/release.yml`) and attaches them to a GitHub Release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The landing page lives in `docs/` and is served by GitHub Pages (Settings, Pages, branch `master`, folder `/docs`).
+
 ## Tests
 
 ```bash
 go test ./...            # all Go tests, uses miniredis, never touches real Redis
 go test -race ./...      # with the race detector (this is what CI runs)
 go test -cover ./...
+
+cd frontend && npm test   # Vitest: components and thread state helpers
 ```
 
 CI runs the Go tests on every push and pull request. The frontend job (type check and build) is informational for now.
@@ -207,18 +239,17 @@ Done:
 - [x] Team calendar with RSVP and reminders
 - [x] Go test suite and CI
 
+Also done: Markdown and code blocks, infinite scroll for history, leaving a private channel, threads, frontend tests (Vitest), landing page and release builds.
+
 Next up:
-- [ ] Markdown and code blocks in messages
-- [ ] Infinite scroll for message history (only the last 100 messages are loaded now)
-- [ ] Leave a private channel
-- [ ] Video in group calls, screen sharing
-- [ ] Thread replies
-- [ ] Frontend tests (Vitest)
-- [ ] Sign in with Apple
-- [ ] Migrate users / channels / messages to PostgreSQL
+- [ ] **Server mode**: run the backend on a server and connect any client by URL, so a whole team shares one workspace
+- [ ] Thread search and export, unread markers inside threads
+- [ ] Pinned messages
 - [ ] Custom themes
-- [ ] End-to-end encryption
-- [ ] Integrations (GitHub, Jira, ...)
+- [ ] Integrations (GitHub first, then Jira, ...)
+- [ ] Video in group calls, screen sharing
+- [ ] Code signing for Windows and macOS builds
+- [ ] Migrate users / channels / messages to PostgreSQL
 - [ ] Mobile companion app
 
 ## Contributing

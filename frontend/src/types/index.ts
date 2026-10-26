@@ -1,4 +1,8 @@
 export interface Message {
+  replyCount?: number;
+  lastReplyAt?: string;
+  replyUsers?: string[];
+  threadId?: string;
   id: string;
   user: string;
   text: string;

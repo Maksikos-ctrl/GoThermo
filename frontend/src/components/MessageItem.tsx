@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { MessageSquareReply, Pencil, Trash2 } from 'lucide-react';
 import { Message, EMOJI_LIST } from '../types';
 import { avatarColor } from './avatarColor';
 import { LinkPreview } from './LinkPreview';
 import { MessageText } from './MessageText';
 import { api } from '../services/api'; 
+import { formatLastReply, replyLabel } from './threadState';
 
 
 interface MessageItemProps {
@@ -16,6 +17,9 @@ interface MessageItemProps {
   knownUsernames?: string[];
   // Same author as the message right above, a few minutes apart: no avatar/name repeated.
   isGrouped?: boolean;
+  // Threads: when given, the toolbar gets a Reply button and a message that has
+  // replies shows "N replies". Left out inside the thread panel itself.
+  onOpenThread?: (message: Message) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -26,6 +30,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onDeleteMessage,
   knownUsernames = [], 
   isGrouped = false,
+  onOpenThread,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false); 
@@ -187,7 +192,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               ))}
             </div>
 
-            
+            {onOpenThread && !message.isCall && (
+              <button
+                className="quick-reaction-btn"
+                onClick={() => onOpenThread(message)}
+                title="Reply in thread"
+                aria-label="Reply in thread"
+              >
+                <MessageSquareReply size={14} />
+              </button>
+            )}
+
             {isOwnMessage && (
               <>
                 <button
@@ -211,6 +226,25 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
       </div>
+      )}
+
+      {onOpenThread && !message.isCall && (message.replyCount ?? 0) > 0 && (
+        <button
+          type="button"
+          className="thread-summary"
+          onClick={() => onOpenThread(message)}
+          title="Open thread"
+        >
+          <span className="thread-summary-avatars">
+            {(message.replyUsers ?? []).map(u => (
+              <span key={u} className="thread-summary-avatar" style={{ background: avatarColor(u) }} title={u}>
+                {u.charAt(0).toUpperCase()}
+              </span>
+            ))}
+          </span>
+          <span className="thread-summary-count">{replyLabel(message.replyCount ?? 0)}</span>
+          <span className="thread-summary-time">{formatLastReply(message.lastReplyAt)}</span>
+        </button>
       )}
       </div>
     </div>

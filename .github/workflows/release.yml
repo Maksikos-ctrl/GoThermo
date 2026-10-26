@@ -1,0 +1,95 @@
+name: Release
+
+# Push a tag like v0.1.0 and this builds Windows, macOS and Linux
+# packages and attaches them to a GitHub Release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            platform: windows/amd64
+            asset: GoThermo-windows-amd64.zip
+          - name: macos
+            os: macos-latest
+            platform: darwin/universal
+            asset: GoThermo-macos.zip
+          - name: linux
+            os: ubuntu-22.04
+            platform: linux/amd64
+            asset: GoThermo-linux-amd64.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Linux system libraries
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: Install Wails (same version as go.mod)
+        shell: bash
+        run: |
+          V=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+          echo "Wails $V"
+          go install github.com/wailsapp/wails/v2/cmd/wails@$V
+
+      - name: Build
+        shell: bash
+        run: wails build -clean -platform ${{ matrix.platform }}
+
+      - name: Package (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: Compress-Archive -Path build/bin/* -DestinationPath ${{ matrix.asset }}
+
+      - name: Package (macOS)
+        if: matrix.name == 'macos'
+        run: ditto -c -k --sequesterRsrc --keepParent build/bin/*.app ${{ matrix.asset }}
+
+      - name: Package (Linux)
+        if: matrix.name == 'linux'
+        run: tar -czf ${{ matrix.asset }} -C build/bin .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.asset }}
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            Each copy needs Redis on localhost:6379. Builds are not code-signed:
+            on Windows choose "More info, Run anyway"; on macOS right-click the app and choose Open.

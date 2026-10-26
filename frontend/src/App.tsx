@@ -37,6 +37,16 @@ import { playNotificationSound } from './hooks/notificationSound';
 import { useIdleStatus } from './hooks/useIdleStatus';
 import { clearAuthToken, getAuthToken } from './services/session';
 import './styles/polish.css'; // UI polish: icons, spacing, animations. Delete this line to go back to the old look.
+import './styles/thread.css';
+import { ThreadPanel } from './components/ThreadPanel';
+import {
+  ThreadData,
+  applyParentUpdate,
+  applyReplyDeleted,
+  applyReplyEvent,
+  toggleReaction,
+} from './components/threadState';
+import { channelTag } from './components/channelName';
 
 
 
@@ -63,6 +73,14 @@ function App() {
   const [isPostMode, setIsPostMode] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [showMembersPanel, setShowMembersPanel] = useState(false);
+
+  // Threads: the reply panel on the right. A thread belongs to the channel it was opened in.
+  const [openThread, setOpenThread] = useState<{ channel: string; parentId: string } | null>(null);
+  const [threadData, setThreadData] = useState<ThreadData | null>(null);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [threadError, setThreadError] = useState<string | null>(null);
+  const openThreadRef = useRef(openThread);
+  openThreadRef.current = openThread;
 
 
   const [isDragging, setIsDragging] = useState<string | null>(null);
@@ -106,7 +124,9 @@ function App() {
     (type, payload) => callSignalHandlerRef.current?.(type, payload),
     (type, payload) => groupCallSignalHandlerRef.current?.(type, payload),
     handleChannelCreated,
-    handleChannelDeleted
+    handleChannelDeleted,
+    handleThreadReplyEvent,
+    handleThreadReplyDeleted
   );
 
   const call = useCall({
@@ -194,6 +214,8 @@ function App() {
         next[index] = message;
         return next;
       });
+      // the parent of the open thread changed (reaction, edit, reply count)
+      setThreadData(prev => applyParentUpdate(prev, message));
     } else if (message.user !== currentUser) {
       setUnreadCounts(prev => ({ ...prev, [channel]: (prev[channel] || 0) + 1 }));
     }
@@ -229,7 +251,129 @@ function App() {
   function handleMessageDeleted(channel: string, messageId: string) {
     if (channel !== currentChannel) return;
     setMessages(prev => prev.filter(m => m.id !== messageId));
+    if (openThreadRef.current?.parentId === messageId) {
+      closeThread();
+      showToast('The message of this thread was deleted', 'error');
+    }
   }
+
+  // ───────────── threads ─────────────
+
+  function closeThread() {
+    setOpenThread(null);
+    setThreadData(null);
+    setThreadLoading(false);
+    setThreadError(null);
+  }
+
+  const isOpenThread = (channel: string, parentId: string) => {
+    const cur = openThreadRef.current;
+    return !!cur && cur.channel === channel && cur.parentId === parentId;
+  };
+
+  async function loadThread(channel: string, parentId: string) {
+    setThreadLoading(true);
+    setThreadError(null);
+    try {
+      const data = await api.threads.get(channel, parentId);
+      if (!isOpenThread(channel, parentId)) return; // closed or switched while loading
+      setThreadData({
+        parent: data.parent as unknown as Message,
+        replies: (data.replies || []) as unknown as Message[],
+      });
+    } catch (error) {
+      if (isOpenThread(channel, parentId)) setThreadError(`Could not load the thread: ${error}`);
+    } finally {
+      if (isOpenThread(channel, parentId)) setThreadLoading(false);
+    }
+  }
+
+  function handleOpenThread(message: Message) {
+    const target = { channel: currentChannel, parentId: message.id };
+    openThreadRef.current = target; // the async load below checks it before React re-renders
+    setOpenThread(target);
+    setThreadData({ parent: message, replies: [] }); // the parent shows at once
+    void loadThread(target.channel, target.parentId);
+  }
+
+  function handleThreadReplyEvent(channel: string, threadId: string, message: Message) {
+    if (!isOpenThread(channel, threadId)) return;
+    setThreadData(prev => applyReplyEvent(prev, threadId, message));
+  }
+
+  function handleThreadReplyDeleted(channel: string, threadId: string, messageId: string) {
+    if (!isOpenThread(channel, threadId)) return;
+    setThreadData(prev => applyReplyDeleted(prev, threadId, messageId));
+  }
+
+  async function handleThreadSend(text: string) {
+    const cur = openThreadRef.current;
+    if (!cur) return;
+    try {
+      const reply = (await api.threads.reply(currentUser, cur.channel, cur.parentId, text)) as unknown as Message;
+      setThreadData(prev => applyReplyEvent(prev, cur.parentId, reply));
+    } catch (error) {
+      showToast(`${error}`, 'error');
+      throw error; // the panel keeps the draft
+    }
+  }
+
+  // The panel shows the parent and its replies together; the parent lives in
+  // the channel, the replies in the thread, so each action picks its route.
+  async function handleThreadReaction(messageId: string, emoji: string) {
+    const cur = openThreadRef.current;
+    if (!cur) return;
+    if (messageId === cur.parentId) return handleAddReaction(messageId, emoji);
+    try {
+      await api.threads.addReaction(cur.channel, cur.parentId, messageId, emoji, currentUser);
+      setThreadData(prev =>
+        prev && { ...prev, replies: prev.replies.map(r => (r.id === messageId ? toggleReaction(r, emoji, currentUser) : r)) }
+      );
+    } catch (error) {
+      showToast(`${error}`, 'error');
+    }
+  }
+
+  async function handleThreadEdit(messageId: string, newText: string) {
+    const cur = openThreadRef.current;
+    if (!cur) return;
+    if (messageId === cur.parentId) return handleEditMessage(messageId, newText);
+    try {
+      const edited = (await api.threads.edit(cur.channel, cur.parentId, messageId, currentUser, newText)) as unknown as Message;
+      setThreadData(prev => applyReplyEvent(prev, cur.parentId, edited));
+    } catch (error) {
+      showToast(`${error}`, 'error');
+    }
+  }
+
+  function handleThreadDelete(messageId: string) {
+    const cur = openThreadRef.current;
+    if (!cur) return;
+    if (messageId === cur.parentId) return handleDeleteMessage(messageId);
+    setConfirmDialog({
+      message: 'Delete this reply? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await api.threads.delete(cur.channel, cur.parentId, messageId, currentUser);
+          setThreadData(prev => applyReplyDeleted(prev, cur.parentId, messageId));
+        } catch (error) {
+          showToast(`${error}`, 'error');
+        }
+      },
+    });
+  }
+
+  // Leaving the channel closes its thread.
+  useEffect(() => {
+    if (openThreadRef.current && openThreadRef.current.channel !== currentChannel) closeThread();
+  }, [currentChannel]);
+
+  // After a dropped connection the thread may have missed replies: load it again.
+  useEffect(() => {
+    const cur = openThreadRef.current;
+    if (isConnected && cur) void loadThread(cur.channel, cur.parentId);
+  }, [isConnected]);
 
   async function handleCallEnded(info: {
     remoteUser: string;
@@ -525,6 +669,7 @@ function App() {
     setCurrentUser('');
     setCurrentUserStatus('online');
     setMessages([]);
+    closeThread();
     setHasMoreOlder(false);
     loadedChannelRef.current = null;
     setChannels([]);
@@ -952,6 +1097,7 @@ function App() {
           hasMoreOlder={hasMoreOlder}
           loadingOlder={loadingOlder}
           onLoadOlder={loadOlderMessages}
+          onOpenThread={handleOpenThread}
         />
 
         <MessageComposer
@@ -967,7 +1113,23 @@ function App() {
         />
       </div>
 
-      
+      {openThread && (
+        <ThreadPanel
+          key={openThread.parentId}
+          thread={threadData}
+          loading={threadLoading}
+          error={threadError}
+          channelTag={channelTag(currentChannel, currentUser)}
+          currentUser={currentUser}
+          knownUsernames={allUsernames}
+          onClose={closeThread}
+          onSend={handleThreadSend}
+          onAddReaction={handleThreadReaction}
+          onEditMessage={handleThreadEdit}
+          onDeleteMessage={handleThreadDelete}
+        />
+      )}
+
       {showMembersPanel && (
         <ChannelMembers
           channel={[...channels, ...dmChannels].find(ch => ch.name === currentChannel) || null}

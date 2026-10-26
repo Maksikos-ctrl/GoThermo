@@ -128,8 +128,7 @@ export namespace main {
 	    fileSize?: number;
 	    mimeType?: string;
 	    replyCount?: number;
-	    // Go type: time
-	    lastReplyAt?: any;
+	    lastReplyAt?: string;
 	    replyUsers?: string[];
 	    threadId?: string;
 	    isCall?: boolean;
@@ -157,7 +156,7 @@ export namespace main {
 	        this.fileSize = source["fileSize"];
 	        this.mimeType = source["mimeType"];
 	        this.replyCount = source["replyCount"];
-	        this.lastReplyAt = this.convertValues(source["lastReplyAt"], null);
+	        this.lastReplyAt = source["lastReplyAt"];
 	        this.replyUsers = source["replyUsers"];
 	        this.threadId = source["threadId"];
 	        this.isCall = source["isCall"];

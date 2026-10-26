@@ -17,10 +17,10 @@ type Message struct {
 	FileSize  int64               `json:"fileSize,omitempty"`
 	MimeType  string              `json:"mimeType,omitempty"`
 
-	ReplyCount  int        `json:"replyCount,omitempty"`
-	LastReplyAt *time.Time `json:"lastReplyAt,omitempty"`
-	ReplyUsers  []string   `json:"replyUsers,omitempty"`
-	ThreadID    string     `json:"threadId,omitempty"`
+	ReplyCount  int      `json:"replyCount,omitempty"`
+	LastReplyAt string   `json:"lastReplyAt,omitempty"`
+	ReplyUsers  []string `json:"replyUsers,omitempty"`
+	ThreadID    string   `json:"threadId,omitempty"`
 
 	IsCall        bool   `json:"isCall,omitempty"`
 	CallStatus    string `json:"callStatus,omitempty"`

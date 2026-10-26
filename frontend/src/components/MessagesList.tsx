@@ -15,6 +15,8 @@ interface MessagesListProps {
   hasMoreOlder?: boolean;
   loadingOlder?: boolean;
   onLoadOlder?: () => void;
+  // Threads: opens the reply panel for a message.
+  onOpenThread?: (message: Message) => void;
 }
 
 // How close to the top (px) the user has to scroll to trigger loading.
@@ -44,6 +46,7 @@ export const MessagesList: React.FC<MessagesListProps> = ({
   hasMoreOlder = false,
   loadingOlder = false,
   onLoadOlder,
+  onOpenThread,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -172,6 +175,7 @@ export const MessagesList: React.FC<MessagesListProps> = ({
           onEditMessage={onEditMessage}
           onDeleteMessage={onDeleteMessage}
           knownUsernames={knownUsernames}
+          onOpenThread={onOpenThread}
         />
       ))}
       <div ref={messagesEndRef} />

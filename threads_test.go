@@ -64,8 +64,9 @@ func TestReplyBasics(t *testing.T) {
 	if par.ReplyCount != 3 {
 		t.Errorf("ReplyCount = %d, want 3", par.ReplyCount)
 	}
-	if par.LastReplyAt == nil || par.LastReplyAt.Before(par.Timestamp) {
-		t.Errorf("LastReplyAt wrong: %v", par.LastReplyAt)
+	last, err := time.Parse(time.RFC3339Nano, par.LastReplyAt)
+	if err != nil || !last.Equal(th.Replies[2].Timestamp) {
+		t.Errorf("LastReplyAt = %q (%v), want the time of the newest reply %v", par.LastReplyAt, err, th.Replies[2].Timestamp)
 	}
 	if strings.Join(par.ReplyUsers, ",") != "bob,alice" {
 		t.Errorf("ReplyUsers = %v, want [bob alice] (distinct, first-reply order)", par.ReplyUsers)
@@ -225,7 +226,7 @@ func TestDeleteReplyUpdatesParent(t *testing.T) {
 
 	e.a.DeleteReply(e.tk["carol"], "general", p, r2.ID, "carol")
 	par = channelMsg(t, "general", p)
-	if par.ReplyCount != 0 || par.LastReplyAt != nil || len(par.ReplyUsers) != 0 {
+	if par.ReplyCount != 0 || par.LastReplyAt != "" || len(par.ReplyUsers) != 0 {
 		t.Errorf("empty thread must clear the summary: %+v", par)
 	}
 }

@@ -15,7 +15,9 @@ export const useWebSocket = (
   onCallSignal?: (type: string, payload: any) => void,
   onGroupCallSignal?: (type: string, payload: any) => void,
   onChannelCreated?: (channel: any) => void,
-  onChannelDeleted?: (channelName: string) => void
+  onChannelDeleted?: (channelName: string) => void,
+  onThreadReply?: (channel: string, threadId: string, message: Message) => void,
+  onThreadReplyDeleted?: (channel: string, threadId: string, messageId: string) => void
 ) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -30,6 +32,8 @@ export const useWebSocket = (
   const onGroupCallSignalRef = useRef(onGroupCallSignal);
   const onChannelCreatedRef = useRef(onChannelCreated);
   const onChannelDeletedRef = useRef(onChannelDeleted);
+  const onThreadReplyRef = useRef(onThreadReply);
+  const onThreadReplyDeletedRef = useRef(onThreadReplyDeleted);
 
   onStatusUpdateRef.current = onStatusUpdate;
   onNewMessageRef.current = onNewMessage;
@@ -38,6 +42,8 @@ export const useWebSocket = (
   onGroupCallSignalRef.current = onGroupCallSignal;
   onChannelCreatedRef.current = onChannelCreated;
   onChannelDeletedRef.current = onChannelDeleted;
+  onThreadReplyRef.current = onThreadReply;
+  onThreadReplyDeletedRef.current = onThreadReplyDeleted;
 
   const sendMessage = useCallback((type: string, payload: any) => {
     if (ws && isConnected) {
@@ -111,6 +117,18 @@ export const useWebSocket = (
       case 'message_deleted':
         if (onMessageDeletedRef.current) {
           onMessageDeletedRef.current(data.payload.channel, data.payload.messageId);
+        }
+        break;
+
+      case 'thread_reply':
+        if (onThreadReplyRef.current) {
+          onThreadReplyRef.current(data.payload.channel, data.payload.threadId, data.payload.message);
+        }
+        break;
+
+      case 'thread_reply_deleted':
+        if (onThreadReplyDeletedRef.current) {
+          onThreadReplyDeletedRef.current(data.payload.channel, data.payload.threadId, data.payload.messageId);
         }
         break;
 

@@ -38,6 +38,11 @@ import {
   CancelGoogleLogin,
   ExportChannel,
   GetLinkPreview,
+  SendReply,
+  GetThread,
+  EditReply,
+  DeleteReply,
+  AddReplyReaction,
 } from '../../wailsjs/go/main/App';
 import { getAuthToken } from './session';
 
@@ -97,6 +102,17 @@ export const api = {
     delete: (messageId: string, channel: string, username: string) =>
       DeleteMessage(t(), messageId, channel, username),
     search: (username: string, query: string) => SearchMessages(t(), username, query),
+  },
+  threads: {
+    reply: (user: string, channel: string, parentId: string, text: string) =>
+      SendReply(t(), user, channel, parentId, text),
+    get: (channel: string, parentId: string) => GetThread(t(), channel, parentId),
+    edit: (channel: string, parentId: string, replyId: string, username: string, newText: string) =>
+      EditReply(t(), channel, parentId, replyId, username, newText),
+    delete: (channel: string, parentId: string, replyId: string, username: string) =>
+      DeleteReply(t(), channel, parentId, replyId, username),
+    addReaction: (channel: string, parentId: string, replyId: string, emoji: string, username: string) =>
+      AddReplyReaction(t(), channel, parentId, replyId, emoji, username),
   },
   files: {
     send: (user: string, channel: string, fileName: string, mimeType: string, base64Data: string) =>

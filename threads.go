@@ -106,20 +106,22 @@ func refreshThreadMeta(channel, parentID string) (*Message, error) {
 	}
 
 	var users []string
-	var last *time.Time
+	var last time.Time
 	for i := range replies {
 		r := replies[i]
 		if !channelHasMember(users, r.User) && len(users) < maxReplyAvatars {
 			users = append(users, r.User)
 		}
-		t := r.Timestamp
-		if last == nil || t.After(*last) {
-			last = &t
+		if r.Timestamp.After(last) {
+			last = r.Timestamp
 		}
 	}
 
 	parent.ReplyCount = len(replies)
-	parent.LastReplyAt = last
+	parent.LastReplyAt = ""
+	if !last.IsZero() {
+		parent.LastReplyAt = last.Format(time.RFC3339Nano)
+	}
 	parent.ReplyUsers = users
 	if err := UpdateMessage(channel, *parent); err != nil {
 		return nil, err
