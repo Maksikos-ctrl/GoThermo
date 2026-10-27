@@ -46,6 +46,9 @@ import {
   PinMessage,
   UnpinMessage,
   GetPinnedMessages,
+  GetThreadUnread,
+  MarkThreadRead,
+  ExportThread,
 } from './transport';
 import { getAuthToken } from './session';
 
@@ -116,6 +119,10 @@ export const api = {
       DeleteReply(t(), channel, parentId, replyId, username),
     addReaction: (channel: string, parentId: string, replyId: string, emoji: string, username: string) =>
       AddReplyReaction(t(), channel, parentId, replyId, emoji, username),
+    unread: (channel: string) => GetThreadUnread(t(), channel),
+    markRead: (channel: string, parentId: string) => MarkThreadRead(t(), channel, parentId),
+    exportThread: (channel: string, parentId: string, format: string) =>
+      ExportThread(t(), channel, parentId, format),
   },
   pins: {
     get: (channel: string) => GetPinnedMessages(t(), channel),

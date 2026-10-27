@@ -38,6 +38,8 @@ var rpcAllowed = map[string]bool{
 	"SendFile": true, "GetFileData": true, "LogCall": true, "GetLinkPreview": true,
 	"CreateEvent": true, "GetEvents": true, "RespondToEvent": true, "UpdateEvent": true, "DeleteEvent": true, "GetDueReminders": true,
 	"PinMessage": true, "UnpinMessage": true, "GetPinnedMessages": true,
+	"LoginWithGoogleToken": true, "BuildChannelExport": true,
+	"BuildThreadExport": true, "MarkThreadRead": true, "GetThreadUnread": true,
 	"SendReply": true, "GetThread": true, "EditReply": true, "DeleteReply": true, "AddReplyReaction": true,
 }
 
@@ -45,7 +47,7 @@ var rpcAllowed = map[string]bool{
 // that runs the backend. They make no sense on a server.
 var rpcDesktopOnly = map[string]bool{
 	"SaveFileToDisk": true, "ExportChannel": true,
-	"LoginWithGoogle": true, "CancelGoogleLogin": true,
+	"LoginWithGoogle": true, "CancelGoogleLogin": true, "GoogleAccessToken": true, "SaveTextFile": true,
 }
 
 type rpcReply struct {
@@ -95,18 +97,18 @@ func ServeRPC(app *App) http.HandlerFunc {
 			return
 		}
 
-		if name == "Register" {
-			if msg, status := checkInvite(r); msg != "" {
-				writeRPC(w, status, rpcReply{Error: msg})
-				return
-			}
-		}
-
 		r.Body = http.MaxBytesReader(w, r.Body, maxRPCBody)
 		var raw []json.RawMessage
 		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			writeRPC(w, http.StatusBadRequest, rpcReply{Error: "body must be a JSON array of arguments"})
 			return
+		}
+
+		if createsAccount(name, raw) {
+			if msg, status := checkInvite(r); msg != "" {
+				writeRPC(w, status, rpcReply{Error: msg})
+				return
+			}
 		}
 
 		out, err := callRPC(method, raw)
@@ -205,4 +207,18 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// createsAccount reports whether this call can make a new account, which is
+// what the invite code protects: Register, and Google sign-up (signUp=true).
+func createsAccount(name string, args []json.RawMessage) bool {
+	switch name {
+	case "Register":
+		return true
+	case "LoginWithGoogleToken":
+		// Anything but a clear "false" counts as sign-up, so a malformed
+		// argument cannot dodge the check.
+		return len(args) < 2 || strings.TrimSpace(string(args[1])) != "false"
+	}
+	return false
 }

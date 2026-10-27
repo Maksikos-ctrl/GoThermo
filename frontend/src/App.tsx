@@ -41,6 +41,7 @@ import './styles/polish.css'; // UI polish: icons, spacing, animations. Delete t
 import './styles/thread.css';
 import './styles/pins.css';
 import { ThreadPanel } from './components/ThreadPanel';
+import { threadUnread } from './components/threadExtras';
 import { PinnedPanel } from './components/PinnedPanel';
 import { PinnedMessage, applyMessageToPins, removeMessageFromPins, isPinned, normalizePins, pinnedIdSet } from './components/pinState';
 import {
@@ -330,6 +331,37 @@ function App() {
 
   // ───────────── threads ─────────────
 
+  // Which threads of the channel have replies you have not seen.
+  async function loadThreadUnread(channel: string) {
+    try {
+      const map = (await api.threads.unread(channel)) as unknown as Record<string, number>;
+      if (channel === currentChannelRef.current) threadUnread.setAll(map);
+    } catch {
+      // the badges are a nicety; the channel works without them
+    }
+  }
+
+  useEffect(() => {
+    threadUnread.setAll({});
+    if (isLoggedIn) void loadThreadUnread(currentChannel);
+  }, [currentChannel, isLoggedIn]);
+
+  // After a dropped connection replies may have arrived unseen.
+  useEffect(() => {
+    if (isConnected && isLoggedIn) void loadThreadUnread(currentChannelRef.current);
+  }, [isConnected]);
+
+  async function handleThreadExport(format: 'txt' | 'json' | 'csv') {
+    const cur = openThreadRef.current;
+    if (!cur) return;
+    try {
+      const path = await api.threads.exportThread(cur.channel, cur.parentId, format);
+      if (path) showToast('Thread saved ✓', 'success'); // empty path = dialog closed
+    } catch (error) {
+      showToast(`${error}`, 'error');
+    }
+  }
+
   function closeThread() {
     setOpenThread(null);
     setThreadData(null);
@@ -364,12 +396,19 @@ function App() {
     openThreadRef.current = target; // the async load below checks it before React re-renders
     setOpenThread(target);
     setShowPins(false); // one side panel at a time
+    threadUnread.clear(message.id);
+    void api.threads.markRead(target.channel, target.parentId).catch(() => {});
     setThreadData({ parent: message, replies: [] }); // the parent shows at once
     void loadThread(target.channel, target.parentId);
   }
 
   function handleThreadReplyEvent(channel: string, threadId: string, message: Message) {
-    if (!isOpenThread(channel, threadId)) return;
+    if (!isOpenThread(channel, threadId)) {
+      // Edits and reactions arrive the same way, so ask the server for the real count.
+      if (channel === currentChannelRef.current && message.user !== currentUser) void loadThreadUnread(channel);
+      return;
+    }
+    if (message.user !== currentUser) void api.threads.markRead(channel, threadId).catch(() => {});
     setThreadData(prev => applyReplyEvent(prev, threadId, message));
   }
 
@@ -1211,6 +1250,7 @@ function App() {
           onAddReaction={handleThreadReaction}
           onEditMessage={handleThreadEdit}
           onDeleteMessage={handleThreadDelete}
+          onExport={handleThreadExport}
         />
       )}
 

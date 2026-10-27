@@ -141,11 +141,18 @@ func (h *Hub) Run() {
 
 		case client := <-h.unregister:
 			h.mutex.Lock()
-			if _, ok := h.clients[client.Username]; ok {
+			_, ok := h.clients[client.Username]
+			if ok {
 				delete(h.clients, client.Username)
 				close(client.Send)
-				log.Printf("✗ WebSocket client disconnected: %s", client.Username)
+			}
+			// Unlock before broadcasting: broadcastMessage takes the read
+			// lock itself, and a Go RWMutex cannot be re-entered, so calling
+			// it while holding the write lock froze the whole hub.
+			h.mutex.Unlock()
 
+			if ok {
+				log.Printf("✗ WebSocket client disconnected: %s", client.Username)
 				statusMsg := WSMessage{
 					Type: "status_update",
 					Payload: StatusUpdate{
@@ -156,7 +163,6 @@ func (h *Hub) Run() {
 				data, _ := json.Marshal(statusMsg)
 				h.broadcastMessage(data, client.Username)
 			}
-			h.mutex.Unlock()
 
 		case message := <-h.broadcast:
 			h.mutex.RLock()

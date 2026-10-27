@@ -14,6 +14,14 @@ export function AddReplyReaction(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['AddReplyReaction'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
+export function BuildChannelExport(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['BuildChannelExport'](arg1, arg2, arg3, arg4);
+}
+
+export function BuildThreadExport(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['BuildThreadExport'](arg1, arg2, arg3, arg4);
+}
+
 export function CancelGoogleLogin() {
   return window['go']['main']['App']['CancelGoogleLogin']();
 }
@@ -110,12 +118,20 @@ export function GetThread(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetThread'](arg1, arg2, arg3);
 }
 
+export function GetThreadUnread(arg1, arg2) {
+  return window['go']['main']['App']['GetThreadUnread'](arg1, arg2);
+}
+
 export function GetUnreadCounts(arg1, arg2) {
   return window['go']['main']['App']['GetUnreadCounts'](arg1, arg2);
 }
 
 export function GetUsers(arg1) {
   return window['go']['main']['App']['GetUsers'](arg1);
+}
+
+export function GoogleAccessToken() {
+  return window['go']['main']['App']['GoogleAccessToken']();
 }
 
 export function JoinChannel(arg1, arg2, arg3) {
@@ -138,12 +154,20 @@ export function LoginWithGoogle(arg1) {
   return window['go']['main']['App']['LoginWithGoogle'](arg1);
 }
 
+export function LoginWithGoogleToken(arg1, arg2) {
+  return window['go']['main']['App']['LoginWithGoogleToken'](arg1, arg2);
+}
+
 export function Logout(arg1) {
   return window['go']['main']['App']['Logout'](arg1);
 }
 
 export function MarkChannelRead(arg1, arg2, arg3) {
   return window['go']['main']['App']['MarkChannelRead'](arg1, arg2, arg3);
+}
+
+export function MarkThreadRead(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MarkThreadRead'](arg1, arg2, arg3);
 }
 
 export function PinMessage(arg1, arg2, arg3, arg4) {
@@ -160,6 +184,10 @@ export function RespondToEvent(arg1, arg2, arg3, arg4) {
 
 export function SaveFileToDisk(arg1, arg2) {
   return window['go']['main']['App']['SaveFileToDisk'](arg1, arg2);
+}
+
+export function SaveTextFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveTextFile'](arg1, arg2);
 }
 
 export function SearchMessages(arg1, arg2, arg3) {

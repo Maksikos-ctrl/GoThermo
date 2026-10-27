@@ -16,39 +16,52 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// ExportChannel saves a channel's history to a file chosen by the user.
-// format is "json", "csv" or "txt". It returns the path that was written,
-// or "" if the user closed the save dialog.
-func (a *App) ExportChannel(token, channel, username, format string) (string, error) {
+// ExportFile is a finished export that has not been saved anywhere yet.
+type ExportFile struct {
+	Filename string `json:"filename"`
+	Content  string `json:"content"`
+}
+
+// BuildChannelExport renders a channel's history and returns it without
+// touching any disk. A desktop app connected to a server calls this and then
+// saves the result on its own computer (SaveTextFile).
+func (a *App) BuildChannelExport(token, channel, username, format string) (ExportFile, error) {
 	if err := requireUser(token, username); err != nil {
-		return "", err
+		return ExportFile{}, err
 	}
 	format = strings.ToLower(strings.TrimSpace(format))
 	if format != "json" && format != "csv" && format != "txt" {
-		return "", fmt.Errorf("unknown export format %q", format)
+		return ExportFile{}, fmt.Errorf("unknown export format %q", format)
 	}
 
 	ch, err := GetChannel(channel)
 	if err != nil || ch == nil {
-		return "", fmt.Errorf("channel not found")
+		return ExportFile{}, fmt.Errorf("channel not found")
 	}
 	if ch.IsPrivate && !channelHasMember(ch.Members, username) {
-		return "", fmt.Errorf("you are not a participant of this chat")
+		return ExportFile{}, fmt.Errorf("you are not a participant of this chat")
 	}
 
 	msgs, err := GetMessages(channel, 1000000)
 	if err != nil {
-		return "", fmt.Errorf("error reading messages: %v", err)
+		return ExportFile{}, fmt.Errorf("error reading messages: %v", err)
 	}
 
 	now := time.Now()
 	data, err := renderExport(format, channel, msgs, now)
 	if err != nil {
-		return "", fmt.Errorf("error building export: %v", err)
+		return ExportFile{}, fmt.Errorf("error building export: %v", err)
 	}
+	log.Printf("📤 %s exported #%s (%d messages, %s)", username, channel, len(msgs), format)
+	return ExportFile{Filename: exportFilename(channel, format, now), Content: string(data)}, nil
+}
 
+// SaveTextFile asks where to save and writes the text there. It returns the
+// path, or "" if the user closed the dialog. It runs on the computer of the
+// person using the app, so it is never offered over a server.
+func (a *App) SaveTextFile(filename, content string) (string, error) {
 	savePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
-		DefaultFilename: exportFilename(channel, format, now),
+		DefaultFilename: filename,
 		Title:           "Export chat history",
 	})
 	if err != nil {
@@ -57,14 +70,27 @@ func (a *App) ExportChannel(token, channel, username, format string) (string, er
 	if savePath == "" {
 		return "", nil
 	}
-
 	// Private chats end up in this file, so keep it readable by the owner only.
-	if err := os.WriteFile(savePath, data, 0600); err != nil {
+	if err := os.WriteFile(savePath, []byte(content), 0600); err != nil {
 		return "", fmt.Errorf("failed to write file: %v", err)
 	}
-
-	log.Printf("📤 %s exported #%s (%d messages, %s) to %s", username, channel, len(msgs), format, savePath)
 	return savePath, nil
+}
+
+// ExportChannel saves a channel's history to a file chosen by the user.
+// format is "json", "csv" or "txt". It returns the path that was written,
+// or "" if the user closed the save dialog.
+func (a *App) ExportChannel(token, channel, username, format string) (string, error) {
+	f, err := a.BuildChannelExport(token, channel, username, format)
+	if err != nil {
+		return "", err
+	}
+	path, err := a.SaveTextFile(f.Filename, f.Content)
+	if err != nil || path == "" {
+		return path, err
+	}
+	log.Printf("📤 saved %s", path)
+	return path, nil
 }
 
 func channelHasMember(list []string, s string) bool {

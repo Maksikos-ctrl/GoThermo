@@ -41,6 +41,7 @@ Put a reverse proxy (Caddy, nginx) with HTTPS in front of it.
 | `REDIS_ADDR` | `localhost:6379` | where Redis is |
 | `REDIS_PASSWORD` | empty | Redis password, if any |
 | `GOTHERMO_INVITE_CODE` | empty | when set, registering needs this code. Empty means anyone can register |
+| `GOOGLE_CLIENT_ID` | empty | the Google OAuth client id the server accepts sign-ins from. Needed for Google sign-in over a server |
 | `GOTHERMO_TRUST_PROXY` | empty | set to `1` behind a reverse proxy so wrong-code limits count each real client (the compose file sets it) |
 
 ## Good to know
@@ -48,5 +49,6 @@ Put a reverse proxy (Caddy, nginx) with HTTPS in front of it.
 - Data lives in Redis (volume `redis-data`) and uploaded files in volume `uploads`. Back both up.
 - Set an invite code. Without one anyone who finds the address can register. Wrong guesses are limited to 10 per client per 15 minutes.
 - To change the code, edit `.env` and run `docker compose up -d`.
-- Not available over a server yet: Google sign-in and channel export.
+- Google sign-in over a server: set `GOOGLE_CLIENT_ID` in `.env` to the same client id that is in `google_oauth.json` on the desktop apps. The browser step happens on the user's computer, so each desktop app still needs its own `google_oauth.json`. The server checks the token was issued to that client and reads the profile from Google itself. Google sign-up needs the invite code, like normal registration.
+- Channel export works over a server: the server builds the file and the app saves it on your computer. Saving received attachments to disk is not available over a server yet.
 - Never expose Redis (port 6379) to the internet. The compose file keeps it internal.

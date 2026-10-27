@@ -1,0 +1,91 @@
+/* ---------- thread panel: search and export ---------- */
+
+.thread-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+}
+
+.thread-close.is-on {
+  background: var(--hover-tint, rgba(128, 128, 128, 0.14));
+  color: var(--accent, #7983f5);
+}
+
+.thread-export-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 150px;
+  margin-top: 6px;
+  padding: 4px;
+  background: var(--bg-secondary, #2b2d31);
+  border: 1px solid var(--border-color, #3f4147);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.thread-export-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--text-primary, #f2f3f5);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.thread-export-menu button:hover {
+  background: var(--hover-tint, rgba(128, 128, 128, 0.14));
+}
+
+.thread-search {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-color, #2a2f38);
+}
+
+.thread-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary, #f2f3f5);
+  background: var(--bg-primary, #1a1d21);
+  border: 1px solid var(--border-color, #3f4147);
+  border-radius: 8px;
+  outline: none;
+}
+
+.thread-search input:focus {
+  border-color: var(--accent, #7983f5);
+}
+
+/* ---------- "N new" on the replies row ---------- */
+
+.thread-summary-unread {
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent, #5865f2);
+  border-radius: 999px;
+}
+
+.thread-summary.has-unread .thread-summary-count {
+  color: var(--text-primary, #f2f3f5);
+}
+
+[data-theme='light'] .thread-search input {
+  background: #ffffff;
+}
+
+[data-theme='light'] .thread-summary.has-unread .thread-summary-count {
+  color: #1a1d21;
+}

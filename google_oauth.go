@@ -42,16 +42,21 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	googleAuthURL     = "https://accounts.google.com/o/oauth2/v2/auth"
-	googleTokenURL    = "https://oauth2.googleapis.com/token"
-	googleUserinfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
-	googleLoginWait   = 3 * time.Minute
+	googleAuthURL   = "https://accounts.google.com/o/oauth2/v2/auth"
+	googleTokenURL  = "https://oauth2.googleapis.com/token"
+	googleLoginWait = 3 * time.Minute
 )
 
 var googleHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
+// Variables, not constants, so tests can point them at a local fake of Google.
 var (
-	googleLoginMu    sync.Mutex
+	googleUserinfoURL  = "https://openidconnect.googleapis.com/v1/userinfo"
+	googleTokenInfoURL = "https://oauth2.googleapis.com/tokeninfo"
+)
+
+var (
+	googleLoginMu    sync.Mutex // only one sign-in at a time
 	googleCancelMu   sync.Mutex
 	googleCancelFunc context.CancelFunc
 )
@@ -66,6 +71,8 @@ type googleClientJSON struct {
 	ClientSecret string `json:"client_secret"`
 }
 
+// loadGoogleConfig reads the OAuth client from env vars or from the
+// google_oauth.json file downloaded from Google Cloud Console (kept out of git).
 func loadGoogleConfig() (googleConfig, error) {
 	id, secret := os.Getenv("GOOGLE_CLIENT_ID"), os.Getenv("GOOGLE_CLIENT_SECRET")
 	if id != "" && secret != "" {
@@ -110,6 +117,7 @@ func randomHex(n int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// newPKCE returns a random code verifier and its S256 challenge.
 func newPKCE() (verifier, challenge string, err error) {
 	b := make([]byte, 32)
 	if _, err = rand.Read(b); err != nil {
@@ -192,6 +200,8 @@ func fetchGoogleUserInfo(c context.Context, accessToken string) (googleUserInfo,
 
 var usernameCleaner = regexp.MustCompile(`[^a-zA-Z0-9.\-]+`)
 
+// sanitizeUsername keeps usernames safe for channel names like dm_<a>_<b>
+// (no spaces, no underscores).
 func sanitizeUsername(s string) string {
 	s = usernameCleaner.ReplaceAllString(s, "")
 	if s == "" {
@@ -200,6 +210,10 @@ func sanitizeUsername(s string) string {
 	return s
 }
 
+// userRedisKey is where a user is stored. Email/password users keep their
+// existing key (user:<email>); provider users get their own key so they never
+// overlap with an email account that happens to share the address. The key
+// still contains '@' so the startup loader picks it up.
 func userRedisKey(u *User) string {
 	if u.Provider != "" && u.ProviderID != "" {
 		return fmt.Sprintf("user:%s@%s", u.ProviderID, u.Provider)
@@ -207,6 +221,8 @@ func userRedisKey(u *User) string {
 	return fmt.Sprintf("user:%s", u.Email)
 }
 
+// createProviderUser registers a brand new provider (e.g. Google) user with a
+// username that is guaranteed not to clash with anyone else.
 func (um *UserManager) createProviderUser(baseUsername, email, provider, providerID string) *User {
 	um.mu.Lock()
 	defer um.mu.Unlock()
@@ -234,13 +250,16 @@ func (um *UserManager) createProviderUser(baseUsername, email, provider, provide
 	return user
 }
 
+// finishGoogleLogin completes the flow. signUp=false (Sign In tab) only lets
+// existing accounts in; signUp=true (Sign Up tab) creates the account and
+// refuses if it already exists.
 func (a *App) finishGoogleLogin(info googleUserInfo, signUp bool) (User, error) {
 	mapKey := "google:" + info.Sub
 
 	var user *User
 	if username, err := redisClient.Get(ctx, mapKey).Result(); err == nil {
 		if existing, ok := userManager.GetUser(username); ok && existing.Provider == "google" && existing.ProviderID == info.Sub {
-
+			// Returning user: mark online (this also persists it).
 			user = userManager.RegisterUser(username, existing.Email)
 		}
 	}
@@ -289,6 +308,7 @@ func writeCallbackPage(w http.ResponseWriter, ok bool, msg string) {
 		color, html.EscapeString(title), html.EscapeString(msg))
 }
 
+// CancelGoogleLogin aborts a sign-in that is waiting for the browser.
 func (a *App) CancelGoogleLogin() {
 	googleCancelMu.Lock()
 	defer googleCancelMu.Unlock()
@@ -297,15 +317,109 @@ func (a *App) CancelGoogleLogin() {
 	}
 }
 
+// LoginWithGoogle runs the whole browser sign-in and returns the logged-in
+// user (with a session token), exactly like Login does. signUp tells whether
+// the user pressed the button on the Sign Up tab (create account) or on the
+// Sign In tab (existing accounts only).
 func (a *App) LoginWithGoogle(signUp bool) (User, error) {
+	accessToken, err := a.googleSignInAccessToken()
+	if err != nil {
+		return User{}, err
+	}
+	info, err := googleProfile(context.Background(), accessToken)
+	if err != nil {
+		return User{}, err
+	}
+	return a.finishGoogleLogin(info, signUp)
+}
+
+// GoogleAccessToken runs only the browser part of Google sign-in on this
+// computer and hands back Google's access token. A desktop app that talks to a
+// remote server uses it, then gives the token to the server's
+// LoginWithGoogleToken so the server can sign the user in.
+func (a *App) GoogleAccessToken() (string, error) {
+	return a.googleSignInAccessToken()
+}
+
+// googleClientID is the OAuth client this server trusts tokens from.
+func googleClientID() (string, error) {
+	if id := os.Getenv("GOOGLE_CLIENT_ID"); id != "" {
+		return id, nil
+	}
+	cfg, err := loadGoogleConfig()
+	if err != nil {
+		return "", err
+	}
+	return cfg.ClientID, nil
+}
+
+type googleTokenInfo struct {
+	Aud       string `json:"aud"`
+	ExpiresIn string `json:"expires_in"`
+}
+
+// verifyGoogleToken asks Google which app an access token was issued to and
+// refuses tokens that belong to anyone else's app, so a token stolen from an
+// unrelated site cannot be used to log in here.
+func verifyGoogleToken(c context.Context, accessToken, wantClientID string) error {
+	req, err := http.NewRequestWithContext(c, http.MethodGet, googleTokenInfoURL+"?access_token="+url.QueryEscape(accessToken), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := googleHTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("could not reach Google: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Google did not accept this sign-in")
+	}
+	var ti googleTokenInfo
+	if err := json.Unmarshal(body, &ti); err != nil {
+		return fmt.Errorf("unexpected response from Google")
+	}
+	if ti.Aud == "" || ti.Aud != wantClientID {
+		return fmt.Errorf("this Google sign-in was issued for a different app")
+	}
+	return nil
+}
+
+// LoginWithGoogleToken is the server side of Google sign-in: the desktop app
+// did the browser part and sends the access token here. The server checks the
+// token was issued to its own OAuth client, reads the profile from Google
+// itself (never trusting what the client says), and signs the user in.
+func (a *App) LoginWithGoogleToken(accessToken string, signUp bool) (User, error) {
+	if accessToken == "" {
+		return User{}, fmt.Errorf("missing Google token")
+	}
+	clientID, err := googleClientID()
+	if err != nil {
+		return User{}, fmt.Errorf("Google sign-in is not configured on this server")
+	}
+	c, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := verifyGoogleToken(c, accessToken, clientID); err != nil {
+		return User{}, err
+	}
+	info, err := googleProfile(c, accessToken)
+	if err != nil {
+		return User{}, err
+	}
+	return a.finishGoogleLogin(info, signUp)
+}
+
+// googleSignInAccessToken runs the browser part of the sign-in on this
+// computer and returns Google's access token for the user who signed in.
+func (a *App) googleSignInAccessToken() (string, error) {
 	if !googleLoginMu.TryLock() {
-		return User{}, fmt.Errorf("Google sign-in is already in progress")
+		return "", fmt.Errorf("Google sign-in is already in progress")
 	}
 	defer googleLoginMu.Unlock()
 
 	cfg, err := loadGoogleConfig()
 	if err != nil {
-		return User{}, err
+		return "", err
 	}
 
 	parent := a.ctx
@@ -325,16 +439,16 @@ func (a *App) LoginWithGoogle(signUp bool) (User, error) {
 
 	verifier, challenge, err := newPKCE()
 	if err != nil {
-		return User{}, fmt.Errorf("could not start sign-in: %v", err)
+		return "", fmt.Errorf("could not start sign-in: %v", err)
 	}
 	state, err := randomHex(16)
 	if err != nil {
-		return User{}, fmt.Errorf("could not start sign-in: %v", err)
+		return "", fmt.Errorf("could not start sign-in: %v", err)
 	}
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return User{}, fmt.Errorf("could not start local sign-in listener: %v", err)
+		return "", fmt.Errorf("could not start local sign-in listener: %v", err)
 	}
 	redirectURI := fmt.Sprintf("http://127.0.0.1:%d/callback", listener.Addr().(*net.TCPAddr).Port)
 
@@ -396,30 +510,34 @@ func (a *App) LoginWithGoogle(signUp bool) (User, error) {
 	case res = <-resCh:
 	case <-flowCtx.Done():
 		if errors.Is(flowCtx.Err(), context.DeadlineExceeded) {
-			return User{}, fmt.Errorf("Google sign-in timed out, please try again")
+			return "", fmt.Errorf("Google sign-in timed out, please try again")
 		}
-		return User{}, fmt.Errorf("Google sign-in cancelled")
+		return "", fmt.Errorf("Google sign-in cancelled")
 	}
 	if res.err != nil {
-		return User{}, res.err
+		return "", res.err
 	}
 
 	accessToken, err := exchangeGoogleCode(flowCtx, cfg, res.code, verifier, redirectURI)
 	if err != nil {
-		return User{}, err
+		return "", err
 	}
+	return accessToken, nil
+}
 
-	info, err := fetchGoogleUserInfo(flowCtx, accessToken)
+// googleProfile asks Google who an access token belongs to and checks that the
+// answer is usable: a stable id, and a verified email address.
+func googleProfile(c context.Context, accessToken string) (googleUserInfo, error) {
+	info, err := fetchGoogleUserInfo(c, accessToken)
 	if err != nil {
-		return User{}, err
+		return googleUserInfo{}, err
 	}
 	if info.Sub == "" || info.Email == "" {
-		return User{}, fmt.Errorf("Google did not return an email address")
+		return googleUserInfo{}, fmt.Errorf("Google did not return an email address")
 	}
 	if !info.EmailVerified {
-		return User{}, fmt.Errorf("your Google email address is not verified")
+		return googleUserInfo{}, fmt.Errorf("your Google email address is not verified")
 	}
 	info.Email = strings.ToLower(info.Email)
-
-	return a.finishGoogleLogin(info, signUp)
+	return info, nil
 }

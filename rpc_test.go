@@ -86,6 +86,7 @@ func TestRPCRejectsBadRequests(t *testing.T) {
 		{"unknown method", "Nope", `[]`, 404},
 		{"desktop only", "SaveFileToDisk", `["t","f"]`, 404},
 		{"google login", "LoginWithGoogle", `[false]`, 404},
+		{"google browser step", "GoogleAccessToken", `[]`, 404},
 		{"lowercase internal", "startup", `[]`, 404},
 		{"not an array", "GetChannels", `{"a":1}`, 400},
 		{"wrong count", "GetChannels", `["a","b"]`, 400},

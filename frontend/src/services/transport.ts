@@ -8,13 +8,13 @@ import { getInviteCode, getServerUrl } from './server';
 type Fn = (...args: any[]) => Promise<any>;
 
 // These open dialogs or a browser on the machine that runs the backend.
-const DESKTOP_ONLY = new Set(['SaveFileToDisk', 'ExportChannel', 'LoginWithGoogle', 'CancelGoogleLogin']);
+const DESKTOP_ONLY = new Set(['SaveFileToDisk']);
 
 export async function rpc(name: string, args: unknown[]): Promise<any> {
   const base = getServerUrl();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const invite = getInviteCode();
-  if (name === 'Register' && invite) headers['X-Invite-Code'] = invite;
+  if (invite && (name === 'Register' || name === 'LoginWithGoogleToken')) headers['X-Invite-Code'] = invite;
   let res: Response;
   try {
     res = await fetch(`${base}/rpc/${name}`, {
@@ -84,9 +84,25 @@ export const GetFileData = bind('GetFileData');
 export const SaveFileToDisk = bind('SaveFileToDisk');
 export const LogCall = bind('LogCall');
 export const Logout = bind('Logout');
-export const LoginWithGoogle = bind('LoginWithGoogle');
-export const CancelGoogleLogin = bind('CancelGoogleLogin');
-export const ExportChannel = bind('ExportChannel');
+// Google sign-in. On a server the browser part still runs here, on this
+// computer; the server then checks the token with Google and signs the user in.
+export const LoginWithGoogle = ((signUp: boolean) => {
+  if (!getServerUrl()) return wails.LoginWithGoogle(signUp);
+  return wails.GoogleAccessToken().then((token: string) => rpc('LoginWithGoogleToken', [token, signUp]));
+}) as typeof wails.LoginWithGoogle;
+
+// Cancelling only closes the local browser wait, so it is always local.
+export const CancelGoogleLogin = ((...args: unknown[]) =>
+  (wails.CancelGoogleLogin as unknown as Fn)(...args)) as typeof wails.CancelGoogleLogin;
+// Export over a server: the server builds the file, and it is saved on this
+// computer through the usual save dialog. Resolves to the saved path, or ""
+// when the dialog was closed.
+export const ExportChannel = ((token: string, channel: string, username: string, format: string) => {
+  if (!getServerUrl()) return wails.ExportChannel(token, channel, username, format);
+  return rpc('BuildChannelExport', [token, channel, username, format]).then(
+    (f: { filename: string; content: string }) => wails.SaveTextFile(f.filename, f.content),
+  );
+}) as typeof wails.ExportChannel;
 export const GetLinkPreview = bind('GetLinkPreview');
 export const SendReply = bind('SendReply');
 export const GetThread = bind('GetThread');
@@ -96,3 +112,14 @@ export const AddReplyReaction = bind('AddReplyReaction');
 export const PinMessage = bind('PinMessage');
 export const UnpinMessage = bind('UnpinMessage');
 export const GetPinnedMessages = bind('GetPinnedMessages');
+export const GetThreadUnread = bind('GetThreadUnread');
+export const MarkThreadRead = bind('MarkThreadRead');
+export const BuildThreadExport = bind('BuildThreadExport');
+
+// Export one thread: built by the backend (local or server), saved on this
+// computer through the save dialog. Resolves to the saved path, or "" when the
+// dialog was closed.
+export const ExportThread = (token: string, channel: string, parentId: string, format: string): Promise<string> =>
+  (BuildThreadExport as unknown as Fn)(token, channel, parentId, format).then(
+    (f: { filename: string; content: string }) => wails.SaveTextFile(f.filename, f.content),
+  );

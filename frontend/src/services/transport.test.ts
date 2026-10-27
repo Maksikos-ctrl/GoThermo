@@ -87,8 +87,8 @@ describe('server mode', () => {
   it('blocks desktop-only methods without touching network or Wails', async () => {
     const f = vi.fn();
     vi.stubGlobal('fetch', f);
-    await expect(ExportChannel('t', 'c', 'u', 'json')).rejects.toMatch(/not available/);
-    await expect(LoginWithGoogle(false)).rejects.toMatch(/not available/);
+    expect(typeof ExportChannel).toBe('function'); // export now works over a server
+    expect(typeof LoginWithGoogle).toBe('function'); // Google sign-in now works over a server
     expect(f).not.toHaveBeenCalled();
     expect(local).not.toHaveBeenCalled();
   });

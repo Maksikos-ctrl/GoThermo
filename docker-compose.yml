@@ -14,6 +14,7 @@ services:
     environment:
       REDIS_ADDR: redis:6379
       GOTHERMO_INVITE_CODE: ${INVITE_CODE:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOTHERMO_TRUST_PROXY: "1"
     volumes:
       - uploads:/data

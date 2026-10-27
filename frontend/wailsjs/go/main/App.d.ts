@@ -8,6 +8,10 @@ export function AddReaction(arg1:string,arg2:string,arg3:string,arg4:string,arg5
 
 export function AddReplyReaction(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<void>;
 
+export function BuildChannelExport(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.ExportFile>;
+
+export function BuildThreadExport(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.ExportFile>;
+
 export function CancelGoogleLogin():Promise<void>;
 
 export function CheckAuth(arg1:string):Promise<string>;
@@ -56,9 +60,13 @@ export function GetPinnedMessages(arg1:string,arg2:string):Promise<Array<main.Pi
 
 export function GetThread(arg1:string,arg2:string,arg3:string):Promise<main.Thread>;
 
+export function GetThreadUnread(arg1:string,arg2:string):Promise<Record<string, number>>;
+
 export function GetUnreadCounts(arg1:string,arg2:string):Promise<Record<string, number>>;
 
 export function GetUsers(arg1:string):Promise<Array<main.User>>;
+
+export function GoogleAccessToken():Promise<string>;
 
 export function JoinChannel(arg1:string,arg2:string,arg3:string):Promise<void>;
 
@@ -70,9 +78,13 @@ export function Login(arg1:string,arg2:string):Promise<main.User>;
 
 export function LoginWithGoogle(arg1:boolean):Promise<main.User>;
 
+export function LoginWithGoogleToken(arg1:string,arg2:boolean):Promise<main.User>;
+
 export function Logout(arg1:string):Promise<boolean>;
 
 export function MarkChannelRead(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function MarkThreadRead(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function PinMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
@@ -81,6 +93,8 @@ export function Register(arg1:string,arg2:string):Promise<main.User>;
 export function RespondToEvent(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.Event>;
 
 export function SaveFileToDisk(arg1:string,arg2:string):Promise<void>;
+
+export function SaveTextFile(arg1:string,arg2:string):Promise<string>;
 
 export function SearchMessages(arg1:string,arg2:string,arg3:string):Promise<Array<main.Message>>;
 

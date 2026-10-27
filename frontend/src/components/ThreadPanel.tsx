@@ -1,8 +1,10 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Send, X } from 'lucide-react';
+import { Download, Search, Send, X } from 'lucide-react';
 import { Message } from '../types';
 import { MessageItem } from './MessageItem';
 import { ThreadData, replyLabel } from './threadState';
+import { filterReplies } from './threadExtras';
+import '../styles/thread-extras.css';
 
 interface ThreadPanelProps {
   thread: ThreadData | null;
@@ -18,6 +20,8 @@ interface ThreadPanelProps {
   onAddReaction: (messageId: string, emoji: string) => void;
   onEditMessage: (messageId: string, newText: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  // When given, the header gets an export button (txt, json or csv).
+  onExport?: (format: 'txt' | 'json' | 'csv') => Promise<void> | void;
 }
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
@@ -40,7 +44,12 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   onAddReaction,
   onEditMessage,
   onDeleteMessage,
+  onExport,
 }) => {
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -49,6 +58,22 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   const lastCountRef = useRef(0);
 
   const replies = thread?.replies ?? [];
+  // Search only changes what is shown; the scroll logic below keeps using all replies.
+  const shown = searching ? filterReplies(replies, query) : replies;
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuOpen]);
+
+  const toggleSearch = () => {
+    setSearching(s => !s);
+    setQuery('');
+  };
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -117,10 +142,67 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
           <strong>Thread</strong>
           <span className="thread-channel">{channelTag}</span>
         </div>
-        <button type="button" className="thread-close" onClick={onClose} aria-label="Close thread" title="Close">
-          <X size={16} />
-        </button>
+        <div className="thread-actions" ref={menuRef}>
+          <button
+            type="button"
+            className={'thread-close' + (searching ? ' is-on' : '')}
+            onClick={toggleSearch}
+            aria-label="Search in thread"
+            aria-pressed={searching}
+            title="Search in thread"
+          >
+            <Search size={16} />
+          </button>
+          {onExport && (
+            <button
+              type="button"
+              className={'thread-close' + (menuOpen ? ' is-on' : '')}
+              onClick={() => setMenuOpen(o => !o)}
+              aria-label="Export thread"
+              aria-expanded={menuOpen}
+              title="Export thread"
+            >
+              <Download size={16} />
+            </button>
+          )}
+          {menuOpen && onExport && (
+            <div className="thread-export-menu" role="menu">
+              {(['txt', 'json', 'csv'] as const).map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void onExport(f);
+                  }}
+                >
+                  {f === 'txt' ? 'Text (.txt)' : f === 'json' ? 'JSON (.json)' : 'CSV (.csv)'}
+                </button>
+              ))}
+            </div>
+          )}
+          <button type="button" className="thread-close" onClick={onClose} aria-label="Close thread" title="Close">
+            <X size={16} />
+          </button>
+        </div>
       </header>
+
+      {searching && (
+        <div className="thread-search">
+          <input
+            autoFocus
+            type="search"
+            value={query}
+            placeholder="Search in this thread…"
+            aria-label="Search in thread"
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Escape') toggleSearch();
+            }}
+          />
+        </div>
+      )}
 
       <div className="thread-body" ref={bodyRef} onScroll={onBodyScroll}>
         {error && <div className="thread-error" role="alert">{error}</div>}
@@ -129,10 +211,18 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
             <div className="thread-parent">{item(thread.parent, false)}</div>
             <div className="thread-divider">
               <span>
-                {replies.length > 0 ? replyLabel(replies.length) : loading ? 'Loading replies…' : 'No replies yet'}
+                {searching && query.trim() !== ''
+                  ? shown.length > 0
+                    ? `${shown.length} of ${replies.length} match`
+                    : 'No replies match'
+                  : replies.length > 0
+                    ? replyLabel(replies.length)
+                    : loading
+                      ? 'Loading replies…'
+                      : 'No replies yet'}
               </span>
             </div>
-            {replies.map((r, i) => item(r, sameRun(replies[i - 1], r)))}
+            {shown.map((r, i) => item(r, sameRun(shown[i - 1], r)))}
           </>
         )}
       </div>

@@ -92,6 +92,20 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ExportFile {
+	    filename: string;
+	    content: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExportFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filename = source["filename"];
+	        this.content = source["content"];
+	    }
+	}
 	export class LinkPreview {
 	    url: string;
 	    title: string;

@@ -6,6 +6,7 @@ import { LinkPreview } from './LinkPreview';
 import { MessageText } from './MessageText';
 import { api } from '../services/api'; 
 import { formatLastReply, replyLabel } from './threadState';
+import { useThreadUnread } from './threadExtras';
 
 
 interface MessageItemProps {
@@ -37,6 +38,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   isPinned = false,
   onTogglePin,
 }) => {
+  const unreadReplies = useThreadUnread(message.id);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false); 
   const [editText, setEditText] = useState(message.text); 
@@ -249,7 +251,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       {onOpenThread && !message.isCall && (message.replyCount ?? 0) > 0 && (
         <button
           type="button"
-          className="thread-summary"
+          className={'thread-summary' + (unreadReplies > 0 ? ' has-unread' : '')}
           onClick={() => onOpenThread(message)}
           title="Open thread"
         >
@@ -262,6 +264,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </span>
           <span className="thread-summary-count">{replyLabel(message.replyCount ?? 0)}</span>
           <span className="thread-summary-time">{formatLastReply(message.lastReplyAt)}</span>
+          {unreadReplies > 0 && <span className="thread-summary-unread">{unreadReplies} new</span>}
         </button>
       )}
       </div>
