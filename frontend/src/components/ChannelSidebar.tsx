@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Lock, Hash, AtSign, X, GripVertical } from 'lucide-react';
 import { Channel } from '../types';
+import '../styles/presence.css';
 
 interface ChannelSidebarProps {
   channels: Channel[];
@@ -9,6 +10,8 @@ interface ChannelSidebarProps {
   isLoading: boolean;
   currentUser: string;
   unreadCounts: Record<string, number>; 
+  // Unread messages that mention you, per channel (shown as @N).
+  mentionCounts?: Record<string, number>;
   onChannelChange: (channel: string) => void;
   onCreateChannel: () => void;
   onDeleteChannel: (channelName: string) => void;
@@ -28,6 +31,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   isLoading,
   currentUser,
   unreadCounts,
+  mentionCounts = {},
   onChannelChange,
   onCreateChannel,
   onDeleteChannel,
@@ -46,11 +50,21 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
   const renderUnreadBadge = (channelName: string) => {
     const count = unreadCounts[channelName] || 0;
-    if (count === 0) return null;
+    const mentions = mentionCounts[channelName] || 0;
+    if (count === 0 && mentions === 0) return null;
     return (
-      <span className="unread-badge">
-        {count > 99 ? '99+' : count}
-      </span>
+      <>
+        {mentions > 0 && (
+          <span className="mention-badge" title={mentions === 1 ? '1 mention' : `${mentions} mentions`}>
+            @{mentions > 99 ? '99+' : mentions}
+          </span>
+        )}
+        {count > 0 && (
+          <span className="unread-badge">
+            {count > 99 ? '99+' : count}
+          </span>
+        )}
+      </>
     );
   };
 

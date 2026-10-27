@@ -39,7 +39,7 @@ var rpcAllowed = map[string]bool{
 	"CreateEvent": true, "GetEvents": true, "RespondToEvent": true, "UpdateEvent": true, "DeleteEvent": true, "GetDueReminders": true,
 	"PinMessage": true, "UnpinMessage": true, "GetPinnedMessages": true,
 	"LoginWithGoogleToken": true, "BuildChannelExport": true,
-	"BuildThreadExport": true, "MarkThreadRead": true, "GetThreadUnread": true,
+	"BuildThreadExport": true, "MarkThreadRead": true, "GetThreadUnread": true, "GetMentionCounts": true,
 	"SendReply": true, "GetThread": true, "EditReply": true, "DeleteReply": true, "AddReplyReaction": true,
 }
 

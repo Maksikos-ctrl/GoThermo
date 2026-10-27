@@ -60,6 +60,9 @@ type Client struct {
 	Hub      *Hub
 	Send     chan []byte
 	Channels []string
+
+	// lastTyping rate-limits typing events per channel. Only readPump touches it.
+	lastTyping map[string]time.Time
 }
 
 type Hub struct {
@@ -108,6 +111,12 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.mutex.Lock()
+			// The same person may connect again before the old connection is
+			// noticed as dead (app reload, network change, server restart). The
+			// new one wins and the old one is shut down.
+			if old := h.clients[client.Username]; old != nil && old != client {
+				close(old.Send)
+			}
 			h.clients[client.Username] = client
 			h.mutex.Unlock()
 			log.Printf("✓ WebSocket client connected: %s", client.Username)
@@ -141,7 +150,10 @@ func (h *Hub) Run() {
 
 		case client := <-h.unregister:
 			h.mutex.Lock()
-			_, ok := h.clients[client.Username]
+			// Only remove this very connection. After a quick reconnect the
+			// entry under this name belongs to the newer connection, and
+			// removing that one would silence the user's live updates.
+			ok := h.clients[client.Username] == client
 			if ok {
 				delete(h.clients, client.Username)
 				close(client.Send)
@@ -517,6 +529,9 @@ func (c *Client) handleMessage(msg WSMessage) {
 		if channel, ok := msg.Payload.(string); ok {
 			c.Hub.RemoveChannelFromClient(c.Username, channel)
 		}
+
+	case "typing":
+		c.handleTyping(msg.Payload)
 
 	case "status_change":
 

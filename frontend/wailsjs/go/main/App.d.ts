@@ -48,6 +48,8 @@ export function GetFileData(arg1:string,arg2:string):Promise<string>;
 
 export function GetLinkPreview(arg1:string,arg2:string):Promise<main.LinkPreview>;
 
+export function GetMentionCounts(arg1:string,arg2:string):Promise<Record<string, number>>;
+
 export function GetMessages(arg1:string,arg2:string):Promise<Array<main.Message>>;
 
 export function GetMessagesPage(arg1:string,arg2:string,arg3:string,arg4:number):Promise<main.MessagePage>;

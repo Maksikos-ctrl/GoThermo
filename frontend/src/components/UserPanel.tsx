@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Video, Phone, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Check } from 'lucide-react';
+import { Video, Phone, Settings, Palette, ChevronDown, ChevronsLeft, ChevronsRight, Check } from 'lucide-react';
 import { User, STATUS_OPTIONS, StatusType } from '../types';
 import { avatarColor } from './avatarColor';
 import { api } from '../services/api';
@@ -15,6 +15,7 @@ interface UserPanelProps {
   onStartVideoCall: () => void;
   onStartAudioCall: () => void;
   onOpenSettings: () => void;
+  onOpenThemes?: () => void;
   
   onChangeStatusViaWS?: (status: StatusType) => void;
 }
@@ -30,6 +31,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
   onStartVideoCall,
   onStartAudioCall,
   onOpenSettings,
+  onOpenThemes,
   onChangeStatusViaWS, 
 }) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
@@ -212,6 +214,11 @@ export const UserPanel: React.FC<UserPanelProps> = ({
           <Phone size={16} className="icon" />
           <span>Audio</span>
         </button>
+        {onOpenThemes && (
+          <button className="footer-btn" title="Accent colour" aria-label="Accent colour" onClick={onOpenThemes}>
+            <Palette size={16} className="icon" />
+          </button>
+        )}
         <button className="footer-btn" title="Settings" aria-label="Settings" onClick={onOpenSettings}>
           <Settings size={16} className="icon" />
         </button>

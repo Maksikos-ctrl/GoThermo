@@ -16,6 +16,17 @@ import { ChannelModal } from './components/ChannelModal';
 import { ChatHeader } from './components/ChatHeader';
 import { MessagesList } from './components/MessagesList';
 import { MessageComposer } from './components/MessageComposer';
+import { TypingIndicator } from './components/TypingIndicator';
+import {
+  TypingMap,
+  clearTyping,
+  mentionNotice,
+  mentionsUser,
+  noteTyping,
+  pruneTyping,
+  shouldSendTyping,
+  typingUsers,
+} from './components/typingState';
 import { ChannelMembers } from './components/ChannelMembers';
 import { CalendarModal, CalendarEvent } from './components/CalendarModal';
 import { EventReminders } from './components/EventReminders';
@@ -33,6 +44,8 @@ import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/ToastContainer';
 import { useSettings } from './hooks/useSettings';
 import { ThemeVariables } from './components/ThemeVariables';
+import { ThemePicker } from './components/ThemePicker';
+import { applySavedAccent } from './components/themeAccent';
 import { SettingsModal } from './components/SettingsModal';
 import { playNotificationSound } from './hooks/notificationSound';
 import { useIdleStatus } from './hooks/useIdleStatus';
@@ -101,6 +114,17 @@ function App() {
   const [dmChannels, setDMChannels] = useState<Channel[]>([]);
   
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  // Unread messages that mention me, per channel.
+  const [mentionCounts, setMentionCounts] = useState<Record<string, number>>({});
+  // Who is typing where. Hints expire by themselves.
+  const [typingMap, setTypingMap] = useState<TypingMap>({});
+  const lastTypingSentRef = useRef({ channel: '', at: 0 });
+  const notifiedMentionsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (Object.keys(typingMap).length === 0) return;
+    const id = setInterval(() => setTypingMap(m => pruneTyping(m, Date.now())), 1000);
+    return () => clearInterval(id);
+  }, [typingMap]);
   const [showCalendar, setShowCalendar] = useState(false);
   const [reminders, setReminders] = useState<CalendarEvent[]>([]);
   // Always points at the channel on screen, so async callbacks never see a stale one.
@@ -116,6 +140,11 @@ function App() {
   const { toasts, showToast, removeToast } = useToast();
   const { settings, updateSettings } = useSettings(currentUser);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
+  // The saved accent colour is applied once, before anything is drawn in it.
+  useEffect(() => {
+    applySavedAccent();
+  }, []);
   const appliedDefaultStatusRef = useRef(false);
 
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -138,7 +167,8 @@ function App() {
     handleChannelDeleted,
     handleThreadReplyEvent,
     handleThreadReplyDeleted,
-    handlePinsChanged
+    handlePinsChanged,
+    handleTyping
   );
 
   const call = useCall({
@@ -206,6 +236,21 @@ function App() {
   }
 
   function handleNewMessage(channel: string, message: Message) {
+    if (message.user !== currentUser) {
+      // Someone who just sent a message is no longer typing.
+      setTypingMap(prev => clearTyping(prev, channel, message.user));
+
+      if (!message.isCall && mentionsUser(message.text, currentUser)) {
+        const elsewhere = channel !== currentChannelRef.current;
+        if (elsewhere) void loadMentionCounts(); // the server counts, so edits and reactions cannot inflate it
+        // Edits and reactions arrive as the same event, so tell about a message once.
+        if ((elsewhere || document.hidden) && !notifiedMentionsRef.current.has(message.id)) {
+          if (notifiedMentionsRef.current.size > 500) notifiedMentionsRef.current.clear();
+          notifiedMentionsRef.current.add(message.id);
+          showToast(mentionNotice(message.user, channelTag(channel, currentUser)), 'success');
+        }
+      }
+    }
     if (message.user !== currentUser && settings.messageSoundEnabled) {
       playNotificationSound(0.5);
     }
@@ -231,6 +276,31 @@ function App() {
       setPins(prev => applyMessageToPins(prev, message));
     } else if (message.user !== currentUser) {
       setUnreadCounts(prev => ({ ...prev, [channel]: (prev[channel] || 0) + 1 }));
+    }
+  }
+
+  function handleTyping(channel: string, username: string) {
+    if (username === currentUser) return;
+    setTypingMap(prev => noteTyping(prev, channel, username, Date.now()));
+  }
+
+  // Called while I type; tells the others at most every few seconds.
+  function handleComposerTyping() {
+    const now = Date.now();
+    const channel = currentChannelRef.current;
+    const last = lastTypingSentRef.current;
+    if (channel === last.channel && !shouldSendTyping(last.at, now)) return;
+    lastTypingSentRef.current = { channel, at: now };
+    sendMessage('typing', channel);
+  }
+
+  async function loadMentionCounts() {
+    try {
+      const counts = (await api.unread.mentions(currentUser)) as unknown as Record<string, number>;
+      // The open channel is never unread, whatever the server says.
+      setMentionCounts({ ...(counts || {}), [currentChannelRef.current]: 0 });
+    } catch {
+      // the badges are a nicety; the channel works without them
     }
   }
 
@@ -789,6 +859,8 @@ function App() {
     setUsers([]);
     setDMChannels([]);
     setUnreadCounts({});
+    setMentionCounts({});
+    setTypingMap({});
     setCurrentChannel('general');
   };
 
@@ -1055,6 +1127,7 @@ function App() {
       const counts = await api.unread.getCounts(currentUser);
       // The open channel is never unread, whatever the server says.
       setUnreadCounts({ ...(counts || {}), [currentChannelRef.current]: 0 });
+      void loadMentionCounts();
     }
     catch (error) {
       console.error('Error loading unread counts:', error);
@@ -1067,6 +1140,7 @@ function App() {
       await api.unread.markRead(currentUser, currentChannel);
       
       setUnreadCounts(prev => ({ ...prev, [currentChannel]: 0 }));
+      setMentionCounts(prev => ({ ...prev, [currentChannel]: 0 }));
     } catch (error) {
       console.error('Error marking channel as read:', error);
     }
@@ -1144,6 +1218,7 @@ function App() {
         onStartVideoCall={startVideoCall}
         onStartAudioCall={startAudioCall}
         onOpenSettings={() => setShowSettingsModal(true)}
+        onOpenThemes={() => setShowThemePicker(true)}
         onChangeStatusViaWS={changeStatus}
       />
 
@@ -1152,6 +1227,7 @@ function App() {
         dmChannels={dmChannels}
         currentChannel={currentChannel}
         unreadCounts={unreadCounts} 
+        mentionCounts={mentionCounts}
         isLoading={isLoadingChannels}
         currentUser={currentUser}
         onChannelChange={setCurrentChannel}
@@ -1223,6 +1299,8 @@ function App() {
           onTogglePin={handleTogglePin}
         />
 
+        <TypingIndicator users={typingUsers(typingMap, currentChannel, Date.now(), currentUser)} />
+
         <MessageComposer
           currentChannel={currentChannel}
           isPostMode={isPostMode}
@@ -1233,6 +1311,7 @@ function App() {
           mentionableUsers={allUsernames}
           currentUser={currentUser}
           onSendFile={handleSendFile}
+          onTyping={handleComposerTyping}
         />
       </div>
 
@@ -1374,6 +1453,8 @@ function App() {
         onDismiss={(id) => setReminders(prev => prev.filter(r => r.id !== id))}
         onOpenCalendar={() => setShowCalendar(true)}
       />
+
+      <ThemePicker isOpen={showThemePicker} onClose={() => setShowThemePicker(false)} />
 
       <SettingsModal
         isOpen={showSettingsModal}

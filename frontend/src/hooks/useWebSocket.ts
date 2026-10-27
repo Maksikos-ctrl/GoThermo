@@ -19,7 +19,8 @@ export const useWebSocket = (
   onChannelDeleted?: (channelName: string) => void,
   onThreadReply?: (channel: string, threadId: string, message: Message) => void,
   onThreadReplyDeleted?: (channel: string, threadId: string, messageId: string) => void,
-  onPinsChanged?: (channel: string, pins: any[]) => void
+  onPinsChanged?: (channel: string, pins: any[]) => void,
+  onTyping?: (channel: string, username: string) => void
 ) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -37,6 +38,7 @@ export const useWebSocket = (
   const onThreadReplyRef = useRef(onThreadReply);
   const onThreadReplyDeletedRef = useRef(onThreadReplyDeleted);
   const onPinsChangedRef = useRef(onPinsChanged);
+  const onTypingRef = useRef(onTyping);
 
   onStatusUpdateRef.current = onStatusUpdate;
   onNewMessageRef.current = onNewMessage;
@@ -48,6 +50,7 @@ export const useWebSocket = (
   onThreadReplyRef.current = onThreadReply;
   onThreadReplyDeletedRef.current = onThreadReplyDeleted;
   onPinsChangedRef.current = onPinsChanged;
+  onTypingRef.current = onTyping;
 
   const sendMessage = useCallback((type: string, payload: any) => {
     if (ws && isConnected) {
@@ -130,6 +133,12 @@ export const useWebSocket = (
       case 'thread_reply_deleted':
         if (onThreadReplyDeletedRef.current) {
           onThreadReplyDeletedRef.current(data.payload.channel, data.payload.threadId, data.payload.messageId);
+        }
+        break;
+
+      case 'typing':
+        if (onTypingRef.current && data.payload) {
+          onTypingRef.current(data.payload.channel, data.payload.username);
         }
         break;
 

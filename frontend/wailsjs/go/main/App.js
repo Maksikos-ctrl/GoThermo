@@ -94,6 +94,10 @@ export function GetLinkPreview(arg1, arg2) {
   return window['go']['main']['App']['GetLinkPreview'](arg1, arg2);
 }
 
+export function GetMentionCounts(arg1, arg2) {
+  return window['go']['main']['App']['GetMentionCounts'](arg1, arg2);
+}
+
 export function GetMessages(arg1, arg2) {
   return window['go']['main']['App']['GetMessages'](arg1, arg2);
 }

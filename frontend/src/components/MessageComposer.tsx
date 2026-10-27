@@ -37,6 +37,8 @@ interface MessageComposerProps {
   mentionableUsers?: string[];
   currentUser?: string;
   onSendFile?: (fileName: string, mimeType: string, base64Data: string) => void | Promise<void>;
+  // Called on every keystroke that leaves text in the box; the caller throttles.
+  onTyping?: () => void;
 }
 
 export const MessageComposer: React.FC<MessageComposerProps> = ({
@@ -49,6 +51,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   mentionableUsers = [],
   currentUser,
   onSendFile, 
+  onTyping,
 }) => {
   const [showEmojiPopup, setShowEmojiPopup] = useState(false);
   const [isUploading, setIsUploading] = useState(false); 
@@ -215,6 +218,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     onMessageChange(value);
+    if (value.trim() !== '') onTyping?.();
 
     const cursorPos = e.target.selectionStart;
     const textBeforeCursor = value.substring(0, cursorPos);

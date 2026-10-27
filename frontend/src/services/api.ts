@@ -26,6 +26,7 @@ import {
   DeleteDMChannel,
   MarkChannelRead,
   GetUnreadCounts,
+  GetMentionCounts,
   EditMessage,
   DeleteMessage,
   SearchMessages,
@@ -93,6 +94,7 @@ export const api = {
   unread: {
     markRead: (username: string, channel: string) => MarkChannelRead(t(), username, channel),
     getCounts: (username: string) => GetUnreadCounts(t(), username),
+    mentions: (username: string) => GetMentionCounts(t(), username),
   },
   messages: {
     getByChannel: (channel: string) => GetMessages(t(), channel),

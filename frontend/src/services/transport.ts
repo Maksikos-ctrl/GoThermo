@@ -76,6 +76,7 @@ export const GetDMChannels = bind('GetDMChannels');
 export const DeleteDMChannel = bind('DeleteDMChannel');
 export const MarkChannelRead = bind('MarkChannelRead');
 export const GetUnreadCounts = bind('GetUnreadCounts');
+export const GetMentionCounts = bind('GetMentionCounts');
 export const EditMessage = bind('EditMessage');
 export const DeleteMessage = bind('DeleteMessage');
 export const SearchMessages = bind('SearchMessages');
