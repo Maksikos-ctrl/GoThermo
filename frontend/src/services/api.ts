@@ -43,6 +43,9 @@ import {
   EditReply,
   DeleteReply,
   AddReplyReaction,
+  PinMessage,
+  UnpinMessage,
+  GetPinnedMessages,
 } from './transport';
 import { getAuthToken } from './session';
 
@@ -113,6 +116,11 @@ export const api = {
       DeleteReply(t(), channel, parentId, replyId, username),
     addReaction: (channel: string, parentId: string, replyId: string, emoji: string, username: string) =>
       AddReplyReaction(t(), channel, parentId, replyId, emoji, username),
+  },
+  pins: {
+    get: (channel: string) => GetPinnedMessages(t(), channel),
+    pin: (channel: string, messageId: string, username: string) => PinMessage(t(), channel, messageId, username),
+    unpin: (channel: string, messageId: string, username: string) => UnpinMessage(t(), channel, messageId, username),
   },
   files: {
     send: (user: string, channel: string, fileName: string, mimeType: string, base64Data: string) =>

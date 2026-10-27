@@ -52,6 +52,8 @@ export function GetOrCreateDMChannel(arg1:string,arg2:string,arg3:string):Promis
 
 export function GetOrCreateGroupChannel(arg1:string,arg2:Array<string>,arg3:string):Promise<main.Channel>;
 
+export function GetPinnedMessages(arg1:string,arg2:string):Promise<Array<main.PinnedMessage>>;
+
 export function GetThread(arg1:string,arg2:string,arg3:string):Promise<main.Thread>;
 
 export function GetUnreadCounts(arg1:string,arg2:string):Promise<Record<string, number>>;
@@ -72,6 +74,8 @@ export function Logout(arg1:string):Promise<boolean>;
 
 export function MarkChannelRead(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function PinMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
 export function Register(arg1:string,arg2:string):Promise<main.User>;
 
 export function RespondToEvent(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.Event>;
@@ -87,6 +91,8 @@ export function SendMessage(arg1:string,arg2:string,arg3:string,arg4:string):Pro
 export function SendPost(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 
 export function SendReply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.Message>;
+
+export function UnpinMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function UpdateEvent(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number):Promise<main.Event>;
 

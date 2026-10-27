@@ -17,6 +17,9 @@ interface MessagesListProps {
   onLoadOlder?: () => void;
   // Threads: opens the reply panel for a message.
   onOpenThread?: (message: Message) => void;
+  // Pins: ids of the pinned messages and the pin / unpin action.
+  pinnedIds?: Set<string>;
+  onTogglePin?: (message: Message) => void;
 }
 
 // How close to the top (px) the user has to scroll to trigger loading.
@@ -47,6 +50,8 @@ export const MessagesList: React.FC<MessagesListProps> = ({
   loadingOlder = false,
   onLoadOlder,
   onOpenThread,
+  pinnedIds,
+  onTogglePin,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +181,8 @@ export const MessagesList: React.FC<MessagesListProps> = ({
           onDeleteMessage={onDeleteMessage}
           knownUsernames={knownUsernames}
           onOpenThread={onOpenThread}
+          isPinned={pinnedIds?.has(msg.id) ?? false}
+          onTogglePin={onTogglePin}
         />
       ))}
       <div ref={messagesEndRef} />

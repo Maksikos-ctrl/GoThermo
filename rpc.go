@@ -37,6 +37,7 @@ var rpcAllowed = map[string]bool{
 	"MarkChannelRead": true, "GetUnreadCounts": true,
 	"SendFile": true, "GetFileData": true, "LogCall": true, "GetLinkPreview": true,
 	"CreateEvent": true, "GetEvents": true, "RespondToEvent": true, "UpdateEvent": true, "DeleteEvent": true, "GetDueReminders": true,
+	"PinMessage": true, "UnpinMessage": true, "GetPinnedMessages": true,
 	"SendReply": true, "GetThread": true, "EditReply": true, "DeleteReply": true, "AddReplyReaction": true,
 }
 

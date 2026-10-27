@@ -1,0 +1,102 @@
+/* Pinned messages: the panel reuses the thread panel layout (thread.css). */
+
+.pins-count {
+  margin: 0 8px 8px;
+  font-size: 12px;
+  color: var(--text-secondary, #8a8f98);
+}
+
+.pins-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 28px 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary, #8a8f98);
+}
+
+.pins-empty strong {
+  color: var(--text-primary, #f2f3f5);
+  font-size: 15px;
+}
+
+.pin-item {
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color, #2a2f38);
+}
+
+.pin-item:last-child {
+  border-bottom: 0;
+}
+
+.pin-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 8px 2px;
+  font-size: 12px;
+  color: var(--text-secondary, #8a8f98);
+}
+
+.pin-unpin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #8a8f98);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pin-unpin:hover {
+  background: var(--hover-tint, rgba(128, 128, 128, 0.14));
+  color: var(--text-primary, #f2f3f5);
+}
+
+/* small pin next to the time of a pinned message */
+.pin-mark {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-left: 6px;
+  color: var(--accent, #7c83ff);
+}
+
+/* header button with a count */
+.pins-btn-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent, #6366f1);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.hdr-btn.pins-btn {
+  position: relative;
+}
+
+/* a grouped message has no header, so its pin sits in the corner */
+.pin-host {
+  position: relative;
+}
+
+.pin-mark-grouped {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  margin: 0;
+}

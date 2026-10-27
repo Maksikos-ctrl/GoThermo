@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ServerPicker } from './ServerPicker';
-import { getInviteCode, getServerUrl, setInviteCode, setServerUrl } from '../services/server';
+import { ServerPicker } from '../ServerPicker';
+import { getInviteCode, getServerUrl, setInviteCode, setServerUrl } from '../../services/server';
 
 beforeEach(() => {
   setServerUrl('');

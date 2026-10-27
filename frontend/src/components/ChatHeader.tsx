@@ -1,6 +1,6 @@
 import React from 'react';
 import { Channel } from '../types';
-import { Search, CalendarDays, Users, UsersRound, Phone, Video, Lock, Hash, AtSign } from 'lucide-react';
+import { Pin, Search, CalendarDays, Users, UsersRound, Phone, Video, Lock, Hash, AtSign } from 'lucide-react';
 import { ExportMenu } from './ExportMenu';
 import { channelLabel } from './channelName';
 
@@ -15,6 +15,10 @@ interface ChatHeaderProps {
   onOpenCalendar?: () => void;
   onStartGroupCall?: () => void;
   currentUser?: string;
+  // Pins: shows the pin button with the number of pinned messages.
+  pinnedCount?: number;
+  pinsOpen?: boolean;
+  onTogglePins?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -28,6 +32,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenCalendar,
   onStartGroupCall,
   currentUser,
+  pinnedCount = 0,
+  pinsOpen = false,
+  onTogglePins,
 }) => {
   const channel = channels.find(ch => ch.name === currentChannel);
 
@@ -62,6 +69,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         >
           <Search size={18} />
         </button>
+        {onTogglePins && (
+          <button
+            className={`search-btn hdr-btn pins-btn ${pinsOpen ? 'active-icon' : ''}`}
+            onClick={onTogglePins}
+            title={pinnedCount > 0 ? `Pinned messages (${pinnedCount})` : 'Pinned messages'}
+            aria-label="Pinned messages"
+            aria-pressed={pinsOpen}
+          >
+            <Pin size={18} />
+            {pinnedCount > 0 && <span className="pins-btn-badge">{pinnedCount}</span>}
+          </button>
+        )}
         {onOpenCalendar && (
           <button
             className="search-btn hdr-btn"

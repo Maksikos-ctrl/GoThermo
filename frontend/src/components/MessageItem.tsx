@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquareReply, Pencil, Trash2 } from 'lucide-react';
+import { MessageSquareReply, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import { Message, EMOJI_LIST } from '../types';
 import { avatarColor } from './avatarColor';
 import { LinkPreview } from './LinkPreview';
@@ -20,6 +20,9 @@ interface MessageItemProps {
   // Threads: when given, the toolbar gets a Reply button and a message that has
   // replies shows "N replies". Left out inside the thread panel itself.
   onOpenThread?: (message: Message) => void;
+  // Pins: when given, the toolbar gets a Pin / Unpin button; a pinned message shows a small pin.
+  isPinned?: boolean;
+  onTogglePin?: (message: Message) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -31,6 +34,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   knownUsernames = [], 
   isGrouped = false,
   onOpenThread,
+  isPinned = false,
+  onTogglePin,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false); 
@@ -109,11 +114,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )
       )}
-      <div className="msg-main">
+      <div className={`msg-main${isPinned && grouped ? ' pin-host' : ''}`}>
+      {isPinned && grouped && <Pin size={12} className="pin-mark pin-mark-grouped" aria-label="Pinned" />}
       {!message.isCall && !grouped && (
         <div className="message-header">
           <span className="message-user">{message.user}</span>
           <span className="message-time">{formatTime(message.timestamp)}</span>
+          {isPinned && <Pin size={12} className="pin-mark" aria-label="Pinned" />}
           {message.isPost && <span className="post-badge">📌 Post</span>}
           {message.isEdited && <span className="edited-badge" style={{ fontSize: '11px', color: '#8a8f98', marginLeft: '6px' }}>(edited)</span>}
         </div>
@@ -191,6 +198,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 </button>
               ))}
             </div>
+
+            {onTogglePin && !message.isCall && (
+              <button
+                className="quick-reaction-btn"
+                onClick={() => onTogglePin(message)}
+                title={isPinned ? 'Unpin message' : 'Pin message'}
+                aria-label={isPinned ? 'Unpin message' : 'Pin message'}
+              >
+                {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+              </button>
+            )}
 
             {onOpenThread && !message.isCall && (
               <button

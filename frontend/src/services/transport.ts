@@ -93,3 +93,6 @@ export const GetThread = bind('GetThread');
 export const EditReply = bind('EditReply');
 export const DeleteReply = bind('DeleteReply');
 export const AddReplyReaction = bind('AddReplyReaction');
+export const PinMessage = bind('PinMessage');
+export const UnpinMessage = bind('UnpinMessage');
+export const GetPinnedMessages = bind('GetPinnedMessages');

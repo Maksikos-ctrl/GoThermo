@@ -102,6 +102,10 @@ export function GetOrCreateGroupChannel(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetOrCreateGroupChannel'](arg1, arg2, arg3);
 }
 
+export function GetPinnedMessages(arg1, arg2) {
+  return window['go']['main']['App']['GetPinnedMessages'](arg1, arg2);
+}
+
 export function GetThread(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetThread'](arg1, arg2, arg3);
 }
@@ -142,6 +146,10 @@ export function MarkChannelRead(arg1, arg2, arg3) {
   return window['go']['main']['App']['MarkChannelRead'](arg1, arg2, arg3);
 }
 
+export function PinMessage(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['PinMessage'](arg1, arg2, arg3, arg4);
+}
+
 export function Register(arg1, arg2) {
   return window['go']['main']['App']['Register'](arg1, arg2);
 }
@@ -172,6 +180,10 @@ export function SendPost(arg1, arg2, arg3, arg4) {
 
 export function SendReply(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['SendReply'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function UnpinMessage(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UnpinMessage'](arg1, arg2, arg3, arg4);
 }
 
 export function UpdateEvent(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {

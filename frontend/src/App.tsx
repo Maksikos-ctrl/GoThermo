@@ -39,7 +39,10 @@ import { useIdleStatus } from './hooks/useIdleStatus';
 import { clearAuthToken, getAuthToken } from './services/session';
 import './styles/polish.css'; // UI polish: icons, spacing, animations. Delete this line to go back to the old look.
 import './styles/thread.css';
+import './styles/pins.css';
 import { ThreadPanel } from './components/ThreadPanel';
+import { PinnedPanel } from './components/PinnedPanel';
+import { PinnedMessage, applyMessageToPins, removeMessageFromPins, isPinned, normalizePins, pinnedIdSet } from './components/pinState';
 import {
   ThreadData,
   applyParentUpdate,
@@ -82,6 +85,12 @@ function App() {
   const [threadError, setThreadError] = useState<string | null>(null);
   const openThreadRef = useRef(openThread);
   openThreadRef.current = openThread;
+
+  // Pinned messages of the open channel.
+  const [pins, setPins] = useState<PinnedMessage[]>([]);
+  const [showPins, setShowPins] = useState(false);
+  const [pinsLoading, setPinsLoading] = useState(false);
+  const [pinsError, setPinsError] = useState<string | null>(null);
 
 
   const [isDragging, setIsDragging] = useState<string | null>(null);
@@ -127,7 +136,8 @@ function App() {
     handleChannelCreated,
     handleChannelDeleted,
     handleThreadReplyEvent,
-    handleThreadReplyDeleted
+    handleThreadReplyDeleted,
+    handlePinsChanged
   );
 
   const call = useCall({
@@ -217,6 +227,7 @@ function App() {
       });
       // the parent of the open thread changed (reaction, edit, reply count)
       setThreadData(prev => applyParentUpdate(prev, message));
+      setPins(prev => applyMessageToPins(prev, message));
     } else if (message.user !== currentUser) {
       setUnreadCounts(prev => ({ ...prev, [channel]: (prev[channel] || 0) + 1 }));
     }
@@ -252,11 +263,70 @@ function App() {
   function handleMessageDeleted(channel: string, messageId: string) {
     if (channel !== currentChannel) return;
     setMessages(prev => prev.filter(m => m.id !== messageId));
+    setPins(prev => removeMessageFromPins(prev, messageId));
     if (openThreadRef.current?.parentId === messageId) {
       closeThread();
       showToast('The message of this thread was deleted', 'error');
     }
   }
+
+  // ───────────── pinned messages ─────────────
+
+  async function loadPins(channel: string) {
+    setPinsLoading(true);
+    setPinsError(null);
+    try {
+      const raw = await api.pins.get(channel);
+      if (channel !== currentChannelRef.current) return; // switched while loading
+      setPins(normalizePins(raw));
+    } catch (error) {
+      if (channel === currentChannelRef.current) setPinsError(`Could not load pinned messages: ${error}`);
+    } finally {
+      if (channel === currentChannelRef.current) setPinsLoading(false);
+    }
+  }
+
+  // The server sends the whole list whenever a pin is added or removed.
+  function handlePinsChanged(channel: string, list: any[]) {
+    if (channel !== currentChannelRef.current) return;
+    setPins(normalizePins(list));
+  }
+
+  async function handleTogglePin(message: Message) {
+    const channel = currentChannel;
+    try {
+      if (isPinned(pins, message.id)) {
+        await api.pins.unpin(channel, message.id, currentUser);
+      } else {
+        await api.pins.pin(channel, message.id, currentUser);
+      }
+      void loadPins(channel); // do not rely on the live event alone
+    } catch (error) {
+      showToast(`${error}`, 'error');
+    }
+  }
+
+  function handleTogglePins() {
+    if (showPins) {
+      setShowPins(false);
+      return;
+    }
+    closeThread(); // one side panel at a time
+    setShowPins(true);
+  }
+
+  // A new channel has its own pins; the panel closes when you leave.
+  useEffect(() => {
+    setPins([]);
+    setPinsError(null);
+    setShowPins(false);
+    if (isLoggedIn) void loadPins(currentChannel);
+  }, [currentChannel, isLoggedIn]);
+
+  // After a dropped connection pins may have changed: load them again.
+  useEffect(() => {
+    if (isConnected && isLoggedIn) void loadPins(currentChannelRef.current);
+  }, [isConnected]);
 
   // ───────────── threads ─────────────
 
@@ -293,6 +363,7 @@ function App() {
     const target = { channel: currentChannel, parentId: message.id };
     openThreadRef.current = target; // the async load below checks it before React re-renders
     setOpenThread(target);
+    setShowPins(false); // one side panel at a time
     setThreadData({ parent: message, replies: [] }); // the parent shows at once
     void loadThread(target.channel, target.parentId);
   }
@@ -671,6 +742,8 @@ function App() {
     setCurrentUserStatus('online');
     setMessages([]);
     closeThread();
+    setPins([]);
+    setShowPins(false);
     setHasMoreOlder(false);
     loadedChannelRef.current = null;
     setChannels([]);
@@ -1089,6 +1162,9 @@ function App() {
           onOpenCalendar={() => setShowCalendar(true)}
           onStartGroupCall={() => setShowStartGroupCallModal(true)}
           currentUser={currentUser}
+          pinnedCount={pins.length}
+          pinsOpen={showPins}
+          onTogglePins={handleTogglePins}
         />
 
 
@@ -1104,6 +1180,8 @@ function App() {
           loadingOlder={loadingOlder}
           onLoadOlder={loadOlderMessages}
           onOpenThread={handleOpenThread}
+          pinnedIds={pinnedIdSet(pins)}
+          onTogglePin={handleTogglePin}
         />
 
         <MessageComposer
@@ -1133,6 +1211,22 @@ function App() {
           onAddReaction={handleThreadReaction}
           onEditMessage={handleThreadEdit}
           onDeleteMessage={handleThreadDelete}
+        />
+      )}
+
+      {showPins && (
+        <PinnedPanel
+          pins={pins}
+          loading={pinsLoading}
+          error={pinsError}
+          channelTag={channelTag(currentChannel, currentUser)}
+          currentUser={currentUser}
+          knownUsernames={allUsernames}
+          onClose={() => setShowPins(false)}
+          onUnpin={handleTogglePin}
+          onAddReaction={handleAddReaction}
+          onEditMessage={handleEditMessage}
+          onDeleteMessage={handleDeleteMessage}
         />
       )}
 

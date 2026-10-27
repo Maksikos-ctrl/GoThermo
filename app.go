@@ -239,6 +239,9 @@ func (a *App) DeleteMessage(token, messageID, channel, username string) error {
 		return fmt.Errorf("error deleting message: %v", err)
 	}
 	deleteThread(channel, messageID)
+	if removed, _ := removePin(channel, messageID); removed {
+		a.announcePins(channel)
+	}
 
 	if foundMsg.IsFile {
 		removeUpload(foundMsg.FileID)
@@ -743,6 +746,7 @@ func (a *App) DeleteChannel(token, name, username string) error {
 	}
 	removeUploads(fileIDs)
 	deleteChannelEvents(name)
+	deleteChannelPins(name)
 	log.Printf("🗑️ Channel #%s deleted by %s", name, username)
 	if channel.IsPrivate {
 		a.hub.BroadcastChannelDeleted(name, channel.Members...)
