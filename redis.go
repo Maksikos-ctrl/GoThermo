@@ -29,7 +29,7 @@ func initRedis() {
 	}
 }
 
-func SaveChannel(channel Channel) error {
+func redisSaveChannel(channel Channel) error {
 	data, err := json.Marshal(channel)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func SaveChannel(channel Channel) error {
 	return redisClient.SAdd(ctx, "channels", channel.Name).Err()
 }
 
-func GetChannel(name string) (*Channel, error) {
+func redisGetChannel(name string) (*Channel, error) {
 	key := fmt.Sprintf("channel:%s", name)
 	data, err := redisClient.Get(ctx, key).Result()
 	if err != nil {
@@ -59,7 +59,7 @@ func GetChannel(name string) (*Channel, error) {
 	return &channel, nil
 }
 
-func GetAllChannels() ([]Channel, error) {
+func redisListChannels() ([]Channel, error) {
 	channelNames, err := redisClient.SMembers(ctx, "channels").Result()
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func GetAllChannels() ([]Channel, error) {
 
 	channels := make([]Channel, 0, len(channelNames))
 	for _, name := range channelNames {
-		channel, err := GetChannel(name)
+		channel, err := redisGetChannel(name)
 		if err == nil {
 			channels = append(channels, *channel)
 		}
@@ -76,7 +76,7 @@ func GetAllChannels() ([]Channel, error) {
 	return channels, nil
 }
 
-func DeleteChannel(name string) error {
+func redisDeleteChannel(name string) error {
 	err := redisClient.SRem(ctx, "channels", name).Err()
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func DeleteChannel(name string) error {
 	return nil
 }
 
-func SaveMessage(msg Message) error {
+func redisSaveMessage(msg Message) error {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return err
@@ -109,7 +109,7 @@ func SaveMessage(msg Message) error {
 	return redisClient.RPush(ctx, key, data).Err()
 }
 
-func GetMessages(channel string, limit int64) ([]Message, error) {
+func redisGetMessages(channel string, limit int64) ([]Message, error) {
 	key := fmt.Sprintf("channel:%s:messages", channel)
 
 	result, err := redisClient.LRange(ctx, key, -limit, -1).Result()
@@ -132,7 +132,7 @@ func GetMessages(channel string, limit int64) ([]Message, error) {
 	return messages, nil
 }
 
-func UpdateMessage(channel string, updatedMsg Message) error {
+func redisUpdateMessage(channel string, updatedMsg Message) error {
 	key := fmt.Sprintf("channel:%s:messages", channel)
 
 	messages, err := redisClient.LRange(ctx, key, 0, -1).Result()
@@ -163,7 +163,7 @@ func UpdateMessage(channel string, updatedMsg Message) error {
 	return fmt.Errorf("message with ID %s not found", updatedMsg.ID)
 }
 
-func DeleteMessageInRedis(channel, messageID string) error {
+func redisDeleteMessage(channel, messageID string) error {
 	key := fmt.Sprintf("channel:%s:messages", channel)
 
 	messages, err := redisClient.LRange(ctx, key, 0, -1).Result()
@@ -189,7 +189,7 @@ func DeleteMessageInRedis(channel, messageID string) error {
 	return fmt.Errorf("message with ID %s not found", messageID)
 }
 
-func SaveFileMeta(fileID, filePath, mimeType, fileName string) error {
+func redisSaveFileMeta(fileID, filePath, mimeType, fileName string) error {
 	key := fmt.Sprintf("file:%s", fileID)
 	return redisClient.HSet(ctx, key, map[string]interface{}{
 		"path":     filePath,
@@ -198,7 +198,7 @@ func SaveFileMeta(fileID, filePath, mimeType, fileName string) error {
 	}).Err()
 }
 
-func GetFileMeta(fileID string) (path, mimeType, fileName string, err error) {
+func redisGetFileMeta(fileID string) (path, mimeType, fileName string, err error) {
 	key := fmt.Sprintf("file:%s", fileID)
 	data, err := redisClient.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -210,7 +210,7 @@ func GetFileMeta(fileID string) (path, mimeType, fileName string, err error) {
 	return data["path"], data["mimeType"], data["fileName"], nil
 }
 
-func SaveUserToRedis(user *User) error {
+func redisSaveUser(user *User) error {
 	data, err := json.Marshal(user)
 	if err != nil {
 		return err
@@ -220,7 +220,7 @@ func SaveUserToRedis(user *User) error {
 	return redisClient.Set(ctx, key, data, 0).Err()
 }
 
-func GetUserFromRedis(email string) (*User, error) {
+func redisGetUser(email string) (*User, error) {
 	key := fmt.Sprintf("user:%s", email)
 	data, err := redisClient.Get(ctx, key).Result()
 	if err != nil {
@@ -235,7 +235,7 @@ func GetUserFromRedis(email string) (*User, error) {
 	return &user, nil
 }
 
-func GetAllUsersFromRedis() ([]User, error) {
+func redisListUsers() ([]User, error) {
 	keys, err := redisClient.Keys(ctx, "user:*").Result()
 	if err != nil {
 		return nil, err
@@ -275,22 +275,22 @@ func GetAllUsersFromRedis() ([]User, error) {
 	return users, nil
 }
 
-func SaveUserPasswordToRedis(email, hashedPassword string) error {
+func redisSetPassword(email, hashedPassword string) error {
 	key := fmt.Sprintf("user:%s:password", email)
 	return redisClient.Set(ctx, key, hashedPassword, 0).Err()
 }
 
-func GetUserPasswordFromRedis(email string) (string, error) {
+func redisGetPassword(email string) (string, error) {
 	key := fmt.Sprintf("user:%s:password", email)
 	return redisClient.Get(ctx, key).Result()
 }
 
-func SaveLastRead(username, channel string) error {
+func redisSaveLastRead(username, channel string) error {
 	key := fmt.Sprintf("user:%s:lastread:%s", username, channel)
 	return redisClient.Set(ctx, key, time.Now().Format(time.RFC3339Nano), 0).Err()
 }
 
-func GetLastRead(username, channel string) (time.Time, bool, error) {
+func redisGetLastRead(username, channel string) (time.Time, bool, error) {
 	key := fmt.Sprintf("user:%s:lastread:%s", username, channel)
 	data, err := redisClient.Get(ctx, key).Result()
 	if err == redis.Nil {

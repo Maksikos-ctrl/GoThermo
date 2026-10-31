@@ -254,10 +254,8 @@ func (um *UserManager) createProviderUser(baseUsername, email, provider, provide
 // existing accounts in; signUp=true (Sign Up tab) creates the account and
 // refuses if it already exists.
 func (a *App) finishGoogleLogin(info googleUserInfo, signUp bool) (User, error) {
-	mapKey := "google:" + info.Sub
-
 	var user *User
-	if username, err := redisClient.Get(ctx, mapKey).Result(); err == nil {
+	if username, found, err := store.UsernameByProvider("google", info.Sub); err == nil && found {
 		if existing, ok := userManager.GetUser(username); ok && existing.Provider == "google" && existing.ProviderID == info.Sub {
 			// Returning user: mark online (this also persists it).
 			user = userManager.RegisterUser(username, existing.Email)
@@ -277,9 +275,7 @@ func (a *App) finishGoogleLogin(info googleUserInfo, signUp bool) (User, error) 
 		if err := SaveUserToRedis(user); err != nil {
 			return User{}, fmt.Errorf("error saving user: %v", err)
 		}
-		if err := redisClient.Set(ctx, mapKey, user.Username, 0).Err(); err != nil {
-			return User{}, fmt.Errorf("error saving Google link: %v", err)
-		}
+		// (the Google link is saved together with the user)
 		log.Printf("✅ New Google user: %s (%s)", user.Username, info.Email)
 	}
 

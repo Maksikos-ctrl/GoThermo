@@ -15,6 +15,14 @@ jobs:
           go-version-file: go.mod
       # main.go embeds frontend/dist, so the folder has to exist.
       - run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+      - name: Start Postgres (for the database tests)
+        run: |
+          brew install postgresql@16
+          PGBIN="$(brew --prefix postgresql@16)/bin"
+          brew services start postgresql@16
+          for i in $(seq 1 30); do "$PGBIN/pg_isready" -q && break; sleep 1; done
+          "$PGBIN/pg_isready"
+          echo "TEST_DATABASE_URL=postgres://$(whoami)@localhost:5432/postgres?sslmode=disable" >> "$GITHUB_ENV"
       - run: go vet ./...
       - run: go test -race -count=1 ./...
 

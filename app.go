@@ -22,6 +22,7 @@ type App struct {
 
 func NewApp() *App {
 	initRedis()
+	initPostgres()
 	hub := NewHub()
 	go hub.Run()
 	userManager.LoadUsersFromRedis()

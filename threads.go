@@ -12,28 +12,16 @@ import (
 
 // Threads: a reply to a message, shown in a side panel instead of the channel.
 //
-// Storage: every thread has its own Redis list, "thread:<channel>:<parentID>"
-// (oldest reply first). The channel list is never touched by a reply, so
-// paging, unread counts and the channel view stay exactly as they were.
-// "channel:<name>:threads" is a set of the parent ids that have a thread, so a
-// channel can be cleaned up without scanning all keys.
-//
-// The parent message in the channel list carries ReplyCount / LastReplyAt /
-// ReplyUsers. They are always recomputed from the thread list (never
-// incremented), so they cannot drift.
+// A reply never appears in the channel history, so paging, unread counts and
+// the channel view stay exactly as they were. The parent message carries
+// ReplyCount / LastReplyAt / ReplyUsers, always recomputed from the replies
+// (never incremented), so they cannot drift. How replies are stored is up to
+// the active store (store.go); the Redis layout is in store_redis_messages.go.
 
 const (
 	maxRepliesPerThread = 1000
 	maxReplyAvatars     = 4
 )
-
-func threadKey(channel, parentID string) string {
-	return fmt.Sprintf("thread:%s:%s", channel, parentID)
-}
-
-func threadIndexKey(channel string) string {
-	return fmt.Sprintf("channel:%s:threads", channel)
-}
 
 // Thread is a parent message with all of its replies, oldest first.
 type Thread struct {
@@ -55,95 +43,22 @@ type ThreadReplyDeletedPayload struct {
 
 // ───────────────────────── storage ─────────────────────────
 
+// The functions below read and write through the active store (store.go).
+
 // findChannelMessage looks a message up in the whole channel list.
 func findChannelMessage(channel, id string) (*Message, error) {
-	raw, err := redisClient.LRange(ctx, fmt.Sprintf("channel:%s:messages", channel), 0, -1).Result()
-	if err != nil {
-		return nil, err
-	}
-	for _, data := range raw {
-		if data == "DELETED" {
-			continue
-		}
-		var m Message
-		if json.Unmarshal([]byte(data), &m) == nil && m.ID == id {
-			return &m, nil
-		}
-	}
-	return nil, fmt.Errorf("message not found")
+	return store.FindMessage(channel, id)
 }
 
-// loadReplies returns the replies of a thread together with their raw JSON
-// (needed to remove one exactly).
-func loadReplies(channel, parentID string) ([]Message, []string, error) {
-	raw, err := redisClient.LRange(ctx, threadKey(channel, parentID), 0, -1).Result()
-	if err != nil {
-		return nil, nil, err
-	}
-	msgs := make([]Message, 0, len(raw))
-	raws := make([]string, 0, len(raw))
-	for _, data := range raw {
-		var m Message
-		if json.Unmarshal([]byte(data), &m) != nil {
-			continue
-		}
-		msgs = append(msgs, m)
-		raws = append(raws, data)
-	}
-	return msgs, raws, nil
-}
-
-// refreshThreadMeta recomputes ReplyCount / LastReplyAt / ReplyUsers on the
-// parent from the thread list and saves the parent when they changed.
+// refreshThreadMeta returns the parent with its ReplyCount / LastReplyAt /
+// ReplyUsers up to date.
 func refreshThreadMeta(channel, parentID string) (*Message, error) {
-	parent, err := findChannelMessage(channel, parentID)
-	if err != nil {
-		return nil, err
-	}
-	replies, _, err := loadReplies(channel, parentID)
-	if err != nil {
-		return nil, err
-	}
-
-	var users []string
-	var last time.Time
-	for i := range replies {
-		r := replies[i]
-		if !channelHasMember(users, r.User) && len(users) < maxReplyAvatars {
-			users = append(users, r.User)
-		}
-		if r.Timestamp.After(last) {
-			last = r.Timestamp
-		}
-	}
-
-	parent.ReplyCount = len(replies)
-	parent.LastReplyAt = ""
-	if !last.IsZero() {
-		parent.LastReplyAt = last.Format(time.RFC3339Nano)
-	}
-	parent.ReplyUsers = users
-	if err := UpdateMessage(channel, *parent); err != nil {
-		return nil, err
-	}
-	return parent, nil
+	return store.RefreshThreadMeta(channel, parentID)
 }
 
 // deleteThread removes a thread (used when its parent message is deleted).
 func deleteThread(channel, parentID string) {
-	redisClient.Del(ctx, threadKey(channel, parentID))
-	redisClient.SRem(ctx, threadIndexKey(channel), parentID)
-}
-
-// deleteChannelThreads removes every thread of a channel (channel deleted).
-func deleteChannelThreads(channel string) {
-	ids, err := redisClient.SMembers(ctx, threadIndexKey(channel)).Result()
-	if err == nil {
-		for _, id := range ids {
-			redisClient.Del(ctx, threadKey(channel, id))
-		}
-	}
-	redisClient.Del(ctx, threadIndexKey(channel))
+	store.DeleteThread(channel, parentID)
 }
 
 // ───────────────────────── App methods ─────────────────────────
@@ -165,7 +80,7 @@ func (a *App) SendReply(token, user, channel, parentID, text string) (Message, e
 	if parent.IsCall {
 		return Message{}, fmt.Errorf("you cannot reply to a call log")
 	}
-	if n, _ := redisClient.LLen(ctx, threadKey(channel, parentID)).Result(); n >= maxRepliesPerThread {
+	if n, _ := store.ReplyCount(channel, parentID); n >= maxRepliesPerThread {
 		return Message{}, fmt.Errorf("this thread is full")
 	}
 
@@ -178,14 +93,9 @@ func (a *App) SendReply(token, user, channel, parentID, text string) (Message, e
 		Reactions: make(map[string][]string),
 		ThreadID:  parentID,
 	}
-	data, err := json.Marshal(reply)
-	if err != nil {
-		return Message{}, err
-	}
-	if err := redisClient.RPush(ctx, threadKey(channel, parentID), data).Err(); err != nil {
+	if err := store.AddReply(reply); err != nil {
 		return Message{}, fmt.Errorf("error saving reply: %v", err)
 	}
-	redisClient.SAdd(ctx, threadIndexKey(channel), parentID)
 
 	updated, err := refreshThreadMeta(channel, parentID)
 	if err != nil {
@@ -213,7 +123,7 @@ func (a *App) GetThread(token, channel, parentID string) (Thread, error) {
 	if err != nil {
 		return Thread{}, err
 	}
-	replies, _, err := loadReplies(channel, parentID)
+	replies, err := store.Replies(channel, parentID)
 	if err != nil {
 		return Thread{}, err
 	}
@@ -230,11 +140,11 @@ func (a *App) EditReply(token, channel, parentID, replyID, username, newText str
 	if strings.TrimSpace(newText) == "" {
 		return Message{}, fmt.Errorf("reply cannot be empty")
 	}
-	replies, _, err := loadReplies(channel, parentID)
+	replies, err := store.Replies(channel, parentID)
 	if err != nil {
 		return Message{}, err
 	}
-	for i, r := range replies {
+	for _, r := range replies {
 		if r.ID != replyID {
 			continue
 		}
@@ -243,8 +153,7 @@ func (a *App) EditReply(token, channel, parentID, replyID, username, newText str
 		}
 		r.Text = newText
 		r.IsEdited = true
-		data, _ := json.Marshal(r)
-		if err := redisClient.LSet(ctx, threadKey(channel, parentID), int64(i), data).Err(); err != nil {
+		if err := store.UpdateReply(channel, parentID, r); err != nil {
 			return Message{}, fmt.Errorf("error updating reply: %v", err)
 		}
 		a.hub.BroadcastThreadReply(channel, parentID, r)
@@ -260,19 +169,18 @@ func (a *App) DeleteReply(token, channel, parentID, replyID, username string) er
 	if err := requireChannelAccess(username, channel); err != nil {
 		return err
 	}
-	replies, raws, err := loadReplies(channel, parentID)
+	replies, err := store.Replies(channel, parentID)
 	if err != nil {
 		return err
 	}
-	for i, r := range replies {
+	for _, r := range replies {
 		if r.ID != replyID {
 			continue
 		}
 		if r.User != username {
 			return fmt.Errorf("you can only delete your own messages")
 		}
-		// by exact value, so a concurrent change cannot make us remove another reply
-		if err := redisClient.LRem(ctx, threadKey(channel, parentID), 1, raws[i]).Err(); err != nil {
+		if err := store.DeleteReply(channel, parentID, replyID); err != nil {
 			return fmt.Errorf("error deleting reply: %v", err)
 		}
 		a.hub.BroadcastThreadReplyDeleted(channel, parentID, replyID)
@@ -292,11 +200,11 @@ func (a *App) AddReplyReaction(token, channel, parentID, replyID, emoji, usernam
 	if err := requireChannelAccess(username, channel); err != nil {
 		return err
 	}
-	replies, _, err := loadReplies(channel, parentID)
+	replies, err := store.Replies(channel, parentID)
 	if err != nil {
 		return err
 	}
-	for i, r := range replies {
+	for _, r := range replies {
 		if r.ID != replyID {
 			continue
 		}
@@ -321,8 +229,7 @@ func (a *App) AddReplyReaction(token, channel, parentID, replyID, emoji, usernam
 		} else {
 			r.Reactions[emoji] = kept
 		}
-		data, _ := json.Marshal(r)
-		if err := redisClient.LSet(ctx, threadKey(channel, parentID), int64(i), data).Err(); err != nil {
+		if err := store.UpdateReply(channel, parentID, r); err != nil {
 			return fmt.Errorf("error updating reply: %v", err)
 		}
 		a.hub.BroadcastThreadReply(channel, parentID, r)
