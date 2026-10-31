@@ -71,7 +71,7 @@ func removeUpload(fileID string) {
 			log.Printf("⚠️ Could not delete upload %s: %v", path, err)
 		}
 	}
-	redisClient.Del(ctx, "file:"+fileID)
+	store.DeleteFileMeta(fileID)
 }
 
 func channelFileIDs(channel string) []string {
