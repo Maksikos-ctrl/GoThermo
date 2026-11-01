@@ -1,22 +1,17 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
 
 const (
-	eventsIndexKey = "events:index"
-	reminderLead   = 15 * time.Minute
+	reminderLead = 15 * time.Minute
 
 	maxEventTitle    = 100
 	maxEventDesc     = 500
@@ -46,56 +41,8 @@ type Event struct {
 
 var eventMu sync.Mutex
 
-func eventKey(id string) string         { return "event:" + id }
-func eventRemindedKey(id string) string { return "event:" + id + ":reminded" }
-
-func saveEvent(ev *Event) error {
-	data, err := json.Marshal(ev)
-	if err != nil {
-		return err
-	}
-	if err := redisClient.Set(ctx, eventKey(ev.ID), data, 0).Err(); err != nil {
-		return err
-	}
-	return redisClient.ZAdd(ctx, eventsIndexKey, &redis.Z{Score: float64(ev.Start.Unix()), Member: ev.ID}).Err()
-}
-
-func loadEvent(id string) (*Event, error) {
-	data, err := redisClient.Get(ctx, eventKey(id)).Result()
-	if err != nil {
-		return nil, fmt.Errorf("event not found")
-	}
-	var ev Event
-	if err := json.Unmarshal([]byte(data), &ev); err != nil {
-		return nil, fmt.Errorf("event not found")
-	}
-	if ev.RSVP == nil {
-		ev.RSVP = map[string]string{}
-	}
-	return &ev, nil
-}
-
-func removeEvent(id string) {
-	redisClient.Del(ctx, eventKey(id), eventRemindedKey(id))
-	redisClient.ZRem(ctx, eventsIndexKey, id)
-}
-
-func deleteChannelEvents(channel string) {
-	ids, err := redisClient.ZRange(ctx, eventsIndexKey, 0, -1).Result()
-	if err != nil {
-		return
-	}
-	for _, id := range ids {
-		ev, err := loadEvent(id)
-		if err != nil {
-			redisClient.ZRem(ctx, eventsIndexKey, id)
-			continue
-		}
-		if ev.Channel == channel {
-			removeEvent(id)
-		}
-	}
-}
+// deleteChannelEvents drops every event of a channel that is being deleted.
+func deleteChannelEvents(channel string) { store.RemoveChannelEvents(channel) }
 
 func eventVisible(username string, ev *Event, cache map[string]*Channel) bool {
 	ch, seen := cache[ev.Channel]
@@ -175,7 +122,7 @@ func (a *App) CreateEvent(token, channel, title, description, startISO string, d
 		CreatedAt:   time.Now(),
 	}
 	eventMu.Lock()
-	err = saveEvent(&ev)
+	err = store.SaveEvent(&ev)
 	eventMu.Unlock()
 	if err != nil {
 		return Event{}, fmt.Errorf("failed to save event: %v", err)
@@ -209,26 +156,18 @@ func (a *App) GetEvents(token, fromISO, toISO string) ([]Event, error) {
 		return nil, fmt.Errorf("range is too long")
 	}
 
-	ids, err := redisClient.ZRangeByScore(ctx, eventsIndexKey, &redis.ZRangeBy{
-		Min: strconv.FormatInt(from.Add(-maxEventMinutes*time.Minute).Unix(), 10),
-		Max: strconv.FormatInt(to.Unix(), 10),
-	}).Result()
+	found, err := store.EventsOverlapping(from, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read events")
 	}
 
 	cache := map[string]*Channel{}
-	events := make([]Event, 0, len(ids))
-	for _, id := range ids {
-		ev, err := loadEvent(id)
-		if err != nil || !ev.End.After(from) || !ev.Start.Before(to) {
-			continue
-		}
-		if eventVisible(username, ev, cache) {
-			events = append(events, *ev)
+	events := make([]Event, 0, len(found))
+	for i := range found {
+		if eventVisible(username, &found[i], cache) {
+			events = append(events, found[i])
 		}
 	}
-	sort.SliceStable(events, func(i, j int) bool { return events[i].Start.Before(events[j].Start) })
 	return events, nil
 }
 
@@ -241,20 +180,20 @@ func (a *App) RespondToEvent(token, eventID, username, status string) (Event, er
 	}
 	eventMu.Lock()
 	defer eventMu.Unlock()
-	ev, err := loadEvent(eventID)
+	ev, err := store.GetEvent(eventID)
 	if err != nil {
 		return Event{}, err
 	}
 	if !eventVisible(username, ev, map[string]*Channel{}) {
 		return Event{}, fmt.Errorf("event not found")
 	}
+	if err := store.SetAnswer(eventID, username, status); err != nil {
+		return Event{}, fmt.Errorf("failed to save answer: %v", err)
+	}
 	if status == "" {
 		delete(ev.RSVP, username)
 	} else {
 		ev.RSVP[username] = status
-	}
-	if err := saveEvent(ev); err != nil {
-		return Event{}, fmt.Errorf("failed to save answer: %v", err)
 	}
 	return *ev, nil
 }
@@ -273,7 +212,7 @@ func (a *App) UpdateEvent(token, eventID, username, title, description, startISO
 	}
 	eventMu.Lock()
 	defer eventMu.Unlock()
-	ev, err := loadEvent(eventID)
+	ev, err := store.GetEvent(eventID)
 	if err != nil {
 		return Event{}, err
 	}
@@ -285,11 +224,11 @@ func (a *App) UpdateEvent(token, eventID, username, title, description, startISO
 	}
 	moved := !ev.Start.Equal(start)
 	ev.Title, ev.Description, ev.Start, ev.End = title, description, start, end
-	if err := saveEvent(ev); err != nil {
+	if err := store.SaveEvent(ev); err != nil {
 		return Event{}, fmt.Errorf("failed to save event: %v", err)
 	}
 	if moved {
-		redisClient.Del(ctx, eventRemindedKey(ev.ID))
+		store.ResetReminders(ev.ID)
 	}
 	return *ev, nil
 }
@@ -300,7 +239,7 @@ func (a *App) DeleteEvent(token, eventID, username string) error {
 	}
 	eventMu.Lock()
 	defer eventMu.Unlock()
-	ev, err := loadEvent(eventID)
+	ev, err := store.GetEvent(eventID)
 	if err != nil {
 		return err
 	}
@@ -310,8 +249,7 @@ func (a *App) DeleteEvent(token, eventID, username string) error {
 	if ev.CreatedBy != username {
 		return fmt.Errorf("only the creator can delete this event")
 	}
-	removeEvent(eventID)
-	return nil
+	return store.RemoveEvent(eventID)
 }
 
 func (a *App) GetDueReminders(token string) ([]Event, error) {
@@ -320,28 +258,23 @@ func (a *App) GetDueReminders(token string) ([]Event, error) {
 		return nil, err
 	}
 	now := time.Now()
-	ids, err := redisClient.ZRangeByScore(ctx, eventsIndexKey, &redis.ZRangeBy{
-		Min: strconv.FormatInt(now.Unix(), 10),
-		Max: strconv.FormatInt(now.Add(reminderLead).Unix(), 10),
-	}).Result()
+	found, err := store.EventsStarting(now, now.Add(reminderLead))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read events")
 	}
 
 	cache := map[string]*Channel{}
 	due := []Event{}
-	for _, id := range ids {
-		ev, err := loadEvent(id)
+	for i := range found {
+		ev := &found[i]
 		answer := ev.RSVP[username]
-		if err != nil || (answer != rsvpGoing && answer != rsvpMaybe) || !eventVisible(username, ev, cache) {
+		if (answer != rsvpGoing && answer != rsvpMaybe) || !eventVisible(username, ev, cache) {
 			continue
 		}
-		// SADD returns 1 only the first time, so a reminder is sent once.
-		added, err := redisClient.SAdd(ctx, eventRemindedKey(id), username).Result()
-		if err != nil || added == 0 {
+		// Only the first call for this event and person gets it.
+		if claimed, err := store.ClaimReminder(ev.ID, username); err != nil || !claimed {
 			continue
 		}
-		redisClient.Expire(ctx, eventRemindedKey(id), 48*time.Hour)
 		due = append(due, *ev)
 	}
 	return due, nil

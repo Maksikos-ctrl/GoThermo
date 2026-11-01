@@ -72,6 +72,19 @@ type Store interface {
 	SaveFileMeta(fileID, filePath, mimeType, fileName string) error
 	FileMeta(fileID string) (path, mimeType, fileName string, err error)
 	DeleteFileMeta(fileID string) error
+
+	// Calendar events. An event belongs to a channel (Event.Channel is its
+	// name) and carries the answers of the people (Event.RSVP).
+	SaveEvent(ev *Event) error // create, or replace title/description/time/answers
+	GetEvent(id string) (*Event, error)
+	EventsOverlapping(from, to time.Time) ([]Event, error) // end > from and start < to, by start
+	EventsStarting(from, to time.Time) ([]Event, error)    // from <= start <= to, by start
+	SetAnswer(eventID, username, status string) error      // "" removes the answer
+	RemoveEvent(id string) error
+	RemoveChannelEvents(channel string) error
+	// ClaimReminder is true only the first time for this event and person.
+	ClaimReminder(eventID, username string) (bool, error)
+	ResetReminders(eventID string) error // the event moved: remind again
 }
 
 // store is the active implementation. Redis until the migration is finished.
