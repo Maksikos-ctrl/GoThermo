@@ -64,6 +64,10 @@ func compactMessageList(key string) (int, error) {
 }
 
 func CompactDeletedMessages() {
+	// Only the Redis lists have such placeholders.
+	if _, onRedis := store.(redisStore); !onRedis {
+		return
+	}
 	keys, err := scanAllKeys("channel:*:messages")
 	if err != nil {
 		log.Printf("⚠️ Cleanup skipped (could not list channels): %v", err)

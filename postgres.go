@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -63,4 +64,48 @@ func initPostgres() {
 	}
 	pgPool = pool
 	fmt.Println("✓ Successfully connected to Postgres")
+}
+
+// chooseStore picks where the durable data lives. mode is GOTHERMO_STORE:
+// empty or "redis" keeps everything in Redis (the default for now), "postgres"
+// uses the database. It refuses the one dangerous combination: an empty
+// database next to a Redis that still holds the data, where the app would
+// start with every user and message missing.
+func chooseStore(mode string, pool *pgxpool.Pool) (Store, error) {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "redis":
+		return redisStore{}, nil
+	case "postgres":
+		if pool == nil {
+			return nil, fmt.Errorf("GOTHERMO_STORE=postgres needs a reachable DATABASE_URL")
+		}
+		empty, err := targetIsEmpty(pool)
+		if err != nil {
+			return nil, fmt.Errorf("cannot look into Postgres: %w", err)
+		}
+		if empty {
+			if n, err := redisClient.SCard(ctx, "channels").Result(); err == nil && n > 0 {
+				return nil, fmt.Errorf("Postgres is empty but Redis still has %d channel(s): "+
+					"run `gothermo-server migrate` first (or empty Redis if that data is not needed)", n)
+			}
+		}
+		return pgStore{pool: pool}, nil
+	default:
+		return nil, fmt.Errorf("GOTHERMO_STORE=%q is not known (use redis or postgres)", mode)
+	}
+}
+
+// initStore is called at startup. A wrong setting stops the program: running
+// on the other store than asked would look like lost data.
+func initStore() {
+	s, err := chooseStore(os.Getenv("GOTHERMO_STORE"), pgPool)
+	if err != nil {
+		log.Fatalf("❌ %v", err)
+	}
+	store = s
+	if _, ok := s.(pgStore); ok {
+		log.Println("🗄️ Durable data lives in Postgres (sessions and limits stay in Redis)")
+	} else {
+		log.Println("🗄️ Durable data lives in Redis")
+	}
 }

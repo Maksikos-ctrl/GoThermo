@@ -3,3 +3,5 @@ node_modules
 frontend/dist
 google_oauth.json
 uploads/
+gothermo-server
+.DS_Store

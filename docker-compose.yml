@@ -9,17 +9,38 @@ services:
       - redis-data:/data
     restart: unless-stopped
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gothermo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (letters and digits only)}
+      POSTGRES_DB: gothermo
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gothermo -d gothermo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   gothermo:
     build: .
     environment:
       REDIS_ADDR: redis:6379
+      DATABASE_URL: postgres://gothermo:${POSTGRES_PASSWORD}@postgres:5432/gothermo
+      # redis (default) or postgres, see SERVER.md "Moving to Postgres"
+      GOTHERMO_STORE: ${GOTHERMO_STORE:-redis}
       GOTHERMO_INVITE_CODE: ${INVITE_CODE:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOTHERMO_TRUST_PROXY: "1"
     volumes:
       - uploads:/data
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   caddy:
@@ -38,5 +59,6 @@ services:
 
 volumes:
   redis-data:
+  pg-data:
   uploads:
   caddy-data:
