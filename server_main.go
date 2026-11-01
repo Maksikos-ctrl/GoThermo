@@ -14,7 +14,17 @@ import (
 //	GOTHERMO_ADDR   listen address, default 0.0.0.0:8081
 //	REDIS_ADDR      default localhost:6379
 //	REDIS_PASSWORD  default empty
+//	DATABASE_URL    Postgres, needed only for the migrate command
+//
+// One-off move of the data from Redis to Postgres (see redis_to_postgres.go):
+//
+//	gothermo-server migrate -dry-run
+//	gothermo-server migrate
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		initRedis()
+		os.Exit(runMigrateCommand(os.Args[2:], os.Stdin, os.Stdout))
+	}
 	addr := os.Getenv("GOTHERMO_ADDR")
 	if addr == "" {
 		addr = "0.0.0.0:8081"
