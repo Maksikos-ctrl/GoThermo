@@ -35,17 +35,17 @@ Put a reverse proxy (Caddy, nginx) with HTTPS in front of it.
 
 ## Moving to Postgres
 
-Postgres is the durable store; Redis stays for sessions, login limits and previews. The move is one-off and Redis is only read, so nothing is lost if you stop halfway.
+Postgres is the durable store (messages, users, channels, events, files); Redis stays for sessions, login limits and previews. A new install uses Postgres from the first start.
+
+If you already have data in Redis, the server refuses to start until you copy it over. The copy is one-off and Redis is only read, so nothing is lost if you stop halfway:
 
 ```bash
-docker compose up -d --build                           # starts Postgres too
-docker compose exec gothermo gothermo-server migrate -dry-run   # what would be copied
-docker compose exec gothermo gothermo-server migrate            # copy and verify
-echo 'GOTHERMO_STORE=postgres' >> .env
+docker compose run --rm gothermo gothermo-server migrate -dry-run   # what would be copied
+docker compose run --rm gothermo gothermo-server migrate            # copy and verify
 docker compose up -d
 ```
 
-If the copy fails or does not match, nothing is switched: fix the cause and run `migrate -reset` to start over. To go back, remove `GOTHERMO_STORE` from `.env` (changes made after the switch stay in Postgres only). The server refuses to start with `GOTHERMO_STORE=postgres` when Postgres is empty and Redis still holds data.
+If the copy fails or does not match, nothing is switched: fix the cause and run `migrate -reset` to start over. To stay on Redis on purpose, put `GOTHERMO_STORE=redis` in `.env`. Going back to Redis after the switch loses what was written to Postgres since.
 
 ## Settings
 
@@ -57,7 +57,7 @@ If the copy fails or does not match, nothing is switched: fix the cause and run 
 | `GOTHERMO_INVITE_CODE` | empty | when set, registering needs this code. Empty means anyone can register |
 | `GOOGLE_CLIENT_ID` | empty | the Google OAuth client id the server accepts sign-ins from. Needed for Google sign-in over a server |
 | `DATABASE_URL` | empty | Postgres, `postgres://user:password@host:5432/dbname`. The schema is created and updated automatically. The compose file sets it |
-| `GOTHERMO_STORE` | `redis` | where messages, users, channels and the rest are kept: `redis` or `postgres`. See "Moving to Postgres" |
+| `GOTHERMO_STORE` | empty | where messages, users, channels and the rest are kept: `postgres`, `redis`, or empty (Postgres when `DATABASE_URL` is set, otherwise Redis). See "Moving to Postgres" |
 | `GOTHERMO_TRUST_PROXY` | empty | set to `1` behind a reverse proxy so wrong-code limits count each real client (the compose file sets it) |
 
 ## Good to know

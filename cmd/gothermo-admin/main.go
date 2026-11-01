@@ -1,4 +1,6 @@
-// gothermo-admin is a small maintenance tool for the GoThermo Redis data.
+// gothermo-admin is a small maintenance tool for GoThermo. Sessions and login
+// limits are read from Redis; accounts and uploads from Postgres when a database
+// url is given (-database-url or $DATABASE_URL), otherwise from Redis.
 //
 //	go run ./cmd/gothermo-admin users
 //	go run ./cmd/gothermo-admin locked
@@ -7,12 +9,12 @@
 //	go run ./cmd/gothermo-admin revoke some-username
 //	go run ./cmd/gothermo-admin uploads            (dry run)
 //	go run ./cmd/gothermo-admin uploads --clean    (asks before deleting)
+//	go run ./cmd/gothermo-admin -database-url "$DATABASE_URL" users
 package main
 
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -62,6 +64,8 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 	global.Usage = func() { usage(errOut); global.PrintDefaults() }
 	addr := global.String("addr", "localhost:6379", "Redis address")
 	db := global.Int("db", 0, "Redis database number")
+	storeMode := global.String("store", os.Getenv("GOTHERMO_STORE"), "where accounts and messages are: redis or postgres (default: postgres when a database url is given)")
+	databaseURL := global.String("database-url", os.Getenv("DATABASE_URL"), "Postgres url (default: $DATABASE_URL)")
 	if err := global.Parse(args); err != nil {
 		return 2
 	}
@@ -82,10 +86,20 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 		return 1
 	}
 
+	// The accounts and messages may live in Postgres; only the commands that
+	// read them connect to it.
 	var err error
+	withSource := func(fn func(src dataSource) error) error {
+		src, closeSrc, err := chooseSource(ctx, *storeMode, *databaseURL, rdb, *addr)
+		if err != nil {
+			return err
+		}
+		defer closeSrc()
+		return fn(src)
+	}
 	switch cmd, cargs := rest[0], rest[1:]; cmd {
 	case "users":
-		err = cmdUsers(ctx, rdb, out)
+		err = withSource(func(src dataSource) error { return cmdUsers(ctx, src, out) })
 	case "locked":
 		err = cmdLocked(ctx, rdb, out)
 	case "unlock":
@@ -95,7 +109,7 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 	case "revoke":
 		err = cmdRevoke(ctx, rdb, out, cargs)
 	case "uploads":
-		err = cmdUploads(ctx, rdb, in, out, errOut, *addr, cargs)
+		err = withSource(func(src dataSource) error { return cmdUploads(ctx, src, in, out, errOut, cargs) })
 	case "help":
 		global.Usage()
 	default:
@@ -162,28 +176,10 @@ type userRec struct {
 	LastSeen string `json:"lastSeen"`
 }
 
-func cmdUsers(ctx context.Context, rdb *redis.Client, out io.Writer) error {
-	keys, err := scan(ctx, rdb, "user:*")
+func cmdUsers(ctx context.Context, src dataSource, out io.Writer) error {
+	users, err := src.Users(ctx)
 	if err != nil {
 		return err
-	}
-
-	var users []userRec
-	for _, key := range keys {
-		// Same filter the app uses: account records contain an "@" and are not
-		// the :password / :token / :lastread helper keys.
-		if !strings.Contains(key, "@") || strings.Contains(key, ":password") ||
-			strings.Contains(key, ":token") || strings.Contains(key, ":lastread:") {
-			continue
-		}
-		raw, err := rdb.Get(ctx, key).Result()
-		if err != nil {
-			continue
-		}
-		var u userRec
-		if json.Unmarshal([]byte(raw), &u) == nil && u.Username != "" {
-			users = append(users, u)
-		}
 	}
 	sort.Slice(users, func(i, j int) bool { return strings.ToLower(users[i].Username) < strings.ToLower(users[j].Username) })
 
@@ -362,34 +358,6 @@ func fileIDFromName(name string) (string, bool) {
 	return id, true
 }
 
-// referencedFileIDs returns the IDs of files attached to messages that still exist.
-func referencedFileIDs(ctx context.Context, rdb *redis.Client) (map[string]bool, error) {
-	keys, err := scan(ctx, rdb, "channel:*:messages")
-	if err != nil {
-		return nil, err
-	}
-	ids := map[string]bool{}
-	for _, key := range keys {
-		items, err := rdb.LRange(ctx, key, 0, -1).Result()
-		if err != nil {
-			return nil, err
-		}
-		for _, item := range items {
-			if item == "DELETED" {
-				continue
-			}
-			var m struct {
-				IsFile bool   `json:"isFile"`
-				FileID string `json:"fileId"`
-			}
-			if json.Unmarshal([]byte(item), &m) == nil && m.IsFile && m.FileID != "" {
-				ids[m.FileID] = true
-			}
-		}
-	}
-	return ids, nil
-}
-
 type fileRec struct {
 	path   string
 	id     string
@@ -398,7 +366,7 @@ type fileRec struct {
 	status string // in use | ORPHAN | recent | unknown
 }
 
-func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOut io.Writer, addr string, args []string) error {
+func cmdUploads(ctx context.Context, src dataSource, in io.Reader, out, errOut io.Writer, args []string) error {
 	flags := flag.NewFlagSet("uploads", flag.ContinueOnError)
 	flags.SetOutput(errOut)
 	dir := flags.String("dir", "uploads", "uploads directory")
@@ -417,7 +385,7 @@ func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOu
 		return fmt.Errorf("%s is not a directory (run this from the project folder or use -dir)", absDir)
 	}
 
-	referenced, err := referencedFileIDs(ctx, rdb)
+	referenced, err := src.ReferencedFileIDs(ctx)
 	if err != nil {
 		return err
 	}
@@ -457,8 +425,8 @@ func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOu
 		return err
 	}
 
-	// Metadata hashes (file:<id>) without a message and without a file.
-	metaKeys, err := scan(ctx, rdb, "file:*")
+	// File records without a message and without a file.
+	metas, err := src.FileMetas(ctx)
 	if err != nil {
 		return err
 	}
@@ -469,19 +437,17 @@ func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOu
 			orphanIDs[f.id] = true
 		}
 	}
-	for _, key := range metaKeys {
-		id := strings.TrimPrefix(key, "file:")
-		if referenced[id] || orphanIDs[id] {
+	for _, m := range metas {
+		if referenced[m.ID] || orphanIDs[m.ID] {
 			continue
 		}
-		path, _ := rdb.HGet(ctx, key, "path").Result()
-		if path == "" {
-			staleMeta = append(staleMeta, key)
+		if m.Path == "" {
+			staleMeta = append(staleMeta, m.ID)
 			continue
 		}
-		if abs, err := filepath.Abs(path); err == nil {
+		if abs, err := filepath.Abs(m.Path); err == nil {
 			if _, err := os.Stat(abs); errors.Is(err, fs.ErrNotExist) {
-				staleMeta = append(staleMeta, key)
+				staleMeta = append(staleMeta, m.ID)
 			}
 		}
 	}
@@ -511,7 +477,7 @@ func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOu
 		}
 	}
 
-	fmt.Fprintf(out, "Uploads directory: %s\nRedis: %s\n\n", absDir, addr)
+	fmt.Fprintf(out, "Uploads directory: %s\nData: %s\n\n", absDir, src.Label())
 	tw := newTable(out)
 	fmt.Fprintln(tw, "STATUS\tFILE\tSIZE\tMODIFIED")
 	shown := 0
@@ -531,7 +497,7 @@ func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOu
 	fmt.Fprintf(out, "Orphans:          %d files (%s)\n", orphans, humanSize(orphanSize))
 	fmt.Fprintf(out, "Too new to judge: %d files (younger than %s)\n", recent, *minAge)
 	fmt.Fprintf(out, "Unknown names:    %d files (never touched)\n", unknown)
-	fmt.Fprintf(out, "Stale metadata:   %d entries in Redis\n", len(staleMeta))
+	fmt.Fprintf(out, "Stale metadata:   %d entries\n", len(staleMeta))
 	fmt.Fprintf(out, "Broken messages:  %d (message points to a missing file)\n", broken)
 
 	if orphans == 0 && len(staleMeta) == 0 {
@@ -543,8 +509,8 @@ func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOu
 	}
 
 	if !*yes {
-		fmt.Fprintf(out, "\nDelete %d files (%s) and %d metadata entries from %s using Redis %s? [y/N] ",
-			orphans, humanSize(orphanSize), len(staleMeta), absDir, addr)
+		fmt.Fprintf(out, "\nDelete %d files (%s) and %d metadata entries from %s using %s? [y/N] ",
+			orphans, humanSize(orphanSize), len(staleMeta), absDir, src.Label())
 		answer, _ := bufio.NewReader(in).ReadString('\n')
 		if a := strings.ToLower(strings.TrimSpace(answer)); a != "y" && a != "yes" {
 			fmt.Fprintln(out, "Cancelled.")
@@ -553,6 +519,7 @@ func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOu
 	}
 
 	deleted := 0
+	drop := append([]string{}, staleMeta...)
 	for _, f := range files {
 		if f.status != "ORPHAN" {
 			continue
@@ -561,11 +528,11 @@ func cmdUploads(ctx context.Context, rdb *redis.Client, in io.Reader, out, errOu
 			fmt.Fprintf(errOut, "could not delete %s: %v\n", f.path, err)
 			continue
 		}
-		rdb.Del(ctx, "file:"+f.id)
+		drop = append(drop, f.id)
 		deleted++
 	}
-	if len(staleMeta) > 0 {
-		rdb.Del(ctx, staleMeta...)
+	if err := src.DeleteFileMetas(ctx, drop); err != nil {
+		return err
 	}
 	fmt.Fprintf(out, "Deleted %d files and %d metadata entries.\n", deleted, len(staleMeta))
 	return nil

@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-GoThermo is a real-time team chat desktop app in the spirit of Slack and Teams. The backend is Go, the UI is React + TypeScript, they are glued together with [Wails v2](https://wails.io/), and everything is stored in Redis.
+GoThermo is a real-time team chat desktop app in the spirit of Slack and Teams. The backend is Go, the UI is React + TypeScript, they are glued together with [Wails v2](https://wails.io/), and messages and accounts are stored in Postgres (sessions and caches in Redis).
 
 > Status: actively developed, tested on macOS. Windows and Linux builds are produced by GitHub Actions but have not been tested by hand yet.
 
@@ -24,7 +24,7 @@ Grab the build for your system from the [Releases page](https://github.com/Maksi
 | Linux | `GoThermo-linux-amd64.tar.gz` |
 
 Things to know before you run it:
-- Each copy talks to a **Redis on `localhost:6379`** and its own WebSocket on `127.0.0.1:8081`. Install and start Redis first (`brew install redis`, `apt install redis-server` or `docker run -d -p 6379:6379 redis`).
+- The normal way to use it is to **connect the app to a GoThermo server** (see [Server mode](#server-mode)). Run on its own, a copy talks to a **Redis on `localhost:6379`** and its own WebSocket on `127.0.0.1:8081`; install and start Redis first (`brew install redis`, `apt install redis-server` or `docker run -d -p 6379:6379 redis`).
 - By default a copy only chats with itself and with other windows on the same machine. To share one workspace between computers, run a GoThermo server and connect the apps to it (see [Server mode](#server-mode)).
 - The builds are not code-signed. Windows SmartScreen: More info, then Run anyway. macOS: right-click the app, then Open.
 
@@ -69,11 +69,11 @@ On the sign-in screen click **Server: this computer, Change**, type your server 
 | Layer | What |
 | --- | --- |
 | Desktop shell | Wails v2 |
-| Backend | Go, gorilla/websocket, go-redis |
+| Backend | Go, gorilla/websocket, pgx, go-redis |
 | Frontend | React, TypeScript, Vite, plain CSS |
-| Storage | Redis (AOF + RDB persistence) |
+| Storage | Postgres (messages, users, files; schema in `db/migrations`) and Redis (sessions, login limits, caches) |
 | Real-time | WebSocket hub on `127.0.0.1:8081`, WebRTC for calls |
-| Tests | `go test` with miniredis (never touches a real Redis), GitHub Actions on macOS |
+| Tests | `go test` with miniredis; the Postgres tests run when `TEST_DATABASE_URL` is set (CI does), GitHub Actions on macOS |
 
 ## Project structure
 
@@ -95,6 +95,10 @@ GoThermo/
 ├── maintenance.go           # Cleanup tasks (deleted-message compaction, etc.)
 ├── websocket.go             # WebSocket hub and delivery rules
 ├── redis.go                 # Redis client
+├── postgres.go              # Postgres connection, which store is active (GOTHERMO_STORE)
+├── store*.go                # Store interface, Redis and Postgres implementations
+├── migrate.go, db/migrations/  # schema migrations
+├── redis_to_postgres.go     # one-off copy of the data (gothermo-server migrate)
 ├── models.go                # Data models
 ├── *_test.go                # Go tests (miniredis)
 ├── cmd/gothermo-admin/      # Admin CLI (users, locked accounts, sessions, orphan uploads)
@@ -188,7 +192,7 @@ The landing page lives in `docs/` and is served by GitHub Pages (Settings, Pages
 ## Tests
 
 ```bash
-go test ./...            # all Go tests, uses miniredis, never touches real Redis
+go test ./...            # all Go tests (miniredis; the Postgres tests run when TEST_DATABASE_URL is set)
 go test -race ./...      # with the race detector (this is what CI runs)
 go test -cover ./...
 
@@ -206,11 +210,13 @@ go run ./cmd/gothermo-admin unlock <email>   # unblock an email
 go run ./cmd/gothermo-admin sessions         # active sessions per user
 go run ./cmd/gothermo-admin revoke <user>    # log a user out everywhere
 go run ./cmd/gothermo-admin uploads          # find uploaded files no message uses (add -clean to delete)
+# accounts and uploads are read from Postgres when -database-url (or $DATABASE_URL) is given
+go run ./cmd/gothermo-admin -database-url "$DATABASE_URL" users
 ```
 
 ## How data is stored
 
-Redis is the primary database, not a cache.
+Messages, users, channels, files, read marks and calendar events live in **Postgres** (schema in `db/migrations`, applied automatically at startup). **Redis** keeps what is short-lived: sessions, login limits and link previews. Without `DATABASE_URL` everything is kept in Redis, which is what a copy of the app does when it runs alone for development. Redis layout of the durable data (that mode, and the source of `gothermo-server migrate`):
 
 | Key | Contents |
 | --- | --- |
@@ -224,7 +230,7 @@ Redis is the primary database, not a cache.
 | `loginfail:<email>` | failed login counter, TTL 15 minutes |
 | `linkpreview:<hash>` | cached link previews, TTL 24 hours |
 
-When the user base grows, the plan is to move users, channels and messages to PostgreSQL and keep Redis for sessions, counters and caches.
+Moving existing data from Redis to Postgres is one command, see [SERVER.md](SERVER.md#moving-to-postgres).
 
 ## Security notes
 

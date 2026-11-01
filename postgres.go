@@ -67,12 +67,20 @@ func initPostgres() {
 }
 
 // chooseStore picks where the durable data lives. mode is GOTHERMO_STORE:
-// empty or "redis" keeps everything in Redis (the default for now), "postgres"
-// uses the database. It refuses the one dangerous combination: an empty
-// database next to a Redis that still holds the data, where the app would
-// start with every user and message missing.
+//
+//	""         Postgres when there is a database (DATABASE_URL), otherwise Redis
+//	"redis"    Redis, even when there is a database
+//	"postgres" Postgres, and an error when there is no database
+//
+// It refuses the one dangerous combination: an empty database next to a Redis
+// that still holds the data, where the app would start with every user and
+// message missing.
 func chooseStore(mode string, pool *pgxpool.Pool) (Store, error) {
-	switch strings.ToLower(strings.TrimSpace(mode)) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" && pool != nil {
+		mode = "postgres"
+	}
+	switch mode {
 	case "", "redis":
 		return redisStore{}, nil
 	case "postgres":
@@ -86,7 +94,7 @@ func chooseStore(mode string, pool *pgxpool.Pool) (Store, error) {
 		if empty {
 			if n, err := redisClient.SCard(ctx, "channels").Result(); err == nil && n > 0 {
 				return nil, fmt.Errorf("Postgres is empty but Redis still has %d channel(s): "+
-					"run `gothermo-server migrate` first (or empty Redis if that data is not needed)", n)
+					"run `gothermo-server migrate` first (in Docker: `docker compose run --rm gothermo gothermo-server migrate`), or set GOTHERMO_STORE=redis to stay on Redis", n)
 			}
 		}
 		return pgStore{pool: pool}, nil
@@ -98,7 +106,13 @@ func chooseStore(mode string, pool *pgxpool.Pool) (Store, error) {
 // initStore is called at startup. A wrong setting stops the program: running
 // on the other store than asked would look like lost data.
 func initStore() {
-	s, err := chooseStore(os.Getenv("GOTHERMO_STORE"), pgPool)
+	mode := os.Getenv("GOTHERMO_STORE")
+	if strings.TrimSpace(mode) == "" && os.Getenv("DATABASE_URL") != "" && pgPool == nil {
+		// Falling back to Redis here would start the app on old or empty data.
+		log.Fatalf("❌ DATABASE_URL is set but Postgres cannot be reached (see above); " +
+			"fix it, or set GOTHERMO_STORE=redis to run on Redis on purpose")
+	}
+	s, err := chooseStore(mode, pgPool)
 	if err != nil {
 		log.Fatalf("❌ %v", err)
 	}

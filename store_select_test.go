@@ -8,7 +8,7 @@ import (
 func TestChooseStore(t *testing.T) {
 	useMiniRedis(t)
 	if s, err := chooseStore("", nil); err != nil || s != (redisStore{}) {
-		t.Fatalf("default: %v %v", s, err)
+		t.Fatalf("without a database the default is Redis: %v %v", s, err)
 	}
 	if s, err := chooseStore(" Redis ", nil); err != nil || s != (redisStore{}) {
 		t.Fatalf("redis: %v %v", s, err)
@@ -25,6 +25,16 @@ func TestChooseStorePostgresGuards(t *testing.T) {
 	useMiniRedis(t)
 	pool := migratedTestDatabase(t)
 
+	// with a database and no setting, Postgres is the default; "redis" still wins
+	if s, err := chooseStore("", pool); err != nil {
+		t.Fatalf("default with a database: %v", err)
+	} else if _, ok := s.(pgStore); !ok {
+		t.Fatalf("the default with a database must be Postgres, got %T", s)
+	}
+	if s, err := chooseStore("redis", pool); err != nil || s != (redisStore{}) {
+		t.Fatalf("explicit redis: %v %v", s, err)
+	}
+
 	// empty Postgres, empty Redis: a fresh install, fine
 	if s, err := chooseStore("postgres", pool); err != nil || s == nil {
 		t.Fatalf("fresh install: %v", err)
@@ -38,6 +48,12 @@ func TestChooseStorePostgresGuards(t *testing.T) {
 	}
 	if _, err := chooseStore("postgres", pool); err == nil || !strings.Contains(err.Error(), "migrate") {
 		t.Fatalf("must point at the migration, got %v", err)
+	}
+	if _, err := chooseStore("", pool); err == nil || !strings.Contains(err.Error(), "migrate") {
+		t.Fatalf("the default must be guarded too, got %v", err)
+	}
+	if s, err := chooseStore("redis", pool); err != nil || s != (redisStore{}) {
+		t.Fatalf("running on Redis on purpose stays possible: %v %v", s, err)
 	}
 
 	// once Postgres has data the leftover Redis does not matter

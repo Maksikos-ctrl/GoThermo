@@ -29,8 +29,8 @@ services:
     environment:
       REDIS_ADDR: redis:6379
       DATABASE_URL: postgres://gothermo:${POSTGRES_PASSWORD}@postgres:5432/gothermo
-      # redis (default) or postgres, see SERVER.md "Moving to Postgres"
-      GOTHERMO_STORE: ${GOTHERMO_STORE:-redis}
+      # empty = Postgres; set redis to stay on Redis on purpose (see SERVER.md "Moving to Postgres")
+      GOTHERMO_STORE: ${GOTHERMO_STORE:-}
       GOTHERMO_INVITE_CODE: ${INVITE_CODE:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOTHERMO_TRUST_PROXY: "1"

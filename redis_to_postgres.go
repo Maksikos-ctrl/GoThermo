@@ -715,6 +715,6 @@ func runMigrateCommand(args []string, in io.Reader, out io.Writer) int {
 		return 1
 	}
 	fmt.Fprintln(out, "✅ Everything was copied and verified. Redis still has the original data.")
-	fmt.Fprintln(out, "   The app still runs on Redis; the switch to Postgres comes in the next step.")
+	fmt.Fprintln(out, "   Start the server as usual: with DATABASE_URL set it now runs on Postgres.")
 	return 0
 }

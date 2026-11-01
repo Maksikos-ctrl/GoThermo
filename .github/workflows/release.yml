@@ -91,5 +91,6 @@ jobs:
           files: dist/*
           generate_release_notes: true
           body: |
-            Each copy needs Redis on localhost:6379. Builds are not code-signed:
+            Connect the app to a GoThermo server (see SERVER.md in the repository). Without one it runs alone and needs Redis on localhost:6379.
+            Builds are not code-signed:
             on Windows choose "More info, Run anyway"; on macOS right-click the app and choose Open.

@@ -10,16 +10,23 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/go-redis/redis/v8"
 )
+
+func newRedis(addr string) *redis.Client { return redis.NewClient(&redis.Options{Addr: addr}) }
 
 const (
 	idUsed   = "11111111-1111-4111-8111-111111111111"
 	idOrphan = "22222222-2222-4222-8222-222222222222"
 	idNew    = "33333333-3333-4333-8333-333333333333"
+	idReply  = "44444444-4444-4444-8444-444444444444"
 )
 
 func runCLI(t *testing.T, mr *miniredis.Miniredis, stdin string, args ...string) (string, string, int) {
 	t.Helper()
+	// whatever the developer has exported must not send these tests to a database
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("GOTHERMO_STORE", "")
 	var out, errOut bytes.Buffer
 	code := run(append([]string{"-addr", mr.Addr()}, args...), strings.NewReader(stdin), &out, &errOut)
 	return out.String(), errOut.String(), code
