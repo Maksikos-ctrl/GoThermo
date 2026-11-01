@@ -32,7 +32,7 @@ Things to know before you run it:
 
 **Messaging**
 - Public channels, **private channels** (invite-only, hidden from non-members) and direct messages
-- Real-time delivery over WebSocket, typing indicators, online / away / DND presence (auto-away when idle)
+- Real-time delivery over WebSocket, typing indicators, online / away / DND presence (auto-away after 10 minutes without activity)
 - **Threads**: reply to any message in a side panel; the parent shows the reply count, avatars and the time of the last reply, and everything updates live
 - Markdown and code blocks (with a copy button), @mentions
 - Edit and delete your messages, emoji reactions, "Post" messages, unread badges per channel

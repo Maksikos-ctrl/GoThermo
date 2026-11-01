@@ -12,11 +12,14 @@ interface UseIdleStatusOptions {
 
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'focus'];
 
+// Without any activity for this long, "online" turns into "away" by itself.
+export const IDLE_AWAY_MS = 10 * 60 * 1000;
+
 export function useIdleStatus({
   enabled,
   currentStatus,
   inCall,
-  idleMs = 15 * 1000,
+  idleMs = IDLE_AWAY_MS,
   onGoAway,
   onReturn,
 }: UseIdleStatusOptions) {
