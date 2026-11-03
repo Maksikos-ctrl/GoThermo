@@ -1,0 +1,119 @@
+/* Phone layout: channels and people live in a drawer opened from the header. */
+
+.nav-drawer { display: contents; }
+.nav-backdrop { display: none; }
+.nav-btn { display: none; }
+
+@media (max-width: 768px) {
+  html, body, #root { height: 100%; }
+  .chat-container { height: 100vh; height: 100dvh; }
+
+  .nav-drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(320px, 86vw);
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #232528;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.25s ease, visibility 0s linear 0.25s;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-open .nav-drawer {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.25s ease;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, 0.45);
+  }
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .nav-open .nav-backdrop { opacity: 1; pointer-events: auto; }
+
+  .nav-drawer .sidebar {
+    order: 1;
+    width: 100%;
+    height: auto;
+    flex-shrink: 0;
+    border-right: 0;
+  }
+  .nav-drawer .left-panel {
+    order: 2;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    position: static;
+    transform: none;
+    overflow: visible;
+    border-right: 0;
+    border-top: 1px solid #2f3136;
+  }
+  .panel-toggle, .show-panel-btn, .nav-drawer .panel-header { display: none; }
+
+  .main-content { width: 100%; height: 100%; }
+
+  /* header: menu button, title that can shrink, only the actions that fit */
+  .chat-header { padding: 0 8px; gap: 4px; }
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 44px;
+    height: 44px;
+    background: none;
+    border: 0;
+    border-radius: 8px;
+    color: #c9d1d9;
+    cursor: pointer;
+  }
+  .chat-header .channel-info { flex: 1 1 auto; min-width: 0; padding-left: 0; }
+  .chat-header .channel-title h2 {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 16px;
+  }
+  .chat-header .channel-description-badge,
+  .chat-header .channel-stats { display: none; }
+  .chat-header .header-actions { display: flex; flex: 0 0 auto; gap: 0; margin-right: 0; }
+  .header-actions .hdr-btn { min-width: 40px; min-height: 40px; padding: 8px; }
+  .header-actions .audio-call-btn,
+  .header-actions .group-call-btn,
+  .header-actions [aria-label^="Export"] { display: none; }
+
+  /* messages and composer */
+  .messages { padding: 10px; }
+  .message { max-width: 100%; }
+  .composer {
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+  .composer-textarea, .composer input, .composer textarea { font-size: 16px; } /* no iOS zoom on focus */
+  .send-button { min-width: 64px; padding: 10px 14px; }
+
+  /* touch: hover toolbars are always reachable */
+  .message .quick-reactions { opacity: 1; }
+
+  /* panels and dialogs use the whole screen */
+  .channel-members-panel, .thread-panel { width: 100vw; }
+  .modal { width: 94vw; max-height: 90dvh; }
+  .modal-content { overflow-y: auto; }
+}
+
+@media (max-width: 480px) {
+  .login-box { padding: 24px 18px; }
+  .chat-header .channel-title h2 { font-size: 15px; }
+}

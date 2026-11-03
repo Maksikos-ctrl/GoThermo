@@ -1,6 +1,6 @@
 import React from 'react';
 import { Channel } from '../types';
-import { Pin, Search, CalendarDays, Users, UsersRound, Phone, Video, Lock, Hash, AtSign } from 'lucide-react';
+import { Menu, Pin, Search, CalendarDays, Users, UsersRound, Phone, Video, Lock, Hash, AtSign } from 'lucide-react';
 import { ExportMenu } from './ExportMenu';
 import { channelLabel } from './channelName';
 
@@ -19,6 +19,8 @@ interface ChatHeaderProps {
   pinnedCount?: number;
   pinsOpen?: boolean;
   onTogglePins?: () => void;
+  // Phones: opens the channel drawer.
+  onOpenNav?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -35,6 +37,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   pinnedCount = 0,
   pinsOpen = false,
   onTogglePins,
+  onOpenNav,
 }) => {
   const channel = channels.find(ch => ch.name === currentChannel);
 
@@ -44,6 +47,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   return (
     <div className="chat-header">
+      {onOpenNav && (
+        <button className="nav-btn" onClick={onOpenNav} title="Channels" aria-label="Open channels">
+          <Menu size={22} />
+        </button>
+      )}
       <div className="channel-info">
         <div className="channel-title">
           <h2>

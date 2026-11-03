@@ -54,6 +54,7 @@ import { clearAuthToken, getAuthToken } from './services/session';
 import './styles/polish.css'; // UI polish: icons, spacing, animations. Delete this line to go back to the old look.
 import './styles/thread.css';
 import './styles/pins.css';
+import './styles/mobile.css';
 import { ThreadPanel } from './components/ThreadPanel';
 import { threadUnread } from './components/threadExtras';
 import { PinnedPanel } from './components/PinnedPanel';
@@ -83,6 +84,7 @@ function App() {
 
  
   const [showUserPanel, setShowUserPanel] = useState(true);
+  const [navOpen, setNavOpen] = useState(false); // phones: channel drawer
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDescription, setNewChannelDescription] = useState('');
@@ -1202,12 +1204,14 @@ function App() {
 
 
   return (
-    <div className="chat-container">
+    <div className={`chat-container${navOpen ? ' nav-open' : ''}`}>
       <ThemeVariables />
       <div className={`ws-status ${isConnected ? 'online' : 'offline'}`}>
         {isConnected ? '🟢' : '🔴'}
       </div>
 
+      <div className="nav-backdrop" onClick={() => setNavOpen(false)} />
+      <div className="nav-drawer">
       <UserPanel
         currentUser={currentUser}
         currentUserStatus={currentUserStatus}
@@ -1215,7 +1219,7 @@ function App() {
         showUserPanel={showUserPanel}
         onTogglePanel={() => setShowUserPanel(!showUserPanel)}
         onStatusChange={setCurrentUserStatus}
-        onStartDirectMessage={startDirectMessage}
+        onStartDirectMessage={(name: string) => { setNavOpen(false); return startDirectMessage(name); }}
         onStartVideoCall={startVideoCall}
         onStartAudioCall={startAudioCall}
         onOpenSettings={() => setShowSettingsModal(true)}
@@ -1231,7 +1235,7 @@ function App() {
         mentionCounts={mentionCounts}
         isLoading={isLoadingChannels}
         currentUser={currentUser}
-        onChannelChange={setCurrentChannel}
+        onChannelChange={(name: string) => { setNavOpen(false); setCurrentChannel(name); }}
         onCreateChannel={() => {
           setNewChannelPrivate(false);
           setNewChannelMembers([]);
@@ -1246,6 +1250,7 @@ function App() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       />
+      </div>
 
       <ChannelModal
         isOpen={showCreateChannelModal}
@@ -1281,6 +1286,7 @@ function App() {
           pinnedCount={pins.length}
           pinsOpen={showPins}
           onTogglePins={handleTogglePins}
+          onOpenNav={() => setNavOpen(true)}
         />
 
 
