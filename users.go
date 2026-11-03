@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,6 +81,50 @@ func (um *UserManager) RegisterUser(username, email string) *User {
 	go SaveUserToRedis(user)
 
 	return user
+}
+
+// reserveUsername picks the first free username built from base (base, base2,
+// ...) and puts a new user under it in one locked step. Names in skip are
+// treated as taken. A password account with the same email reuses its entry.
+func (um *UserManager) reserveUsername(base, email string, skip map[string]bool) (user *User, created bool) {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		base = "user"
+	}
+	um.mu.Lock()
+	defer um.mu.Unlock()
+	candidate := base
+	for i := 2; ; i++ {
+		existing, taken := um.users[candidate]
+		if !skip[candidate] {
+			if !taken {
+				break
+			}
+			if existing.Email == email && existing.Provider == "" {
+				return existing, false
+			}
+		}
+		candidate = base + strconv.Itoa(i)
+	}
+	user = &User{
+		ID:       generateID(),
+		Username: candidate,
+		Email:    email,
+		IsOnline: true,
+		Status:   "online",
+		LastSeen: time.Now().Format(time.RFC3339),
+	}
+	um.users[candidate] = user
+	return user, true
+}
+
+// release removes a reserved user whose save failed.
+func (um *UserManager) release(user *User) {
+	um.mu.Lock()
+	defer um.mu.Unlock()
+	if um.users[user.Username] == user {
+		delete(um.users, user.Username)
+	}
 }
 
 func (um *UserManager) GetUser(username string) (*User, bool) {

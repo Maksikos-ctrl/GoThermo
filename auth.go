@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -36,24 +35,6 @@ func ValidatePassword(password string) error {
 	return nil
 }
 
-// uniqueUsername builds a username from a base string and appends a number
-// if that username is already taken by a different account (e.g.
-// ivan@gmail.com and ivan@mail.ru both want "ivan").
-func uniqueUsername(base, email string) string {
-	base = strings.TrimSpace(base)
-	if base == "" {
-		base = "user"
-	}
-	candidate := base
-	for i := 2; ; i++ {
-		existing, taken := userManager.GetUser(candidate)
-		if !taken || (existing.Email == email && existing.Provider == "") {
-			return candidate
-		}
-		candidate = base + strconv.Itoa(i)
-	}
-}
-
 func (a *App) Register(email, password string) (User, error) {
 	log.Printf("📝 Attempting registration: %s", email)
 
@@ -70,19 +51,17 @@ func (a *App) Register(email, password string) (User, error) {
 		return User{}, fmt.Errorf("user with such email already exists")
 	}
 
-	username := uniqueUsername(strings.Split(email, "@")[0], email)
-
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		return User{}, fmt.Errorf("error hashing password: %v", err)
 	}
 
-	user := userManager.RegisterUser(username, email)
-
-	if err := SaveUserToRedis(user); err != nil {
-		log.Printf("❌ Error saving user to Redis: %v", err)
+	user, err := createAccount(strings.Split(email, "@")[0], email)
+	if err != nil {
+		log.Printf("❌ Error saving user: %v", err)
 		return User{}, fmt.Errorf("error saving user: %v", err)
 	}
+	username := user.Username
 
 	if err := SaveUserPasswordToRedis(email, hashedPassword); err != nil {
 		log.Printf("❌ Error saving password to Redis: %v", err)
@@ -156,4 +135,26 @@ func (a *App) Login(email, password string) (User, error) {
 	}
 
 	return withToken(user, token), nil
+}
+
+// createAccount picks a free username (ivan, ivan2, ...) and saves the user.
+// The name is reserved in memory and checked against the store, so a name
+// taken in the database but missing from the cache is skipped, not an error.
+func createAccount(base, email string) (*User, error) {
+	taken := map[string]bool{}
+	for attempt := 0; attempt < 20; attempt++ {
+		user, created := userManager.reserveUsername(base, email, taken)
+		err := SaveUserToRedis(user)
+		if err == nil {
+			return user, nil
+		}
+		if created {
+			userManager.release(user)
+		}
+		if !isUsernameTaken(err) {
+			return nil, err
+		}
+		taken[user.Username] = true
+	}
+	return nil, fmt.Errorf("could not find a free username")
 }

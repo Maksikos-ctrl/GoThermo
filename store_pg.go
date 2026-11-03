@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -248,4 +249,10 @@ func (p pgStore) LastRead(username, channel string) (time.Time, bool, error) {
 		return time.Time{}, false, err
 	}
 	return t, true, nil
+}
+
+// isUsernameTaken reports a unique violation on users.username.
+func isUsernameTaken(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "users_username_key"
 }
