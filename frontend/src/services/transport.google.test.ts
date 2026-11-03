@@ -13,6 +13,14 @@ import { LoginWithGoogle, CancelGoogleLogin } from './transport';
 
 const reply = (body: unknown) => vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body });
 
+// A server that has no Google sign-in of its own: starting one answers "not set up",
+// so the app falls back to the sign-in on this computer. Other calls go to `rest`.
+const noServerFlow = (rest: ReturnType<typeof vi.fn>) =>
+  vi.fn((url: string, init: unknown) =>
+    url.endsWith('/rpc/GoogleLoginStart')
+      ? Promise.resolve({ ok: true, status: 200, json: async () => ({ error: 'Google sign-in through the server is not set up' }) })
+      : rest(url, init));
+
 // The test environment may not have a usable localStorage.
 const store: Record<string, string> = {};
 vi.stubGlobal('localStorage', {
@@ -41,7 +49,8 @@ describe('Google sign-in', () => {
     setServerUrl('https://chat.example.com');
     setInviteCode('abc');
     local.mockResolvedValue('google-access-token');
-    const f = reply({ result: { username: 'ann', token: 'sess' } });
+    const rest = reply({ result: { username: 'ann', token: 'sess' } });
+    const f = noServerFlow(rest);
     vi.stubGlobal('fetch', f);
 
     const user = await LoginWithGoogle(true);
@@ -49,7 +58,7 @@ describe('Google sign-in', () => {
     expect(local).toHaveBeenCalledTimes(1);
     expect(local).toHaveBeenCalledWith('GoogleAccessToken');
     expect(user).toEqual({ username: 'ann', token: 'sess' });
-    const [url, init] = f.mock.calls[0];
+    const [url, init] = rest.mock.calls[0];
     expect(url).toBe('https://chat.example.com/rpc/LoginWithGoogleToken');
     expect(JSON.parse(init.body)).toEqual(['google-access-token', true]);
     expect(init.headers['X-Invite-Code']).toBe('abc');
@@ -58,16 +67,16 @@ describe('Google sign-in', () => {
   it('never calls the server when the browser step fails', async () => {
     setServerUrl('https://chat.example.com');
     local.mockRejectedValue('Google sign-in cancelled');
-    const f = vi.fn();
-    vi.stubGlobal('fetch', f);
+    const rest = vi.fn();
+    vi.stubGlobal('fetch', noServerFlow(rest));
     await expect(LoginWithGoogle(false)).rejects.toBe('Google sign-in cancelled');
-    expect(f).not.toHaveBeenCalled();
+    expect(rest).not.toHaveBeenCalled();
   });
 
   it('shows the server error text', async () => {
     setServerUrl('https://chat.example.com');
     local.mockResolvedValue('tok');
-    vi.stubGlobal('fetch', reply({ error: 'no GoThermo account for a@b.c yet, please use Sign Up first' }));
+    vi.stubGlobal('fetch', noServerFlow(reply({ error: 'no GoThermo account for a@b.c yet, please use Sign Up first' })));
     await expect(LoginWithGoogle(false)).rejects.toMatch(/Sign Up first/);
   });
 

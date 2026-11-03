@@ -38,7 +38,7 @@ var rpcAllowed = map[string]bool{
 	"SendFile": true, "GetFileData": true, "LogCall": true, "GetLinkPreview": true,
 	"CreateEvent": true, "GetEvents": true, "RespondToEvent": true, "UpdateEvent": true, "DeleteEvent": true, "GetDueReminders": true,
 	"PinMessage": true, "UnpinMessage": true, "GetPinnedMessages": true,
-	"LoginWithGoogleToken": true, "GoogleWebClientID": true, "BuildChannelExport": true,
+	"LoginWithGoogleToken": true, "GoogleWebClientID": true, "GoogleLoginStart": true, "GoogleLoginPoll": true, "BuildChannelExport": true,
 	"BuildThreadExport": true, "MarkThreadRead": true, "GetThreadUnread": true, "GetMentionCounts": true,
 	"SendReply": true, "GetThread": true, "EditReply": true, "DeleteReply": true, "AddReplyReaction": true,
 }
@@ -184,6 +184,7 @@ func newServerMux(app *App, hub *Hub) *http.ServeMux {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true,"app":"gothermo"}`))
 	})
+	mux.HandleFunc("/auth/google/callback", googleCallback(app))
 	mountWeb(mux, os.Getenv("GOTHERMO_WEB_DIR"))
 	return mux
 }
@@ -221,6 +222,8 @@ func createsAccount(name string, args []json.RawMessage) bool {
 		// Anything but a clear "false" counts as sign-up, so a malformed
 		// argument cannot dodge the check.
 		return len(args) < 2 || strings.TrimSpace(string(args[1])) != "false"
+	case "GoogleLoginStart":
+		return len(args) < 1 || strings.TrimSpace(string(args[0])) != "false"
 	}
 	return false
 }

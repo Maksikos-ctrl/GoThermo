@@ -110,4 +110,4 @@ jobs:
           body: |
             Download for your system: **Windows** `GoThermo-windows-amd64.exe`, **macOS** `GoThermo-macos.dmg`, **Linux** `GoThermo-linux-amd64.tar.gz`.
             The app opens already connected to the team server: register with the invite code you were given. You can also use GoThermo in a browser, with nothing to install.
-            The builds are not code-signed. Windows: "More info", then "Run anyway". macOS: open the .dmg, drag GoThermo to Applications, try to open it, then System Settings, Privacy & Security, "Open Anyway". If macOS still says the app is damaged, run `xattr -cr /Applications/GoThermo.app` in Terminal.
+            The builds are not code-signed. Windows: "More info", then "Run anyway". macOS: open the .dmg, drag GoThermo to Applications, try to open it, then System Settings, Privacy & Security, "Open Anyway". If macOS says the app is damaged or will not open, run once in Terminal: `xattr -cr /Applications/GoThermo.app && codesign --force --deep --sign - /Applications/GoThermo.app`

@@ -43,9 +43,11 @@ import (
 
 const (
 	googleAuthURL   = "https://accounts.google.com/o/oauth2/v2/auth"
-	googleTokenURL  = "https://oauth2.googleapis.com/token"
 	googleLoginWait = 3 * time.Minute
 )
+
+// A variable so tests can point it at a local fake of Google.
+var googleTokenURL = "https://oauth2.googleapis.com/token"
 
 var googleHTTPClient = &http.Client{Timeout: 15 * time.Second}
 

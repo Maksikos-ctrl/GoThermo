@@ -1,7 +1,7 @@
 import * as wails from '../../wailsjs/go/main/App';
 import { getInviteCode, getServerUrl } from './server';
 import { isWeb } from './platform';
-import { saveText } from './save';
+import { openExternal, saveText } from './save';
 import { requestGoogleAccessToken } from './googleWeb';
 
 // Every backend call goes through here. With no server address it is the
@@ -89,9 +89,34 @@ export const GetFileData = bind('GetFileData');
 export const SaveFileToDisk = bind('SaveFileToDisk');
 export const LogCall = bind('LogCall');
 export const Logout = bind('Logout');
-// Google sign-in. On a server the browser part still runs here, on this
-// computer; the server then checks the token with Google and signs the user in.
-// The browser version signs in with Google's popup instead.
+// Google sign-in.
+//  - browser: Google's pop-up gives a token, the server verifies it;
+//  - app connected to a server: the server runs the sign-in (the system browser
+//    opens Google, Google returns to the server) and the app polls for the result;
+//    a server without that set up falls back to the sign-in on this computer
+//    (needs google_oauth.json);
+//  - app on its own: the sign-in on this computer.
+const GOOGLE_POLL_MS = 1500;
+const GOOGLE_WAIT_MS = 5 * 60 * 1000;
+let googleCancelled = false;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function googleThroughServer(signUp: boolean): Promise<unknown> {
+  const start: { url: string; ticket: string } = await rpc('GoogleLoginStart', [signUp]);
+  googleCancelled = false;
+  openExternal(start.url);
+  const deadline = Date.now() + GOOGLE_WAIT_MS;
+  while (Date.now() < deadline) {
+    await sleep(GOOGLE_POLL_MS);
+    if (googleCancelled) throw 'Google sign-in was cancelled.';
+    const poll: { status: string; user?: unknown; error?: string } = await rpc('GoogleLoginPoll', [start.ticket]);
+    if (poll.status === 'done') return poll.user;
+    if (poll.status === 'error') throw poll.error || 'Google sign-in failed.';
+  }
+  throw 'Google sign-in took too long. Please try again.';
+}
+
 export const LoginWithGoogle = ((signUp: boolean) => {
   if (isWeb()) {
     return rpc('GoogleWebClientID', [])
@@ -102,7 +127,12 @@ export const LoginWithGoogle = ((signUp: boolean) => {
       .then((token: string) => rpc('LoginWithGoogleToken', [token, signUp]));
   }
   if (!getServerUrl()) return wails.LoginWithGoogle(signUp);
-  return wails.GoogleAccessToken().then((token: string) => rpc('LoginWithGoogleToken', [token, signUp]));
+  return googleThroughServer(signUp).catch((err) => {
+    if (typeof err === 'string' && err.includes('not set up')) {
+      return wails.GoogleAccessToken().then((token: string) => rpc('LoginWithGoogleToken', [token, signUp]));
+    }
+    throw err;
+  });
 }) as typeof wails.LoginWithGoogle;
 
 // In the browser the server says whether Google sign-in is set up (hides the button when not).
@@ -110,8 +140,10 @@ export const hasGoogleWeb = (): Promise<boolean> =>
   isWeb() ? rpc('GoogleWebClientID', []).then((id) => !!id, () => false) : Promise.resolve(true);
 
 // Cancelling only closes the local browser wait, so it is always local.
-export const CancelGoogleLogin = ((...args: unknown[]) =>
-  isWeb() ? Promise.resolve() : (wails.CancelGoogleLogin as unknown as Fn)(...args)) as typeof wails.CancelGoogleLogin;
+export const CancelGoogleLogin = ((...args: unknown[]) => {
+  googleCancelled = true;
+  return isWeb() ? Promise.resolve() : (wails.CancelGoogleLogin as unknown as Fn)(...args);
+}) as typeof wails.CancelGoogleLogin;
 // Export over a server: the server builds the file, and it is saved on this
 // computer through the usual save dialog. Resolves to the saved path, or ""
 // when the dialog was closed.

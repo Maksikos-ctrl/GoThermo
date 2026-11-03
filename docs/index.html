@@ -199,7 +199,7 @@ footer a:hover { color: var(--fg); }
 <pre>brew install redis &amp;&amp; brew services start redis    # macOS
 sudo apt install redis-server                        # Linux
 docker run -d -p 6379:6379 redis                     # any OS</pre>
-      <p class="muted">The builds are not code-signed yet. Windows SmartScreen may say "unknown publisher" (More info, then Run anyway). On macOS, open the .dmg, drag GoThermo to Applications and try to open it; then System Settings, Privacy &amp; Security, "Open Anyway". If it says the app is damaged, run <code>xattr -cr /Applications/GoThermo.app</code> in Terminal once. The app opens already connected to the team server: choose Sign Up and enter your invite code.</p>
+      <p class="muted">The builds are not code-signed yet. Windows SmartScreen may say "unknown publisher" (More info, then Run anyway). On macOS, open the .dmg, drag GoThermo to Applications and try to open it; then System Settings, Privacy &amp; Security, "Open Anyway". If it says the app is damaged or will not open, run this once in Terminal and open it again: <code>xattr -cr /Applications/GoThermo.app &amp;&amp; codesign --force --deep --sign - /Applications/GoThermo.app</code> The app opens already connected to the team server: choose Sign Up and enter your invite code.</p>
     </div>
   </section>
 

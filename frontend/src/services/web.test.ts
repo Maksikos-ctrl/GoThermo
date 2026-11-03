@@ -3,7 +3,7 @@ import { getInviteCode, getServerUrl, isRemote, setInviteCode, setServerUrl, tak
 
 const local = vi.fn();
 vi.mock('../../wailsjs/go/main/App', () => {
-  const names = ['Login', 'SaveTextFile', 'SaveFileToDisk', 'LoginWithGoogle', 'CancelGoogleLogin', 'ExportChannel'];
+  const names = ['Login', 'SaveTextFile', 'SaveFileToDisk', 'LoginWithGoogle', 'GoogleAccessToken', 'CancelGoogleLogin', 'ExportChannel'];
   const o: Record<string, unknown> = {};
   for (const n of names) o[n] = (...a: unknown[]) => local(n, ...a);
   return o;
@@ -12,7 +12,7 @@ vi.mock('../../wailsjs/go/main/App', () => {
 const popup = vi.fn();
 vi.mock('./googleWeb', () => ({ requestGoogleAccessToken: (id: string) => popup(id) }));
 
-import { ExportChannel, LoginWithGoogle, Login, SaveFileToDisk, hasGoogleWeb } from './transport';
+import { CancelGoogleLogin, ExportChannel, LoginWithGoogle, Login, SaveFileToDisk, hasGoogleWeb } from './transport';
 import { downloadText, openExternal, saveText } from './save';
 
 const store: Record<string, string> = {};
@@ -220,5 +220,74 @@ describe('default server of a release build', () => {
   it('without a default the app starts on this computer', async () => {
     vi.stubEnv('VITE_DEFAULT_SERVER', '');
     expect((await fresh()).getServerUrl()).toBe('');
+  });
+});
+
+describe('Google sign-in in the desktop app connected to a server', () => {
+  const answer = (result: unknown) => ({ ok: true, status: 200, json: async () => ({ result }) });
+  const fail = (error: string) => ({ ok: true, status: 200, json: async () => ({ error }) });
+  let open: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setServerUrl('https://s.example.com');
+    open = vi.fn();
+    vi.stubGlobal('open', open);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('opens Google in the system browser and picks up the finished login from the server', async () => {
+    const f = vi.fn()
+      .mockResolvedValueOnce(answer({ url: 'https://accounts.google.com/o?state=s1', ticket: 't1' }))
+      .mockResolvedValueOnce(answer({ status: 'pending' }))
+      .mockResolvedValueOnce(answer({ status: 'done', user: { username: 'ann', token: 'tok' } }));
+    vi.stubGlobal('fetch', f);
+
+    const p = LoginWithGoogle(true);
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(await p).toEqual({ username: 'ann', token: 'tok' });
+    expect(open).toHaveBeenCalledWith('https://accounts.google.com/o?state=s1', '_blank', 'noopener,noreferrer');
+    expect(JSON.parse(f.mock.calls[0][1].body)).toEqual([true]);
+    expect(JSON.parse(f.mock.calls[2][1].body)).toEqual(['t1']);
+    expect(local).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed sign-in with the text from the server', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(answer({ url: 'https://accounts.google.com/o', ticket: 't2' }))
+      .mockResolvedValueOnce(answer({ status: 'error', error: 'no GoThermo account for a@b.c yet, please use Sign Up first' })));
+    const p = LoginWithGoogle(false);
+    const settled = p.then(() => 'ok', (e) => e);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(await settled).toMatch(/Sign Up first/);
+  });
+
+  it('falls back to the sign-in on this computer when the server has none set up', async () => {
+    local.mockResolvedValue('google-token');
+    const f = vi.fn()
+      .mockResolvedValueOnce(fail('Google sign-in through the server is not set up'))
+      .mockResolvedValueOnce(answer({ username: 'ann' }));
+    vi.stubGlobal('fetch', f);
+
+    const user = await LoginWithGoogle(false);
+
+    expect(local).toHaveBeenCalledWith('GoogleAccessToken');
+    expect(f.mock.calls[1][0]).toMatch(/\/rpc\/LoginWithGoogleToken$/);
+    expect(JSON.parse(f.mock.calls[1][1].body)).toEqual(['google-token', false]);
+    expect(user).toEqual({ username: 'ann' });
+  });
+
+  it('stops waiting when the person cancels', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(answer({ url: 'https://accounts.google.com/o', ticket: 't3' }))
+      .mockResolvedValue(answer({ status: 'pending' })));
+    const settled = LoginWithGoogle(false).then(() => 'ok', (e) => e);
+    await vi.advanceTimersByTimeAsync(100);
+    await CancelGoogleLogin();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(await settled).toMatch(/cancelled/);
   });
 });
