@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # First-time setup of a GoThermo server on a fresh Ubuntu machine (22.04 or 24.04,
-# x86 or Arm), for example an Oracle Cloud Always Free instance.
+# x86 or Arm), on any cloud provider. See deploy/DEPLOY.md for the whole walk-through.
 #
 #   curl -fsSL https://raw.githubusercontent.com/Maksikos-ctrl/GoThermo/master/deploy/setup-server.sh -o setup-server.sh
 #   sudo bash setup-server.sh chat.example.com
@@ -11,8 +11,8 @@
 # Safe to run again: it keeps the existing .env and just updates and restarts.
 #
 # Optional environment: GOOGLE_CLIENT_ID, REPO_URL, INSTALL_DIR.
-# The cloud provider's own firewall (for Oracle: the VCN security list) is not
-# something this script can open; see deploy/ORACLE.md.
+# The cloud provider's own firewall (AWS security group, Azure network security
+# group, Oracle VCN security list) is not something this script can open.
 
 set -euo pipefail
 
@@ -29,8 +29,8 @@ valid_domain() {
   [[ "$1" =~ ^([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$ ]]
 }
 
-# Line number of the first REJECT rule in INPUT (Oracle's Ubuntu images have one
-# that blocks everything not allowed above it). Empty when there is none.
+# Line number of the first REJECT rule in INPUT (some images, Oracle's for one,
+# have a rule that blocks everything not allowed above it). Empty when there is none.
 reject_position() {
   iptables -L INPUT --line-numbers -n | awk '$2 == "REJECT" { print $1; exit }'
 }
@@ -145,6 +145,7 @@ main() {
       say "Done"
       echo "Server:       https://$domain"
       echo "Invite code:  $(grep '^INVITE_CODE=' .env | cut -d= -f2-)   (give it to your team; it is also in $INSTALL_DIR/.env)"
+      echo "In a browser: https://$domain"
       echo "In the app:   Server -> Change -> $domain"
       return 0
     fi
@@ -152,7 +153,7 @@ main() {
   done
   warn "No answer from https://$domain/healthz yet. Usual causes:"
   warn "  1) the DNS name does not point at this machine's public IP"
-  warn "  2) the cloud firewall (Oracle: VCN security list) does not allow ports 80 and 443 from 0.0.0.0/0"
+  warn "  2) the cloud firewall (security group) does not allow ports 80 and 443 from 0.0.0.0/0"
   warn "Look at the logs:  cd $INSTALL_DIR && docker compose logs --tail 50 caddy gothermo"
   exit 1
 }

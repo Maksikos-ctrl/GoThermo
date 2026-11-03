@@ -137,9 +137,9 @@ footer a:hover { color: var(--fg); }
   </nav>
 
   <header class="hero" id="top">
-    <div class="eyebrow">Desktop team chat · open source</div>
-    <h1>Team chat that runs on your own machine.</h1>
-    <p class="lead">GoThermo is a fast desktop messenger with channels, threads, code blocks, calendar events and calls. It is written in Go and React, stores everything in Redis, and keeps your data with you.</p>
+    <div class="eyebrow">Team chat · desktop and browser · open source</div>
+    <h1>Team chat that runs on your own server.</h1>
+    <p class="lead">GoThermo is a fast team messenger with channels, threads, code blocks, calendar events and calls. Run your own server in one command, and your team joins from the desktop app or just a browser link. It is written in Go and React and keeps your data in your own Postgres.</p>
     <div class="cta">
       <a class="btn primary" href="#download">Download</a>
       <a class="btn" href="https://github.com/Maksikos-ctrl/GoThermo">View source</a>
@@ -174,11 +174,11 @@ footer a:hover { color: var(--fg); }
   <section id="built">
     <div class="narrow">
       <div class="eyebrow">Under the hood</div>
-      <h2>Small stack, no cloud account.</h2>
-      <p class="muted">The app is a native window built with Wails. The Go backend talks to Redis and pushes live updates over a local WebSocket. There is no sign-up and nothing is sent to us.</p>
+      <h2>Small stack, your own server.</h2>
+      <p class="muted">The desktop app is a native window built with Wails, and the same interface runs in a browser. The Go backend stores messages in Postgres, keeps sessions in Redis and pushes live updates over a WebSocket. You host it, so there is no sign-up with us and nothing is sent to us.</p>
     </div>
     <ul class="stack">
-      <li>Go</li><li>Wails v2</li><li>React 18</li><li>TypeScript</li><li>Redis</li><li>WebSocket</li><li>Vitest</li>
+      <li>Go</li><li>Wails v2</li><li>React 18</li><li>TypeScript</li><li>Postgres</li><li>Redis</li><li>WebSocket</li><li>Vitest</li>
     </ul>
   </section>
 
@@ -194,8 +194,8 @@ footer a:hover { color: var(--fg); }
       <a href="https://github.com/Maksikos-ctrl/GoThermo/releases/latest"><strong>Linux</strong><span>GoThermo-linux-amd64.tar.gz</span></a>
     </div>
     <div class="narrow">
-      <div class="note"><b>Read this before you install.</b> Each copy of GoThermo uses a Redis server on <code>localhost:6379</code> and its own local WebSocket. Today that means a copy chats with itself and with other windows on the same machine, not with copies on other computers. Connecting a whole team through one shared server is the next item on the roadmap.</div>
-      <p style="margin-top:20px">Start Redis first:</p>
+      <div class="note"><b>Two ways to use it.</b> Run a GoThermo server (one command with Docker, HTTPS included, see <a href="https://github.com/Maksikos-ctrl/GoThermo/blob/master/SERVER.md">SERVER.md</a>) and everyone joins from the desktop app or a browser. Or run a copy on its own: it then needs a Redis on <code>localhost:6379</code> and chats only with windows on the same machine.</div>
+      <p style="margin-top:20px">To run a copy on its own, start Redis first:</p>
 <pre>brew install redis &amp;&amp; brew services start redis    # macOS
 sudo apt install redis-server                        # Linux
 docker run -d -p 6379:6379 redis                     # any OS</pre>
@@ -211,12 +211,12 @@ docker run -d -p 6379:6379 redis                     # any OS</pre>
     <ul class="road">
       <li><span class="st done">Done</span><div><b>Threads</b> <span class="d">Reply panel, counts, live updates.</span></div></li>
       <li><span class="st done">Done</span><div><b>Markdown, infinite scroll, leave channel</b> <span class="d">Plus a frontend test suite.</span></div></li>
-      <li><span class="st next">Next</span><div><b>Server mode</b> <span class="d">Run the backend on a VPS and connect any client by URL, so a team can share one workspace.</span></div></li>
-      <li><span class="st">Planned</span><div><b>Thread search and export</b> <span class="d">Find and save replies, not only top-level messages.</span></div></li>
-      <li><span class="st">Planned</span><div><b>Pinned messages</b></div></li>
-      <li><span class="st">Planned</span><div><b>Custom themes</b></div></li>
+      <li><span class="st done">Done</span><div><b>Server mode and the browser version</b> <span class="d">Run the backend on a VPS; the team connects by URL from the app or a browser.</span></div></li>
+      <li><span class="st done">Done</span><div><b>Postgres storage, pinned messages, accent colors, thread export</b></div></li>
+      <li><span class="st next">Next</span><div><b>Google sign-in and saved sessions in the browser</b></div></li>
+      <li><span class="st">Planned</span><div><b>Thread search</b> <span class="d">Find replies, not only top-level messages.</span></div></li>
       <li><span class="st">Planned</span><div><b>GitHub integration</b> <span class="d">Commits and pull requests in a channel.</span></div></li>
-      <li><span class="st">Later</span><div><b>Screen sharing in group calls, Postgres storage</b></div></li>
+      <li><span class="st">Later</span><div><b>Screen sharing in group calls</b></div></li>
     </ul>
   </section>
 

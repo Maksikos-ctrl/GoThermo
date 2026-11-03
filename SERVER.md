@@ -4,7 +4,7 @@ One server, many desktop apps: everybody connects to the same workspace.
 
 ## What you need
 
-No server yet? [deploy/ORACLE.md](deploy/ORACLE.md) walks through a free Oracle Cloud machine and a one-command setup.
+No server yet? [deploy/DEPLOY.md](deploy/DEPLOY.md) walks through creating a cloud machine and a one-command setup.
 
 - A small VPS (1 GB RAM is enough) with Docker and Docker Compose
 - A domain name pointing at the VPS (an `A` record), for example `chat.example.com`

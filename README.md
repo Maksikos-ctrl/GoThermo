@@ -9,6 +9,8 @@
 
 GoThermo is a real-time team chat desktop app in the spirit of Slack and Teams. The backend is Go, the UI is React + TypeScript, they are glued together with [Wails v2](https://wails.io/), and messages and accounts are stored in Postgres (sessions and caches in Redis).
 
+It also runs in the browser: a GoThermo server serves the same interface, so teammates open a link and register, with nothing to install.
+
 > Status: actively developed, tested on macOS. Windows and Linux builds are produced by GitHub Actions but have not been tested by hand yet.
 
 **Website:** https://maksikos-ctrl.github.io/GoThermo/ · **Downloads:** [latest release](https://github.com/Maksikos-ctrl/GoThermo/releases/latest)
@@ -25,14 +27,14 @@ Grab the build for your system from the [Releases page](https://github.com/Maksi
 
 Things to know before you run it:
 - The normal way to use it is to **connect the app to a GoThermo server** (see [Server mode](#server-mode)). Run on its own, a copy talks to a **Redis on `localhost:6379`** and its own WebSocket on `127.0.0.1:8081`; install and start Redis first (`brew install redis`, `apt install redis-server` or `docker run -d -p 6379:6379 redis`).
-- By default a copy only chats with itself and with other windows on the same machine. To share one workspace between computers, run a GoThermo server and connect the apps to it (see [Server mode](#server-mode)).
+- On its own a copy only chats with itself and with other windows on the same machine. To share one workspace between computers, run a GoThermo server and connect the apps to it, or let people use it in a browser (see [Server mode](#server-mode)).
 - The builds are not code-signed. Windows SmartScreen: More info, then Run anyway. macOS: right-click the app, then Open.
 
 ## Features
 
 **Messaging**
 - Public channels, **private channels** (invite-only, hidden from non-members) and direct messages
-- Real-time delivery over WebSocket, typing indicators, online / away / DND presence (auto-away after 10 minutes without activity)
+- Real-time delivery over WebSocket, typing indicators, online / away presence (auto-away after 10 minutes without activity)
 - **Threads**: reply to any message in a side panel; the parent shows the reply count, avatars and the time of the last reply, and everything updates live
 - Markdown and code blocks (with a copy button), @mentions
 - Edit and delete your messages, emoji reactions, "Post" messages, unread badges per channel
@@ -60,9 +62,11 @@ Things to know before you run it:
 
 ## Server mode
 
-One backend on a server, many desktop apps connected to it. The same Go code runs headless (`go build -tags server`), the app sends its calls to `POST /rpc/<Method>` and receives live updates over `wss://`. Setup with Docker, HTTPS included: [SERVER.md](SERVER.md).
+One backend on a server, many clients connected to it. The same Go code runs headless (`go build -tags server`), the clients send their calls to `POST /rpc/<Method>` and receive live updates over `wss://`. Setup with Docker, HTTPS included: [SERVER.md](SERVER.md). Creating a cloud machine from scratch: [deploy/DEPLOY.md](deploy/DEPLOY.md).
 
-On the sign-in screen click **Server: this computer, Change**, type your server address and press **Connect**. Leave it empty to keep using the local mode.
+**Desktop app:** on the sign-in screen click **Server: this computer, Change**, type your server address and press **Connect**. Leave it empty to keep using the local mode.
+
+**Browser:** open the server address. The Docker image contains the interface (`VITE_WEB=1 npm run build`), the server serves it at `/app/` and the page uses its own address as the server. Registering needs the invite code, and a link like `https://chat.example.com/app/?invite=CODE` fills it in. Sign in with Google works in the desktop app only for now.
 
 ## Tech stack
 
@@ -80,6 +84,9 @@ On the sign-in screen click **Server: this computer, Change**, type your server 
 ```
 GoThermo/
 ├── main.go                  # Wails entry point
+├── server_main.go           # headless server entry point (build tag `server`)
+├── rpc.go                   # POST /rpc/<Method> for remote clients
+├── web.go                   # serves the browser build of the interface
 ├── app.go                   # App methods exposed to the frontend (messages, channels, files, calls)
 ├── auth.go                  # Register, login, logout
 ├── sessions.go              # Session tokens in Redis
@@ -102,13 +109,15 @@ GoThermo/
 ├── models.go                # Data models
 ├── *_test.go                # Go tests (miniredis)
 ├── cmd/gothermo-admin/      # Admin CLI (users, locked accounts, sessions, orphan uploads)
+├── deploy/                  # setup-server.sh, Caddyfile, DEPLOY.md
 ├── frontend/
 │   └── src/
 │       ├── components/      # Login, ChannelSidebar, ChatHeader, MessageList, MessageComposer,
 │       │                    # CalendarModal, EventReminders, ChannelModal, ChannelMembers,
 │       │                    # call UI (CallBar, GroupCallGrid, IncomingCallModal, ...)
 │       ├── hooks/           # useWebSocket, useIdleStatus, group call hook
-│       ├── services/        # api.ts (Wails calls + session token), session.ts
+│       ├── services/        # api.ts, transport.ts (Wails or server), server.ts, session.ts,
+│       │                    # platform.ts and save.ts (browser vs desktop)
 │       └── App.tsx
 ├── uploads/                 # Uploaded files (not tracked in git)
 ├── .github/workflows/ci.yml # Go tests on every push
@@ -234,7 +243,8 @@ Moving existing data from Redis to Postgres is one command, see [SERVER.md](SERV
 
 ## Security notes
 
-- The WebSocket hub listens on `127.0.0.1` and uses plain `ws://`. That is fine for a local desktop app, but a hosted multi-user version needs TLS (`wss://`) and a reverse proxy.
+- Run on its own, the WebSocket hub listens on `127.0.0.1` with plain `ws://`, which is fine for one machine. A shared server must sit behind HTTPS (`wss://`); the Docker setup does that with Caddy and a free certificate.
+- Set an invite code on a shared server, otherwise anyone who finds the address can register. A link that carries the code lets whoever has the link register, so send it only to your team.
 - Messages are not end-to-end encrypted.
 - Keep `google_oauth.json`, `.env` files and `uploads/` out of git.
 
@@ -253,17 +263,15 @@ Done:
 
 Also done: Markdown and code blocks, infinite scroll for history, leaving a private channel, threads, frontend tests (Vitest), landing page and release builds.
 
+Also done since: server mode with an invite code, **the browser version**, a one-command server setup (`deploy/setup-server.sh`), channel and thread export, pinned messages, accent colors, unread markers in threads, and the move of users, channels and messages to Postgres.
+
 Next up:
-- [x] **Server mode**: run the backend on a server and connect any client by URL (first version; export and Google sign-in are not available over a server yet)
-- [x] Invite code for registering on a server
-- [ ] Export and Google sign-in in server mode
-- [ ] Thread search and export, unread markers inside threads
-- [ ] Pinned messages
-- [ ] Custom themes
+- [ ] Sign in with Google in the browser
+- [ ] Keep the session after a page reload in the browser
+- [ ] Thread search
 - [ ] Integrations (GitHub first, then Jira, ...)
-- [ ] Video in group calls, screen sharing
+- [ ] Screen sharing in group calls
 - [ ] Code signing for Windows and macOS builds
-- [ ] Migrate users / channels / messages to PostgreSQL
 - [ ] Mobile companion app
 
 ## Contributing
