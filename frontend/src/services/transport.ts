@@ -57,6 +57,7 @@ export const SendPost = bind('SendPost');
 export const GetMessages = bind('GetMessages');
 export const GetMessagesPage = bind('GetMessagesPage');
 export const Login = bind('Login');
+export const CheckAuth = bind('CheckAuth');
 export const Register = bind('Register');
 export const AddReaction = bind('AddReaction');
 export const CreateEvent = bind('CreateEvent');

@@ -117,3 +117,6 @@
   .login-box { padding: 24px 18px; }
   .chat-header .channel-title h2 { font-size: 15px; }
 }
+
+/* shown for a moment while a saved session is checked after a reload */
+.restoring { min-height: 100vh; background: #1a1d21; }

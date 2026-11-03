@@ -4,6 +4,7 @@ import {
   GetMessages,
   GetMessagesPage,
   Login,
+  CheckAuth,
   Register,
   AddReaction,
   CreateEvent,
@@ -60,6 +61,7 @@ const t = () => getAuthToken();
 export const api = {
   auth: {
     login: Login,
+    check: CheckAuth,
     register: Register,
     logout: Logout,
     loginWithGoogle: LoginWithGoogle,

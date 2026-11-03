@@ -50,7 +50,7 @@ import { applySavedAccent } from './components/themeAccent';
 import { SettingsModal } from './components/SettingsModal';
 import { playNotificationSound } from './hooks/notificationSound';
 import { useIdleStatus } from './hooks/useIdleStatus';
-import { clearAuthToken, getAuthToken } from './services/session';
+import { clearAuthToken, getAuthToken, restoreSession, savedAuthToken } from './services/session';
 import './styles/polish.css'; // UI polish: icons, spacing, animations. Delete this line to go back to the old look.
 import './styles/thread.css';
 import './styles/pins.css';
@@ -828,6 +828,22 @@ function App() {
   }, [isLoggedIn, isConnected, currentUser, settings.defaultStatus, changeStatus]);
 
 
+  // Reloading the page keeps the person signed in: the saved token is checked
+  // with the server before the sign-in screen is shown.
+  const [restoring, setRestoring] = useState(() => savedAuthToken() !== '');
+  useEffect(() => {
+    if (!restoring) return;
+    let alive = true;
+    restoreSession(api.auth.check).then((name) => {
+      if (!alive) return;
+      if (name) handleLogin(name);
+      setRestoring(false);
+    });
+    return () => { alive = false; };
+    // runs once, on start
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleLogin = (username: string) => {
     setCurrentUser(username);
     setIsLoggedIn(true);
@@ -1115,6 +1131,10 @@ function App() {
   };
  
 
+
+  if (restoring) {
+    return <div className="restoring" aria-busy="true" />;
+  }
 
   if (!isLoggedIn) {
     return (
