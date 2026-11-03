@@ -173,7 +173,8 @@ func callRPC(method reflect.Value, raw []json.RawMessage) (out interface{}, err 
 	}
 }
 
-// newServerMux wires WebSocket, RPC and the health check together.
+// newServerMux wires WebSocket, RPC, the health check and, when
+// GOTHERMO_WEB_DIR is set, the browser version together.
 func newServerMux(app *App, hub *Hub) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", ServeWS(hub))
@@ -183,6 +184,7 @@ func newServerMux(app *App, hub *Hub) *http.ServeMux {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true,"app":"gothermo"}`))
 	})
+	mountWeb(mux, os.Getenv("GOTHERMO_WEB_DIR"))
 	return mux
 }
 

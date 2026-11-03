@@ -26,6 +26,12 @@ Check it: open `https://chat.example.com/healthz`. You should see `{"ok":true,"a
 
 On the sign-in screen of the app click **Server: this computer, Change**, type `chat.example.com`, enter the invite code and press **Connect**, then register or sign in as usual. The invite code is only needed to create an account; signing in does not use it.
 
+## In the browser
+
+The Docker image also contains the interface, so nobody has to install anything: open `https://chat.example.com` and it goes straight to the chat. Register with the invite code, or send a link that carries it: `https://chat.example.com/app/?invite=THE-CODE` opens the sign-up form with the code filled in and removes it from the address bar. Sign in with Google is not available in the browser yet.
+
+Without Docker, build the interface with `cd frontend && VITE_WEB=1 npm run build`, put the `dist` folder at `<dir>/app` and start the server with `GOTHERMO_WEB_DIR=<dir>`.
+
 ## Without Docker
 
 ```bash
@@ -60,6 +66,7 @@ If the copy fails or does not match, nothing is switched: fix the cause and run 
 | `GOOGLE_CLIENT_ID` | empty | the Google OAuth client id the server accepts sign-ins from. Needed for Google sign-in over a server |
 | `DATABASE_URL` | empty | Postgres, `postgres://user:password@host:5432/dbname`. The schema is created and updated automatically. The compose file sets it |
 | `GOTHERMO_STORE` | empty | where messages, users, channels and the rest are kept: `postgres`, `redis`, or empty (Postgres when `DATABASE_URL` is set, otherwise Redis). See "Moving to Postgres" |
+| `GOTHERMO_WEB_DIR` | empty | folder with the browser version, its `app` subfolder holds the built interface. The Docker image sets it. Empty means the server only answers the apps |
 | `GOTHERMO_TRUST_PROXY` | empty | set to `1` behind a reverse proxy so wrong-code limits count each real client (the compose file sets it) |
 
 ## Good to know
@@ -68,5 +75,5 @@ If the copy fails or does not match, nothing is switched: fix the cause and run 
 - Set an invite code. Without one anyone who finds the address can register. Wrong guesses are limited to 10 per client per 15 minutes.
 - To change the code, edit `.env` and run `docker compose up -d`.
 - Google sign-in over a server: set `GOOGLE_CLIENT_ID` in `.env` to the same client id that is in `google_oauth.json` on the desktop apps. The browser step happens on the user's computer, so each desktop app still needs its own `google_oauth.json`. The server checks the token was issued to that client and reads the profile from Google itself. Google sign-up needs the invite code, like normal registration.
-- Channel export works over a server: the server builds the file and the app saves it on your computer. Saving received attachments to disk is not available over a server yet.
+- Channel export works over a server: the server builds the file and the app saves it on your computer. Saving received attachments works in the browser and, in the app, falls back to a normal download.
 - Never expose Redis (port 6379) to the internet. The compose file keeps it internal.

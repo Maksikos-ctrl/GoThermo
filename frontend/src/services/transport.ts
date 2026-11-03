@@ -1,5 +1,7 @@
 import * as wails from '../../wailsjs/go/main/App';
 import { getInviteCode, getServerUrl } from './server';
+import { isWeb } from './platform';
+import { saveText } from './save';
 
 // Every backend call goes through here. With no server address it is the
 // Wails binding, exactly as before. With one, the same call is sent to the
@@ -88,20 +90,21 @@ export const Logout = bind('Logout');
 // Google sign-in. On a server the browser part still runs here, on this
 // computer; the server then checks the token with Google and signs the user in.
 export const LoginWithGoogle = ((signUp: boolean) => {
+  if (isWeb()) return Promise.reject('Google sign-in is not available in the browser yet.');
   if (!getServerUrl()) return wails.LoginWithGoogle(signUp);
   return wails.GoogleAccessToken().then((token: string) => rpc('LoginWithGoogleToken', [token, signUp]));
 }) as typeof wails.LoginWithGoogle;
 
 // Cancelling only closes the local browser wait, so it is always local.
 export const CancelGoogleLogin = ((...args: unknown[]) =>
-  (wails.CancelGoogleLogin as unknown as Fn)(...args)) as typeof wails.CancelGoogleLogin;
+  isWeb() ? Promise.resolve() : (wails.CancelGoogleLogin as unknown as Fn)(...args)) as typeof wails.CancelGoogleLogin;
 // Export over a server: the server builds the file, and it is saved on this
 // computer through the usual save dialog. Resolves to the saved path, or ""
 // when the dialog was closed.
 export const ExportChannel = ((token: string, channel: string, username: string, format: string) => {
   if (!getServerUrl()) return wails.ExportChannel(token, channel, username, format);
   return rpc('BuildChannelExport', [token, channel, username, format]).then(
-    (f: { filename: string; content: string }) => wails.SaveTextFile(f.filename, f.content),
+    (f: { filename: string; content: string }) => saveText(f.filename, f.content),
   );
 }) as typeof wails.ExportChannel;
 export const GetLinkPreview = bind('GetLinkPreview');
@@ -122,5 +125,5 @@ export const BuildThreadExport = bind('BuildThreadExport');
 // dialog was closed.
 export const ExportThread = (token: string, channel: string, parentId: string, format: string): Promise<string> =>
   (BuildThreadExport as unknown as Fn)(token, channel, parentId, format).then(
-    (f: { filename: string; content: string }) => wails.SaveTextFile(f.filename, f.content),
+    (f: { filename: string; content: string }) => saveText(f.filename, f.content),
   );

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
+import { openExternal } from '../services/save';
 
 interface Preview {
   url: string;
@@ -74,7 +74,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ text }) => {
 
   if (!preview) return null;
 
-  const open = () => BrowserOpenURL(preview.url);
+  const open = () => openExternal(preview.url);
 
   return (
     <div

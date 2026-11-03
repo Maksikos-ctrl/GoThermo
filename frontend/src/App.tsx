@@ -10,6 +10,7 @@ import { api } from './services/api';
 import { useWebSocket } from './hooks/useWebSocket';
 import { Login } from './components/Login';
 import { ServerPicker } from './components/ServerPicker';
+import { isWeb } from './services/platform';
 import { UserPanel } from './components/UserPanel';
 import { ChannelSidebar } from './components/ChannelSidebar';
 import { ChannelModal } from './components/ChannelModal';
@@ -1117,7 +1118,7 @@ function App() {
     return (
       <>
         <Login onLogin={handleLogin} />
-        <ServerPicker />
+        {!isWeb() && <ServerPicker />}
       </>
     );
   }

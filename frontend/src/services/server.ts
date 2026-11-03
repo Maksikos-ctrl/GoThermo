@@ -1,5 +1,9 @@
+import { isWeb } from './platform';
+
 // Where the backend lives. Empty means "this computer" (the Go code inside
 // the app, reached through Wails). A URL means a shared GoThermo server.
+// In the browser build the page itself is served by the server, so its own
+// address is the server.
 
 const KEY = 'gothermo.serverUrl';
 
@@ -31,10 +35,11 @@ export function setInviteCode(code: string) {
   }
 }
 
-export const getServerUrl = () => serverUrl;
-export const isRemote = () => serverUrl !== '';
+export const getServerUrl = () => (isWeb() ? window.location.origin : serverUrl);
+export const isRemote = () => getServerUrl() !== '';
 
 export function setServerUrl(url: string) {
+  if (isWeb()) return;
   serverUrl = url;
   try {
     if (url) localStorage.setItem(KEY, url);
@@ -76,10 +81,26 @@ export function parseServerInput(input: string): ParsedServer {
 
 // http -> ws, https -> wss, plus the path the backend listens on.
 export function wsUrl(token: string): string {
-  if (!serverUrl) {
+  const base = getServerUrl();
+  if (!base) {
     return `ws://127.0.0.1:8081/ws?token=${encodeURIComponent(token)}`;
   }
-  return `${serverUrl.replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}`;
+  return `${base.replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}`;
+}
+
+// A link like /app/?invite=CODE fills the invite code in and then drops it
+// from the address bar.
+export function takeInviteFromUrl(): void {
+  try {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get('invite');
+    if (!code) return;
+    setInviteCode(code);
+    url.searchParams.delete('invite');
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  } catch {
+    /* ignore */
+  }
 }
 
 // Quick check that an address really is a GoThermo server.

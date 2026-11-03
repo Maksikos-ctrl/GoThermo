@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './Markdown.css';
+import { openExternal } from '../services/save';
 
 // Chat-style Markdown for message text. No dependencies and no HTML is ever
 // injected: everything is built from React elements, so a message can never
@@ -39,17 +40,7 @@ export function trimUrl(url: string): string {
 }
 
 function openLink(url: string) {
-  // Native app: open in the system browser. Dev in a normal browser: new tab.
-  try {
-    const rt = (window as any).runtime;
-    if (rt && typeof rt.BrowserOpenURL === 'function') {
-      rt.BrowserOpenURL(url);
-      return;
-    }
-  } catch {
-    /* fall through */
-  }
-  window.open(url, '_blank', 'noopener,noreferrer');
+  openExternal(url);
 }
 
 function Link({ href, children }: { href: string; children: React.ReactNode }) {

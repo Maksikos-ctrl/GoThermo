@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { setAuthToken } from '../services/session';
+import { isWeb } from '../services/platform';
+import { getInviteCode, setInviteCode, takeInviteFromUrl } from '../services/server';
 
 interface LoginProps {
   onLogin: (username: string) => void;
@@ -25,6 +27,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [googleWaiting, setGoogleWaiting] = useState(false);
+  const [invite, setInvite] = useState(getInviteCode());
+  const web = isWeb();
+
+  useEffect(() => {
+    if (!web) return;
+    takeInviteFromUrl();
+    setInvite(getInviteCode());
+    if (getInviteCode()) setIsSignUp(true);
+  }, [web]);
 
   const validateEmail = (email: string): string | null => {
     if (!email) return 'Enter your email';
@@ -298,6 +309,24 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             }}>
               💡 Minimum 4 characters
             </div>
+
+            {web && (
+              <input
+                type="text"
+                placeholder="Invite code"
+                value={invite}
+                onChange={(e) => {
+                  setInvite(e.target.value);
+                  setInviteCode(e.target.value);
+                  setError('');
+                }}
+                className="input-field"
+                disabled={isLoading}
+                autoComplete="off"
+                spellCheck={false}
+                autoCapitalize="off"
+              />
+            )}
           </>
         )}
 
@@ -320,6 +349,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           )}
         </button>
 
+        {!web && (
+          <>
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -388,6 +419,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </svg>
             {isSignUp ? 'Sign up with Google' : 'Sign in with Google'}
           </button>
+        )}
+          </>
         )}
 
         <div style={{
