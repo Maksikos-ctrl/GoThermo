@@ -148,7 +148,7 @@ main() {
       say "Done"
       echo "Server:       https://$domain"
       echo "Invite code:  $(grep '^INVITE_CODE=' .env | cut -d= -f2-)   (give it to your team; it is also in $INSTALL_DIR/.env)"
-      echo "In a browser: https://$domain"
+      echo "Send your team this link (it already contains the invite code): https://$domain/app/?invite=$(grep '^INVITE_CODE=' .env | cut -d= -f2-)"
       echo "In the app:   Server -> Change -> $domain"
       return 0
     fi

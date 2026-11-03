@@ -40,22 +40,38 @@ describe('sign-in screen in the browser', () => {
     expect(screen.queryByText(/Sign in with Google/)).toBeNull();
   });
 
-  it('has an invite code field on sign-up', () => {
+  it('has no invite code field in the browser: the invitation link carries the code', () => {
     vi.stubEnv('VITE_WEB', '1');
     serverSays('');
     render(<Login onLogin={() => {}} />);
     fireEvent.click(screen.getAllByText('Sign Up')[0]);
-    const field = screen.getByPlaceholderText('Invite code') as HTMLInputElement;
-    fireEvent.change(field, { target: { value: 'secret' } });
-    expect(getInviteCode()).toBe('secret');
+    expect(screen.queryByPlaceholderText('Invite code')).toBeNull();
   });
 
-  it('opens on sign-up with the code filled in when the link carries one', () => {
+  it('points to the invitation link when a code is missing', async () => {
+    vi.stubEnv('VITE_WEB', '1');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ error: 'This server needs an invite code to register. Add it under Server, Change.' }),
+    }));
+    render(<Login onLogin={() => {}} />);
+    fireEvent.click(screen.getAllByText('Sign Up')[0]);
+    fireEvent.change(screen.getByPlaceholderText('Work Email'), { target: { value: 'a@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret1' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm Password'), { target: { value: 'secret1' } });
+    fireEvent.click(document.querySelector('button.login-button') as HTMLButtonElement);
+    await waitFor(() => expect(screen.getByText(/invitation link/)).toBeTruthy());
+    expect(screen.queryByText(/Server, Change/)).toBeNull();
+  });
+
+  it('opens on sign-up and keeps the code from the link', () => {
     vi.stubEnv('VITE_WEB', '1');
     serverSays('');
     window.history.replaceState(null, '', '/app/?invite=fromlink');
     render(<Login onLogin={() => {}} />);
-    expect((screen.getByPlaceholderText('Invite code') as HTMLInputElement).value).toBe('fromlink');
+    expect(getInviteCode()).toBe('fromlink');
+    expect(screen.queryByPlaceholderText('Invite code')).toBeNull();
     expect(screen.getByPlaceholderText('Confirm Password')).toBeTruthy();
     expect(window.location.search).toBe('');
   });

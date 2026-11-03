@@ -30,6 +30,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [googleWaiting, setGoogleWaiting] = useState(false);
   const [invite, setInvite] = useState(getInviteCode());
   const web = isWeb();
+  const inviteNeededMessage = web
+    ? '❌ Registration here is by invitation. Open the invitation link you were given.'
+    : '❌ This server needs an invite code to register. Enter it in the Invite code field.';
   const remote = isRemote(); // a server (or this page's server) holds the accounts
   const [googleAvailable, setGoogleAvailable] = useState(!web);
 
@@ -126,7 +129,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const errorMessage = error.message || error.toString();
       
       if (remote && errorMessage.includes('needs an invite code')) {
-        setError('❌ This server needs an invite code to register. Enter it in the Invite code field.');
+        setError(inviteNeededMessage);
       } else if (errorMessage.includes('уже существует')) {
         setError('❌ User with this email already exists');
       } else {
@@ -150,7 +153,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     } catch (error: any) {
       const errorMessage = error?.message || error?.toString() || 'Google sign-in failed';
       if (remote && errorMessage.includes('needs an invite code')) {
-        setError('❌ This server needs an invite code to register. Enter it in the Invite code field.');
+        setError(inviteNeededMessage);
       } else if (!errorMessage.includes('cancelled')) {
         setError(`❌ ${errorMessage}`);
       }
@@ -320,7 +323,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               💡 Minimum 4 characters
             </div>
 
-            {remote && (
+            {remote && !web && (
               <input
                 type="text"
                 placeholder="Invite code"

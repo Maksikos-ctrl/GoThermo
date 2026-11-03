@@ -69,7 +69,7 @@ One backend on a server, many clients connected to it. The same Go code runs hea
 
 **Desktop app:** on the sign-in screen click **Server: this computer, Change**, type your server address and press **Connect**. Leave it empty to keep using the local mode.
 
-**Browser:** open the server address. The Docker image contains the interface (`VITE_WEB=1 npm run build`), the server serves it at `/app/` and the page uses its own address as the server. Registering needs the invite code, and a link like `https://chat.example.com/app/?invite=CODE` fills it in. Sign in with Google also works in the browser when the server has `GOOGLE_WEB_CLIENT_ID` set (see [SERVER.md](SERVER.md)).
+**Browser:** open the server address. The Docker image contains the interface (`VITE_WEB=1 npm run build`), the server serves it at `/app/` and the page uses its own address as the server. Registering needs the invite code; send people a link like `https://chat.example.com/app/?invite=CODE` and it is filled in automatically (the browser has no code field). Sign in with Google also works in the browser when the server has `GOOGLE_WEB_CLIENT_ID` set (see [SERVER.md](SERVER.md)).
 
 ## Tech stack
 
