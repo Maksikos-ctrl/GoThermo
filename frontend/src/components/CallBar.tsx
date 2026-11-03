@@ -90,7 +90,7 @@ export const CallBar: React.FC<CallBarProps> = ({
             borderRadius: '50%',
             background: status === 'connected' ? '#23a55a' : '#f0b232',
             flexShrink: 0,
-            animation: status === 'calling' ? 'blinkDot 1s infinite' : 'none',
+            animation: status === 'calling' || status === 'connecting' ? 'blinkDot 1s infinite' : 'none',
           }}
         />
 
@@ -99,7 +99,7 @@ export const CallBar: React.FC<CallBarProps> = ({
             {remoteUser}
           </div>
           <div style={{ color: '#8a8f98', fontSize: '11px' }}>
-            {status === 'calling' ? 'Calling...' : formatDuration(seconds)}
+            {status === 'calling' ? 'Calling...' : status === 'connecting' ? 'Connecting...' : formatDuration(seconds)}
           </div>
         </div>
 

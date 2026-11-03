@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connected';
+export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected';
 
 interface IncomingCallInfo {
   from: string;
@@ -21,6 +21,24 @@ interface UseCallParams {
 
 
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+/** Turns a getUserMedia failure into a sentence a person can act on. */
+export function mediaErrorMessage(err: unknown): string {
+  const name = (err as { name?: string })?.name;
+  if (name === 'NotAllowedError' || name === 'SecurityError') {
+    return 'Microphone is blocked. Allow microphone access for this site in the browser settings.';
+  }
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+    return 'No microphone found.';
+  }
+  if (name === 'NotReadableError') {
+    return 'The microphone is busy in another app.';
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return 'Calls need a secure (https) connection.';
+  }
+  return 'Could not start the call.';
+}
 
 export function useCall({ currentUser, sendSignal, onCallEnded, onError, ringtoneVolume = 0.5 }: UseCallParams) {
   // A ref so the ringtone picks up volume changes made mid-call, right
@@ -318,7 +336,9 @@ export function useCall({ currentUser, sendSignal, onCallEnded, onError, rington
           setStatus('connected');
         }
         if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-          
+          if (pc.connectionState === 'failed') {
+            onError?.('The call could not connect. Your networks may block direct calls.');
+          }
           cleanup();
         }
       };
@@ -326,7 +346,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded, onError, rington
       pcRef.current = pc;
       return pc;
     },
-    [currentUser, sendSignal, cleanup]
+    [currentUser, sendSignal, cleanup, onError]
   );
 
  
@@ -356,6 +376,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded, onError, rington
         sendSignal('call_offer', { to: targetUser, from: currentUser, sdp: offer, wantsVideo: withVideo });
       } catch (err) {
         console.error('Failed to start call:', err);
+        onError?.(mediaErrorMessage(err));
         cleanup();
       }
     },
@@ -391,14 +412,16 @@ export function useCall({ currentUser, sendSignal, onCallEnded, onError, rington
       remoteUserRef.current = caller;
       isInitiatorRef.current = false;
       setIncomingCall(null);
+      setStatus('connecting');
 
       sendSignal('call_answer', { to: caller, from: currentUser, sdp: answer });
     } catch (err) {
       console.error('Failed to accept call:', err);
+      onError?.(mediaErrorMessage(err));
       sendSignal('call_reject', { to: caller, from: currentUser });
       cleanup();
     }
-  }, [incomingCall, createPeerConnection, currentUser, sendSignal, cleanup]);
+  }, [incomingCall, createPeerConnection, currentUser, sendSignal, cleanup, onError]);
 
 
   const declineCall = useCallback(() => {
@@ -437,6 +460,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded, onError, rington
         setIsVideoEnabled(true);
       } catch (err) {
         console.error('Failed to enable camera:', err);
+        onError?.('Camera is blocked or unavailable. Allow camera access for this site in the browser settings.');
       }
       return;
     }
@@ -444,7 +468,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded, onError, rington
     const newEnabled = !isVideoEnabled;
     localVideoStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = newEnabled));
     setIsVideoEnabled(newEnabled);
-  }, [isVideoEnabled]);
+  }, [isVideoEnabled, onError]);
 
   const toggleScreenShareRef = useRef<() => void>(() => {});
 
