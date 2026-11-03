@@ -222,15 +222,15 @@ func userRedisKey(u *User) string {
 }
 
 // createProviderUser registers a brand new provider (e.g. Google) user with a
-// username that is guaranteed not to clash with anyone else.
-func (um *UserManager) createProviderUser(baseUsername, email, provider, providerID string) *User {
+// username that does not clash with anyone in memory or in skip.
+func (um *UserManager) createProviderUser(baseUsername, email, provider, providerID string, skip map[string]bool) *User {
 	um.mu.Lock()
 	defer um.mu.Unlock()
 
 	base := sanitizeUsername(baseUsername)
 	username := base
 	for i := 2; ; i++ {
-		if _, taken := um.users[username]; !taken {
+		if _, taken := um.users[username]; !taken && !skip[username] {
 			break
 		}
 		username = fmt.Sprintf("%s-%d", base, i)
@@ -248,6 +248,25 @@ func (um *UserManager) createProviderUser(baseUsername, email, provider, provide
 	}
 	um.users[username] = user
 	return user
+}
+
+// createGoogleAccount saves a new Google user, moving to the next free
+// username when the database says the first choice is taken.
+func createGoogleAccount(local, email, sub string) (*User, error) {
+	taken := map[string]bool{}
+	for attempt := 0; attempt < 20; attempt++ {
+		user := userManager.createProviderUser(local, email, "google", sub, taken)
+		err := SaveUserToRedis(user)
+		if err == nil {
+			return user, nil
+		}
+		userManager.release(user)
+		if !isUsernameTaken(err) {
+			return nil, err
+		}
+		taken[user.Username] = true
+	}
+	return nil, fmt.Errorf("could not find a free username")
 }
 
 // finishGoogleLogin completes the flow. signUp=false (Sign In tab) only lets
@@ -271,9 +290,9 @@ func (a *App) finishGoogleLogin(info googleUserInfo, signUp bool) (User, error) 
 
 	if user == nil {
 		local := strings.Split(info.Email, "@")[0]
-		user = userManager.createProviderUser(local, info.Email, "google", info.Sub)
-		if err := SaveUserToRedis(user); err != nil {
-			return User{}, fmt.Errorf("error saving user: %v", err)
+		var err error
+		if user, err = createGoogleAccount(local, info.Email, info.Sub); err != nil {
+			return User{}, internalFailure("saving Google user", err)
 		}
 		// (the Google link is saved together with the user)
 		log.Printf("✅ New Google user: %s (%s)", user.Username, info.Email)
@@ -281,7 +300,7 @@ func (a *App) finishGoogleLogin(info googleUserInfo, signUp bool) (User, error) 
 
 	token, err := CreateSession(user.Username)
 	if err != nil {
-		return User{}, fmt.Errorf("error creating session: %v", err)
+		return User{}, internalFailure("creating Google session", err)
 	}
 
 	if globalHub != nil {
@@ -337,16 +356,31 @@ func (a *App) GoogleAccessToken() (string, error) {
 	return a.googleSignInAccessToken()
 }
 
-// googleClientID is the OAuth client this server trusts tokens from.
-func googleClientID() (string, error) {
-	if id := os.Getenv("GOOGLE_CLIENT_ID"); id != "" {
-		return id, nil
+// googleClientIDs lists the OAuth clients this server trusts tokens from:
+// GOOGLE_CLIENT_ID (the desktop apps; several may be comma-separated),
+// GOOGLE_WEB_CLIENT_ID (the browser version), or the id in google_oauth.json.
+func googleClientIDs() []string {
+	var ids []string
+	for _, v := range []string{os.Getenv("GOOGLE_CLIENT_ID"), os.Getenv("GOOGLE_WEB_CLIENT_ID")} {
+		for _, id := range strings.Split(v, ",") {
+			if id = strings.TrimSpace(id); id != "" {
+				ids = append(ids, id)
+			}
+		}
 	}
-	cfg, err := loadGoogleConfig()
-	if err != nil {
-		return "", err
+	if len(ids) == 0 {
+		if cfg, err := loadGoogleConfig(); err == nil {
+			ids = append(ids, cfg.ClientID)
+		}
 	}
-	return cfg.ClientID, nil
+	return ids
+}
+
+// GoogleWebClientID tells the browser version which Google client to sign in
+// with. It is public by design (it appears in every Google sign-in page) and
+// empty when the server has no browser client, which hides the button.
+func (a *App) GoogleWebClientID() string {
+	return strings.TrimSpace(os.Getenv("GOOGLE_WEB_CLIENT_ID"))
 }
 
 type googleTokenInfo struct {
@@ -357,7 +391,7 @@ type googleTokenInfo struct {
 // verifyGoogleToken asks Google which app an access token was issued to and
 // refuses tokens that belong to anyone else's app, so a token stolen from an
 // unrelated site cannot be used to log in here.
-func verifyGoogleToken(c context.Context, accessToken, wantClientID string) error {
+func verifyGoogleToken(c context.Context, accessToken string, wantClientIDs []string) error {
 	req, err := http.NewRequestWithContext(c, http.MethodGet, googleTokenInfoURL+"?access_token="+url.QueryEscape(accessToken), nil)
 	if err != nil {
 		return err
@@ -375,10 +409,14 @@ func verifyGoogleToken(c context.Context, accessToken, wantClientID string) erro
 	if err := json.Unmarshal(body, &ti); err != nil {
 		return fmt.Errorf("unexpected response from Google")
 	}
-	if ti.Aud == "" || ti.Aud != wantClientID {
-		return fmt.Errorf("this Google sign-in was issued for a different app")
+	if ti.Aud != "" {
+		for _, id := range wantClientIDs {
+			if ti.Aud == id {
+				return nil
+			}
+		}
 	}
-	return nil
+	return fmt.Errorf("this Google sign-in was issued for a different app")
 }
 
 // LoginWithGoogleToken is the server side of Google sign-in: the desktop app
@@ -389,13 +427,13 @@ func (a *App) LoginWithGoogleToken(accessToken string, signUp bool) (User, error
 	if accessToken == "" {
 		return User{}, fmt.Errorf("missing Google token")
 	}
-	clientID, err := googleClientID()
-	if err != nil {
+	clientIDs := googleClientIDs()
+	if len(clientIDs) == 0 {
 		return User{}, fmt.Errorf("Google sign-in is not configured on this server")
 	}
 	c, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := verifyGoogleToken(c, accessToken, clientID); err != nil {
+	if err := verifyGoogleToken(c, accessToken, clientIDs); err != nil {
 		return User{}, err
 	}
 	info, err := googleProfile(c, accessToken)

@@ -49,7 +49,8 @@ describe('server url state', () => {
     setServerUrl('https://x.example.com');
     expect(store.get('gothermo.serverUrl')).toBe('https://x.example.com');
     setServerUrl('');
-    expect(store.has('gothermo.serverUrl')).toBe(false);
+    // "this computer" is stored as an empty value so it beats a build's default server
+    expect(store.get('gothermo.serverUrl')).toBe('');
     vi.unstubAllGlobals();
   });
   it('still works when localStorage is missing', () => {

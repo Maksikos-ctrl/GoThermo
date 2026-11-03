@@ -170,3 +170,53 @@ func TestCreatesAccount(t *testing.T) {
 		}
 	}
 }
+
+func TestGoogleTokenAcceptsTheBrowserClient(t *testing.T) {
+	h := newInviteEnv(t, "")
+	t.Setenv("GOOGLE_CLIENT_ID", "desktop-client")
+	t.Setenv("GOOGLE_WEB_CLIENT_ID", "web-client")
+	fakeGoogle(t, "web-client", "sub-web", "web.user@example.com", true)
+	if rep := googleTokenCall(h, "good-token", true, ""); rep.Error != "" {
+		t.Fatalf("browser client refused: %s", rep.Error)
+	}
+}
+
+func TestGoogleTokenFromSomeoneElsesAppIsRefused(t *testing.T) {
+	h := newInviteEnv(t, "")
+	t.Setenv("GOOGLE_CLIENT_ID", "desktop-client,other-desktop")
+	t.Setenv("GOOGLE_WEB_CLIENT_ID", "web-client")
+	fakeGoogle(t, "evil-site-client", "sub-evil", "evil@example.com", true)
+	if rep := googleTokenCall(h, "good-token", true, ""); !strings.Contains(rep.Error, "different app") {
+		t.Fatalf("got %q", rep.Error)
+	}
+}
+
+func TestGoogleWebClientIDIsPublicAndOptional(t *testing.T) {
+	h := newInviteEnv(t, "")
+	t.Setenv("GOOGLE_WEB_CLIENT_ID", "")
+	if code, rep := rpcCall(t, h, "GoogleWebClientID", `[]`); code != 200 || rep.Error != "" || rep.Result != "" {
+		t.Fatalf("unset: %d %+v", code, rep)
+	}
+	t.Setenv("GOOGLE_WEB_CLIENT_ID", " web-client ")
+	if _, rep := rpcCall(t, h, "GoogleWebClientID", `[]`); rep.Result != "web-client" {
+		t.Fatalf("set: %+v", rep)
+	}
+}
+
+func TestGoogleSignUpSkipsUsernameTakenInDatabase(t *testing.T) {
+	s := pgStore{pool: migratedTestDatabase(t)}
+	useStore(t, s)
+	forgetUsers(t, "rugoo", "rugoo-2")
+	mustSaveUser(t, s, User{ID: "db-g", Username: "rugoo", Email: "rugoo@other.com"})
+
+	h := newInviteEnv(t, "")
+	t.Setenv("GOOGLE_CLIENT_ID", "my-client")
+	fakeGoogle(t, "my-client", "sub-goo", "rugoo@example.com", true)
+	rep := googleTokenCall(h, "good-token", true, "")
+	if rep.Error != "" {
+		t.Fatalf("sign up: %s", rep.Error)
+	}
+	if u, _ := rep.Result.(map[string]interface{}); u["username"] != "rugoo-2" {
+		t.Fatalf("username = %v", u["username"])
+	}
+}

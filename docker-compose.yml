@@ -33,6 +33,7 @@ services:
       GOTHERMO_STORE: ${GOTHERMO_STORE:-}
       GOTHERMO_INVITE_CODE: ${INVITE_CODE:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
       GOTHERMO_TRUST_PROXY: "1"
     volumes:
       - uploads:/data

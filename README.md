@@ -21,14 +21,17 @@ Grab the build for your system from the [Releases page](https://github.com/Maksi
 
 | System | File |
 |---|---|
-| Windows | `GoThermo-windows-amd64.zip` |
-| macOS | `GoThermo-macos.zip` |
-| Linux | `GoThermo-linux-amd64.tar.gz` |
+| Windows | [`GoThermo-windows-amd64.exe`](https://github.com/Maksikos-ctrl/GoThermo/releases/latest/download/GoThermo-windows-amd64.exe) (a `.zip` is there too) |
+| macOS | [`GoThermo-macos.dmg`](https://github.com/Maksikos-ctrl/GoThermo/releases/latest/download/GoThermo-macos.dmg) (a `.zip` is there too) |
+| Linux | [`GoThermo-linux-amd64.tar.gz`](https://github.com/Maksikos-ctrl/GoThermo/releases/latest/download/GoThermo-linux-amd64.tar.gz) |
+
+No download needed: the same chat runs in any browser at your server's address.
 
 Things to know before you run it:
-- The normal way to use it is to **connect the app to a GoThermo server** (see [Server mode](#server-mode)). Run on its own, a copy talks to a **Redis on `localhost:6379`** and its own WebSocket on `127.0.0.1:8081`; install and start Redis first (`brew install redis`, `apt install redis-server` or `docker run -d -p 6379:6379 redis`).
+- Release builds start **already connected to the team server**: open the app, choose Sign Up and enter the invite code you were given. To use another server or none, click the server name on the sign-in screen. Run on its own, a copy talks to a **Redis on `localhost:6379`** and its own WebSocket on `127.0.0.1:8081`; install and start Redis first (`brew install redis`, `apt install redis-server` or `docker run -d -p 6379:6379 redis`).
 - On its own a copy only chats with itself and with other windows on the same machine. To share one workspace between computers, run a GoThermo server and connect the apps to it, or let people use it in a browser (see [Server mode](#server-mode)).
-- The builds are not code-signed. Windows SmartScreen: More info, then Run anyway. macOS: right-click the app, then Open.
+- The builds are not code-signed. Windows SmartScreen: More info, then Run anyway. macOS: open the `.dmg`, drag GoThermo to Applications, then right-click it and choose Open the first time.
+- Sign in with Google in the desktop app needs your own `google_oauth.json` (see below); in the browser it only needs the server to be set up for it. Email + password works everywhere.
 
 ## Features
 
@@ -66,7 +69,7 @@ One backend on a server, many clients connected to it. The same Go code runs hea
 
 **Desktop app:** on the sign-in screen click **Server: this computer, Change**, type your server address and press **Connect**. Leave it empty to keep using the local mode.
 
-**Browser:** open the server address. The Docker image contains the interface (`VITE_WEB=1 npm run build`), the server serves it at `/app/` and the page uses its own address as the server. Registering needs the invite code, and a link like `https://chat.example.com/app/?invite=CODE` fills it in. Sign in with Google works in the desktop app only for now.
+**Browser:** open the server address. The Docker image contains the interface (`VITE_WEB=1 npm run build`), the server serves it at `/app/` and the page uses its own address as the server. Registering needs the invite code, and a link like `https://chat.example.com/app/?invite=CODE` fills it in. Sign in with Google also works in the browser when the server has `GOOGLE_WEB_CLIENT_ID` set (see [SERVER.md](SERVER.md)).
 
 ## Tech stack
 
@@ -189,12 +192,14 @@ wails build -clean
 
 ### Releasing
 
-Pushing a tag builds Windows, macOS and Linux packages in GitHub Actions (`.github/workflows/release.yml`) and attaches them to a GitHub Release:
+Pushing a tag builds a Windows `.exe`, a macOS `.dmg` and a Linux package in GitHub Actions (`.github/workflows/release.yml`) and attaches them to a GitHub Release. The apps are built to open already connected to `https://gothermo-team.duckdns.org`; to point them at another server set the repository variable `GOTHERMO_SERVER` (Settings, Secrets and variables, Actions, Variables).
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
+
+The download links on the website and in this README (`releases/latest/download/...`) work as soon as the first release finishes building (the Actions tab shows progress, about 10 minutes).
 
 The landing page lives in `docs/` and is served by GitHub Pages (Settings, Pages, branch `master`, folder `/docs`).
 
@@ -266,7 +271,7 @@ Also done: Markdown and code blocks, infinite scroll for history, leaving a priv
 Also done since: server mode with an invite code, **the browser version**, a one-command server setup (`deploy/setup-server.sh`), channel and thread export, pinned messages, accent colors, unread markers in threads, and the move of users, channels and messages to Postgres.
 
 Next up:
-- [ ] Sign in with Google in the browser
+- [x] Sign in with Google in the browser
 - [ ] Keep the session after a page reload in the browser
 - [ ] Thread search
 - [ ] Integrations (GitHub first, then Jira, ...)

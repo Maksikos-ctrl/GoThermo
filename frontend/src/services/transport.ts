@@ -2,6 +2,7 @@ import * as wails from '../../wailsjs/go/main/App';
 import { getInviteCode, getServerUrl } from './server';
 import { isWeb } from './platform';
 import { saveText } from './save';
+import { requestGoogleAccessToken } from './googleWeb';
 
 // Every backend call goes through here. With no server address it is the
 // Wails binding, exactly as before. With one, the same call is sent to the
@@ -89,11 +90,23 @@ export const LogCall = bind('LogCall');
 export const Logout = bind('Logout');
 // Google sign-in. On a server the browser part still runs here, on this
 // computer; the server then checks the token with Google and signs the user in.
+// The browser version signs in with Google's popup instead.
 export const LoginWithGoogle = ((signUp: boolean) => {
-  if (isWeb()) return Promise.reject('Google sign-in is not available in the browser yet.');
+  if (isWeb()) {
+    return rpc('GoogleWebClientID', [])
+      .then((id: string | null) => {
+        if (!id) throw 'Google sign-in is not set up on this server.';
+        return requestGoogleAccessToken(id);
+      })
+      .then((token: string) => rpc('LoginWithGoogleToken', [token, signUp]));
+  }
   if (!getServerUrl()) return wails.LoginWithGoogle(signUp);
   return wails.GoogleAccessToken().then((token: string) => rpc('LoginWithGoogleToken', [token, signUp]));
 }) as typeof wails.LoginWithGoogle;
+
+// In the browser the server says whether Google sign-in is set up (hides the button when not).
+export const hasGoogleWeb = (): Promise<boolean> =>
+  isWeb() ? rpc('GoogleWebClientID', []).then((id) => !!id, () => false) : Promise.resolve(true);
 
 // Cancelling only closes the local browser wait, so it is always local.
 export const CancelGoogleLogin = ((...args: unknown[]) =>

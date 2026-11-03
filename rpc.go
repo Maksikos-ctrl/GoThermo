@@ -38,7 +38,7 @@ var rpcAllowed = map[string]bool{
 	"SendFile": true, "GetFileData": true, "LogCall": true, "GetLinkPreview": true,
 	"CreateEvent": true, "GetEvents": true, "RespondToEvent": true, "UpdateEvent": true, "DeleteEvent": true, "GetDueReminders": true,
 	"PinMessage": true, "UnpinMessage": true, "GetPinnedMessages": true,
-	"LoginWithGoogleToken": true, "BuildChannelExport": true,
+	"LoginWithGoogleToken": true, "GoogleWebClientID": true, "BuildChannelExport": true,
 	"BuildThreadExport": true, "MarkThreadRead": true, "GetThreadUnread": true, "GetMentionCounts": true,
 	"SendReply": true, "GetThread": true, "EditReply": true, "DeleteReply": true, "AddReplyReaction": true,
 }
@@ -118,7 +118,7 @@ func ServeRPC(app *App) http.HandlerFunc {
 				writeRPC(w, http.StatusBadRequest, rpcReply{Error: bad.Error()})
 				return
 			}
-			writeRPC(w, http.StatusOK, rpcReply{Error: err.Error()})
+			writeRPC(w, http.StatusOK, rpcReply{Error: publicError(err)})
 			return
 		}
 		writeRPC(w, http.StatusOK, rpcReply{Result: out})

@@ -9,7 +9,10 @@ vi.mock('../../wailsjs/go/main/App', () => {
   return o;
 });
 
-import { ExportChannel, LoginWithGoogle, Login, SaveFileToDisk } from './transport';
+const popup = vi.fn();
+vi.mock('./googleWeb', () => ({ requestGoogleAccessToken: (id: string) => popup(id) }));
+
+import { ExportChannel, LoginWithGoogle, Login, SaveFileToDisk, hasGoogleWeb } from './transport';
 import { downloadText, openExternal, saveText } from './save';
 
 const store: Record<string, string> = {};
@@ -69,7 +72,6 @@ describe('browser build', () => {
     vi.stubEnv('VITE_WEB', '1');
     vi.stubGlobal('fetch', vi.fn());
     await expect(SaveFileToDisk('t', 'f')).rejects.toMatch(/not available/);
-    await expect(LoginWithGoogle(false)).rejects.toMatch(/browser/);
     expect(local).not.toHaveBeenCalled();
   });
 
@@ -135,5 +137,88 @@ describe('save helpers', () => {
     expect(rt.BrowserOpenURL).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith('https://b.example.com', '_blank', 'noopener,noreferrer');
     delete (window as any).runtime;
+  });
+});
+
+describe('Google sign-in in the browser', () => {
+  beforeEach(() => popup.mockReset());
+
+  it('asks the server for its web client, opens the popup, and signs in with the token', async () => {
+    vi.stubEnv('VITE_WEB', '1');
+    popup.mockResolvedValue('tok-123');
+    const f = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ result: 'web-client-id' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ result: { username: 'ann' } }) });
+    vi.stubGlobal('fetch', f);
+
+    const user = await LoginWithGoogle(true);
+
+    expect(popup).toHaveBeenCalledWith('web-client-id');
+    expect(f.mock.calls[0][0]).toMatch(/\/rpc\/GoogleWebClientID$/);
+    expect(f.mock.calls[1][0]).toMatch(/\/rpc\/LoginWithGoogleToken$/);
+    expect(JSON.parse(f.mock.calls[1][1].body)).toEqual(['tok-123', true]);
+    expect(user).toEqual({ username: 'ann' });
+    expect(local).not.toHaveBeenCalled();
+  });
+
+  it('says so when the server has no Google client', async () => {
+    vi.stubEnv('VITE_WEB', '1');
+    vi.stubGlobal('fetch', reply({ result: '' }));
+    await expect(LoginWithGoogle(false)).rejects.toMatch(/not set up/);
+    expect(popup).not.toHaveBeenCalled();
+  });
+
+  it('shows the button only when the server has a web client', async () => {
+    vi.stubEnv('VITE_WEB', '1');
+    vi.stubGlobal('fetch', reply({ result: 'cid' }));
+    expect(await hasGoogleWeb()).toBe(true);
+    vi.stubGlobal('fetch', reply({ result: '' }));
+    expect(await hasGoogleWeb()).toBe(false);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    expect(await hasGoogleWeb()).toBe(false);
+  });
+
+  it('the desktop app always has the button', async () => {
+    expect(await hasGoogleWeb()).toBe(true);
+  });
+});
+
+describe('default server of a release build', () => {
+  const fresh = async () => {
+    vi.resetModules();
+    return import('./server');
+  };
+
+  beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+  });
+
+  it('is used until the person chooses something else', async () => {
+    vi.stubEnv('VITE_DEFAULT_SERVER', 'https://team.example.org');
+    const m = await fresh();
+    expect(m.getServerUrl()).toBe('https://team.example.org');
+    expect(m.isRemote()).toBe(true);
+  });
+
+  it('a stored choice wins, including "this computer"', async () => {
+    vi.stubEnv('VITE_DEFAULT_SERVER', 'https://team.example.org');
+    store['gothermo.serverUrl'] = 'https://other.example.org';
+    expect((await fresh()).getServerUrl()).toBe('https://other.example.org');
+
+    store['gothermo.serverUrl'] = '';
+    expect((await fresh()).getServerUrl()).toBe('');
+  });
+
+  it('choosing "this computer" is remembered over the default', async () => {
+    vi.stubEnv('VITE_DEFAULT_SERVER', 'https://team.example.org');
+    const m = await fresh();
+    m.setServerUrl('');
+    expect(store['gothermo.serverUrl']).toBe('');
+    expect((await fresh()).getServerUrl()).toBe('');
+  });
+
+  it('without a default the app starts on this computer', async () => {
+    vi.stubEnv('VITE_DEFAULT_SERVER', '');
+    expect((await fresh()).getServerUrl()).toBe('');
   });
 });

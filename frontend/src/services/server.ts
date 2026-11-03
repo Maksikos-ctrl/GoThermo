@@ -7,11 +7,17 @@ import { isWeb } from './platform';
 
 const KEY = 'gothermo.serverUrl';
 
-let serverUrl = '';
+// Release builds of the desktop app can ship with a team server already chosen
+// (VITE_DEFAULT_SERVER), so people only open the app and register. Someone
+// who picked "this computer" keeps that choice (stored as an empty value).
+const DEFAULT_SERVER = (import.meta.env.VITE_DEFAULT_SERVER as string | undefined) || '';
+
+let serverUrl = DEFAULT_SERVER;
 try {
-  serverUrl = localStorage.getItem(KEY) || '';
+  const stored = localStorage.getItem(KEY);
+  if (stored !== null) serverUrl = stored;
 } catch {
-  /* storage can be unavailable; fall back to local mode */
+  /* storage can be unavailable; the default (or local mode) applies */
 }
 
 // Some servers only let people register who know an invite code.
@@ -42,8 +48,7 @@ export function setServerUrl(url: string) {
   if (isWeb()) return;
   serverUrl = url;
   try {
-    if (url) localStorage.setItem(KEY, url);
-    else localStorage.removeItem(KEY);
+    localStorage.setItem(KEY, url); // '' means "this computer" on purpose
   } catch {
     /* ignore */
   }

@@ -1,7 +1,8 @@
 name: Release
 
-# Push a tag like v0.1.0 and this builds Windows, macOS and Linux
-# packages and attaches them to a GitHub Release.
+# Push a tag like v0.2.0 and this builds a Windows .exe, a macOS .dmg and a
+# Linux package and attaches them to a GitHub Release. The apps start already
+# connected to the team server (repository variable GOTHERMO_SERVER).
 on:
   push:
     tags: ["v*"]
@@ -21,15 +22,12 @@ jobs:
           - name: windows
             os: windows-latest
             platform: windows/amd64
-            asset: GoThermo-windows-amd64.zip
           - name: macos
             os: macos-latest
             platform: darwin/universal
-            asset: GoThermo-macos.zip
           - name: linux
             os: ubuntu-22.04
             platform: linux/amd64
-            asset: GoThermo-linux-amd64.tar.gz
     steps:
       - uses: actions/checkout@v4
 
@@ -56,25 +54,39 @@ jobs:
 
       - name: Build
         shell: bash
+        env:
+          # The desktop app opens already connected to this server.
+          VITE_DEFAULT_SERVER: ${{ vars.GOTHERMO_SERVER || 'https://gothermo-team.duckdns.org' }}
         run: wails build -clean -platform ${{ matrix.platform }}
 
       - name: Package (Windows)
         if: matrix.name == 'windows'
         shell: pwsh
-        run: Compress-Archive -Path build/bin/* -DestinationPath ${{ matrix.asset }}
+        run: |
+          New-Item -ItemType Directory out | Out-Null
+          Copy-Item build/bin/GoThermo.exe out/GoThermo-windows-amd64.exe
+          Compress-Archive -Path build/bin/* -DestinationPath out/GoThermo-windows-amd64.zip
 
       - name: Package (macOS)
         if: matrix.name == 'macos'
-        run: ditto -c -k --sequesterRsrc --keepParent build/bin/*.app ${{ matrix.asset }}
+        run: |
+          mkdir out dmg
+          APP=$(ls -d build/bin/*.app | head -1)
+          ditto -c -k --sequesterRsrc --keepParent "$APP" out/GoThermo-macos.zip
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname GoThermo -srcfolder dmg -ov -format UDZO out/GoThermo-macos.dmg
 
       - name: Package (Linux)
         if: matrix.name == 'linux'
-        run: tar -czf ${{ matrix.asset }} -C build/bin .
+        run: |
+          mkdir out
+          tar -czf out/GoThermo-linux-amd64.tar.gz -C build/bin .
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: ${{ matrix.asset }}
+          path: out/*
 
   release:
     name: Publish release
@@ -91,6 +103,6 @@ jobs:
           files: dist/*
           generate_release_notes: true
           body: |
-            Connect the app to a GoThermo server (see SERVER.md in the repository). Without one it runs alone and needs Redis on localhost:6379.
-            Builds are not code-signed:
-            on Windows choose "More info, Run anyway"; on macOS right-click the app and choose Open.
+            Download for your system: **Windows** `GoThermo-windows-amd64.exe`, **macOS** `GoThermo-macos.dmg`, **Linux** `GoThermo-linux-amd64.tar.gz`.
+            The app opens already connected to the team server: register with the invite code you were given. You can also use GoThermo in a browser, with nothing to install.
+            The builds are not code-signed. Windows: "More info", then "Run anyway". macOS: open the .dmg, drag GoThermo to Applications, then right-click the app and choose Open the first time.

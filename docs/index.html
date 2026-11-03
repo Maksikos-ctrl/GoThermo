@@ -186,12 +186,12 @@ footer a:hover { color: var(--fg); }
     <div class="narrow">
       <div class="eyebrow">Download</div>
       <h2>Get the latest build.</h2>
-      <p class="muted">Every tagged version is built automatically on GitHub and attached to a release.</p>
+      <p class="muted">One click, no source code and no build tools. Every tagged version is built automatically on GitHub and attached to a release. Prefer not to install anything? Open your team's server address in a browser instead.</p>
     </div>
     <div class="dl">
-      <a href="https://github.com/Maksikos-ctrl/GoThermo/releases/latest"><strong>Windows</strong><span>GoThermo-windows-amd64.zip</span></a>
-      <a href="https://github.com/Maksikos-ctrl/GoThermo/releases/latest"><strong>macOS</strong><span>GoThermo-macos.zip</span></a>
-      <a href="https://github.com/Maksikos-ctrl/GoThermo/releases/latest"><strong>Linux</strong><span>GoThermo-linux-amd64.tar.gz</span></a>
+      <a href="https://github.com/Maksikos-ctrl/GoThermo/releases/latest/download/GoThermo-windows-amd64.exe"><strong>Windows</strong><span>GoThermo-windows-amd64.exe</span></a>
+      <a href="https://github.com/Maksikos-ctrl/GoThermo/releases/latest/download/GoThermo-macos.dmg"><strong>macOS</strong><span>GoThermo-macos.dmg</span></a>
+      <a href="https://github.com/Maksikos-ctrl/GoThermo/releases/latest/download/GoThermo-linux-amd64.tar.gz"><strong>Linux</strong><span>GoThermo-linux-amd64.tar.gz</span></a>
     </div>
     <div class="narrow">
       <div class="note"><b>Two ways to use it.</b> Run a GoThermo server (one command with Docker, HTTPS included, see <a href="https://github.com/Maksikos-ctrl/GoThermo/blob/master/SERVER.md">SERVER.md</a>) and everyone joins from the desktop app or a browser. Or run a copy on its own: it then needs a Redis on <code>localhost:6379</code> and chats only with windows on the same machine.</div>
@@ -199,7 +199,7 @@ footer a:hover { color: var(--fg); }
 <pre>brew install redis &amp;&amp; brew services start redis    # macOS
 sudo apt install redis-server                        # Linux
 docker run -d -p 6379:6379 redis                     # any OS</pre>
-      <p class="muted">The builds are not code-signed yet. Windows SmartScreen may say "unknown publisher" (More info, then Run anyway). On macOS, right-click the app and choose Open the first time.</p>
+      <p class="muted">The builds are not code-signed yet. Windows SmartScreen may say "unknown publisher" (More info, then Run anyway). On macOS, open the .dmg, drag GoThermo to Applications, then right-click it and choose Open the first time. The app opens already connected to the team server: choose Sign Up and enter your invite code.</p>
     </div>
   </section>
 
@@ -213,7 +213,7 @@ docker run -d -p 6379:6379 redis                     # any OS</pre>
       <li><span class="st done">Done</span><div><b>Markdown, infinite scroll, leave channel</b> <span class="d">Plus a frontend test suite.</span></div></li>
       <li><span class="st done">Done</span><div><b>Server mode and the browser version</b> <span class="d">Run the backend on a VPS; the team connects by URL from the app or a browser.</span></div></li>
       <li><span class="st done">Done</span><div><b>Postgres storage, pinned messages, accent colors, thread export</b></div></li>
-      <li><span class="st next">Next</span><div><b>Google sign-in and saved sessions in the browser</b></div></li>
+      <li><span class="st next">Next</span><div><b>Saved sessions in the browser</b></div></li>
       <li><span class="st">Planned</span><div><b>Thread search</b> <span class="d">Find replies, not only top-level messages.</span></div></li>
       <li><span class="st">Planned</span><div><b>GitHub integration</b> <span class="d">Commits and pull requests in a channel.</span></div></li>
       <li><span class="st">Later</span><div><b>Screen sharing in group calls</b></div></li>

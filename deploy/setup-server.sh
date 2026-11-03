@@ -10,7 +10,7 @@
 # invite code and database password, and starts everything.
 # Safe to run again: it keeps the existing .env and just updates and restarts.
 #
-# Optional environment: GOOGLE_CLIENT_ID, REPO_URL, INSTALL_DIR.
+# Optional environment: GOOGLE_CLIENT_ID, GOOGLE_WEB_CLIENT_ID, REPO_URL, INSTALL_DIR.
 # The cloud provider's own firewall (AWS security group, Azure network security
 # group, Oracle VCN security list) is not something this script can open.
 
@@ -63,6 +63,9 @@ write_env() { # write_env <file> <domain>
       echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
       if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
         echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
+      fi
+      if [ -n "${GOOGLE_WEB_CLIENT_ID:-}" ]; then
+        echo "GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID"
       fi
     } > "$file"
   )

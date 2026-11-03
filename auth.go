@@ -53,24 +53,22 @@ func (a *App) Register(email, password string) (User, error) {
 
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
-		return User{}, fmt.Errorf("error hashing password: %v", err)
+		return User{}, internalFailure("hashing password", err)
 	}
 
 	user, err := createAccount(strings.Split(email, "@")[0], email)
 	if err != nil {
-		log.Printf("❌ Error saving user: %v", err)
-		return User{}, fmt.Errorf("error saving user: %v", err)
+		return User{}, internalFailure("saving new user", err)
 	}
 	username := user.Username
 
 	if err := SaveUserPasswordToRedis(email, hashedPassword); err != nil {
-		log.Printf("❌ Error saving password to Redis: %v", err)
-		return User{}, fmt.Errorf("error saving password: %v", err)
+		return User{}, internalFailure("saving password", err)
 	}
 
 	token, err := CreateSession(username)
 	if err != nil {
-		return User{}, fmt.Errorf("error creating session: %v", err)
+		return User{}, internalFailure("creating session", err)
 	}
 
 	log.Printf("✅ User registered: %s (ID: %s)", username, user.ID)
@@ -125,7 +123,7 @@ func (a *App) Login(email, password string) (User, error) {
 
 	token, err := CreateSession(username)
 	if err != nil {
-		return User{}, fmt.Errorf("error creating session: %v", err)
+		return User{}, internalFailure("creating session", err)
 	}
 
 	log.Printf("✅ User logged in: %s", username)
