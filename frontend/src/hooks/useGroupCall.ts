@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { iceServers, prefetchIceServers } from '../services/ice';
 
 export const MAX_GROUP_PARTICIPANTS = 4;
 
@@ -32,9 +33,15 @@ interface UseGroupCallParams {
   onError?: (message: string) => void;
 }
 
-const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded, onError }: UseGroupCallParams) {
+  // Get relay (TURN) credentials ready before any call starts.
+  useEffect(() => {
+    if (!currentUser) return;
+    void prefetchIceServers();
+    const id = setInterval(() => void prefetchIceServers(), 60 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [currentUser]);
   const [inCall, setInCall] = useState(false);
   const [participants, setParticipants] = useState<string[]>([]);
   const [joinedParticipants, setJoinedParticipants] = useState<string[]>([]);
@@ -197,7 +204,7 @@ export function useGroupCall({ currentUser, sendSignal, onGroupCallEnded, onErro
 
   const createPeerConnectionTo = useCallback(
     (peerUsername: string): PeerEntry => {
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: iceServers() });
       const entry: PeerEntry = { pc, initialNegotiationDone: false, iceQueue: [], expectingScreenTrack: false };
 
       pc.onicecandidate = (e) => {

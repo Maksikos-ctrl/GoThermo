@@ -61,6 +61,8 @@ write_env() { # write_env <file> <domain>
       echo "DOMAIN=$domain"
       echo "INVITE_CODE=$(openssl rand -hex 12)"
       echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+      echo "TURN_SECRET=$(openssl rand -hex 16)"
+      echo "COMPOSE_PROFILES=turn"
       if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
         echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
       fi

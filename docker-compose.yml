@@ -36,6 +36,9 @@ services:
       GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
       GOOGLE_WEB_CLIENT_SECRET: ${GOOGLE_WEB_CLIENT_SECRET:-}
       GOTHERMO_PUBLIC_URL: https://${DOMAIN}
+      # Relay for calls on mobile networks. Empty unless TURN_SECRET is set in .env.
+      GOTHERMO_TURN_SECRET: ${TURN_SECRET:-}
+      GOTHERMO_TURN_URLS: ${TURN_SECRET:+turn:${DOMAIN}:3478?transport=udp,turn:${DOMAIN}:3478?transport=tcp}
       GOTHERMO_TRUST_PROXY: "1"
     volumes:
       - uploads:/data
@@ -58,6 +61,31 @@ services:
       - caddy-data:/data
     depends_on:
       - gothermo
+    restart: unless-stopped
+
+  # Optional call relay. Turn it on with TURN_SECRET and COMPOSE_PROFILES=turn
+  # in .env (see SERVER.md, "Calls on mobile networks").
+  coturn:
+    image: coturn/coturn:4.6.2
+    profiles: ["turn"]
+    network_mode: host
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        exec turnserver --no-cli --fingerprint --lt-cred-mech --use-auth-secret
+        --static-auth-secret="$$TURN_SECRET" --realm="$$DOMAIN"
+        --listening-port=3478 --min-port=49152 --max-port=49252
+        --no-multicast-peers --no-tls --no-dtls
+        --denied-peer-ip=10.0.0.0-10.255.255.255
+        --denied-peer-ip=172.16.0.0-172.31.255.255
+        --denied-peer-ip=192.168.0.0-192.168.255.255
+        --denied-peer-ip=169.254.0.0-169.254.255.255
+        --denied-peer-ip=127.0.0.0-127.255.255.255
+        $${TURN_EXTERNAL_IP:+--external-ip=$$TURN_EXTERNAL_IP}
+    environment:
+      TURN_SECRET: ${TURN_SECRET:-}
+      DOMAIN: ${DOMAIN}
+      TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP:-}
     restart: unless-stopped
 
 volumes:

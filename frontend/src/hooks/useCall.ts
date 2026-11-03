@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { iceServers, prefetchIceServers } from '../services/ice';
 
 export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected';
 
@@ -20,7 +21,6 @@ interface UseCallParams {
 }
 
 
-const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 /** Turns a getUserMedia failure into a sentence a person can act on. */
 export function mediaErrorMessage(err: unknown): string {
@@ -41,6 +41,13 @@ export function mediaErrorMessage(err: unknown): string {
 }
 
 export function useCall({ currentUser, sendSignal, onCallEnded, onError, ringtoneVolume = 0.5 }: UseCallParams) {
+  // Get relay (TURN) credentials ready before any call starts.
+  useEffect(() => {
+    if (!currentUser) return;
+    void prefetchIceServers();
+    const id = setInterval(() => void prefetchIceServers(), 60 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [currentUser]);
   // A ref so the ringtone picks up volume changes made mid-call, right
   // away - same reasoning as the WS callback refs: a value only read
   // through a closure captured long ago (when the tone-scheduling
@@ -250,7 +257,7 @@ export function useCall({ currentUser, sendSignal, onCallEnded, onError, rington
 
   const createPeerConnection = useCallback(
     (targetUser: string) => {
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: iceServers() });
 
       pc.onicecandidate = (e) => {
         

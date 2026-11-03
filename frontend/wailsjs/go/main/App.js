@@ -98,6 +98,10 @@ export function GetMentionCounts(arg1, arg2) {
   return window['go']['main']['App']['GetMentionCounts'](arg1, arg2);
 }
 
+export function GetIceServers(arg1) {
+  return window['go']['main']['App']['GetIceServers'](arg1);
+}
+
 export function GetMessages(arg1, arg2) {
   return window['go']['main']['App']['GetMessages'](arg1, arg2);
 }

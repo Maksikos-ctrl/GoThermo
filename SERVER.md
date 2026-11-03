@@ -72,6 +72,20 @@ If the copy fails or does not match, nothing is switched: fix the cause and run 
 | `GOTHERMO_WEB_DIR` | empty | folder with the browser version, its `app` subfolder holds the built interface. The Docker image sets it. Empty means the server only answers the apps |
 | `GOTHERMO_TRUST_PROXY` | empty | set to `1` behind a reverse proxy so wrong-code limits count each real client (the compose file sets it) |
 
+## Calls on mobile networks
+
+Calls go straight between two devices. On some phone networks and strict
+firewalls that is impossible, and the call hangs on "Connecting". A small relay
+(coturn) fixes it. It is part of the compose file and off by default.
+
+1. Open these ports in the firewall (on AWS: the Security Group): **UDP and TCP 3478** and **UDP 49152-49252**.
+2. Add to `.env`: `TURN_SECRET=<any long random string>`, `COMPOSE_PROFILES=turn` and, on AWS or any host behind NAT, `TURN_EXTERNAL_IP=<the server's public IP>`.
+3. `docker compose up -d --build`
+
+New installs made by `deploy/setup-server.sh` get the first two lines automatically
+(they still need the ports and, on AWS, the public IP). Without `TURN_SECRET`
+calls use STUN only, as before.
+
 ## Good to know
 
 - Messages, users, channels and the rest live in Redis (volume `redis-data`) or, after the move below, in Postgres (volume `pg-data`). Uploaded files are in volume `uploads`. Back up the volumes. Sessions and login limits always stay in Redis.
