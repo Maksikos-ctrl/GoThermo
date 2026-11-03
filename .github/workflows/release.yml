@@ -72,6 +72,11 @@ jobs:
         run: |
           mkdir out dmg
           APP=$(ls -d build/bin/*.app | head -1)
+          # Without any signature macOS on Apple Silicon says the app is "damaged".
+          # An ad-hoc signature (free, no Apple account) fixes that; the first
+          # launch still needs "Open Anyway" in System Settings.
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
           ditto -c -k --sequesterRsrc --keepParent "$APP" out/GoThermo-macos.zip
           cp -R "$APP" dmg/
           ln -s /Applications dmg/Applications
@@ -105,4 +110,4 @@ jobs:
           body: |
             Download for your system: **Windows** `GoThermo-windows-amd64.exe`, **macOS** `GoThermo-macos.dmg`, **Linux** `GoThermo-linux-amd64.tar.gz`.
             The app opens already connected to the team server: register with the invite code you were given. You can also use GoThermo in a browser, with nothing to install.
-            The builds are not code-signed. Windows: "More info", then "Run anyway". macOS: open the .dmg, drag GoThermo to Applications, then right-click the app and choose Open the first time.
+            The builds are not code-signed. Windows: "More info", then "Run anyway". macOS: open the .dmg, drag GoThermo to Applications, try to open it, then System Settings, Privacy & Security, "Open Anyway". If macOS still says the app is damaged, run `xattr -cr /Applications/GoThermo.app` in Terminal.

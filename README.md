@@ -30,7 +30,7 @@ No download needed: the same chat runs in any browser at your server's address.
 Things to know before you run it:
 - Release builds start **already connected to the team server**: open the app, choose Sign Up and enter the invite code you were given. To use another server or none, click the server name on the sign-in screen. Run on its own, a copy talks to a **Redis on `localhost:6379`** and its own WebSocket on `127.0.0.1:8081`; install and start Redis first (`brew install redis`, `apt install redis-server` or `docker run -d -p 6379:6379 redis`).
 - On its own a copy only chats with itself and with other windows on the same machine. To share one workspace between computers, run a GoThermo server and connect the apps to it, or let people use it in a browser (see [Server mode](#server-mode)).
-- The builds are not code-signed. Windows SmartScreen: More info, then Run anyway. macOS: open the `.dmg`, drag GoThermo to Applications, then right-click it and choose Open the first time.
+- The builds are not code-signed. Windows SmartScreen: More info, then Run anyway. macOS: open the `.dmg`, drag GoThermo to Applications and try to open it; then System Settings, Privacy & Security, **Open Anyway**. If macOS says the app is damaged, run `xattr -cr /Applications/GoThermo.app` in Terminal once.
 - Sign in with Google in the desktop app needs your own `google_oauth.json` (see below); in the browser it only needs the server to be set up for it. Email + password works everywhere.
 
 ## Features
