@@ -7,6 +7,10 @@
 //	go run ./cmd/gothermo-admin unlock someone@example.com
 //	go run ./cmd/gothermo-admin sessions
 //	go run ./cmd/gothermo-admin revoke some-username
+//	go run ./cmd/gothermo-admin reports
+//	go run ./cmd/gothermo-admin ban some-username
+//	go run ./cmd/gothermo-admin unban some-username
+//	go run ./cmd/gothermo-admin banned
 //	go run ./cmd/gothermo-admin uploads            (dry run)
 //	go run ./cmd/gothermo-admin uploads --clean    (asks before deleting)
 //	go run ./cmd/gothermo-admin -database-url "$DATABASE_URL" users
@@ -48,6 +52,10 @@ Commands:
   unlock <email>        reset the failed-attempt counter of an email
   sessions              number of active sessions per user
   revoke <username>     log a user out everywhere (deletes all their sessions)
+  reports [-n 20]       newest reports of messages (who, why, a snippet)
+  ban <username>        block an account: no sign-in, sessions end at once
+  unban <username>      let it back in
+  banned                list banned accounts
   uploads [flags]       find uploaded files that no message uses
       -dir uploads      uploads directory (default "uploads", relative to where you run this)
       -min-age 24h      never touch files newer than this
@@ -108,6 +116,14 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 		err = cmdSessions(ctx, rdb, out)
 	case "revoke":
 		err = cmdRevoke(ctx, rdb, out, cargs)
+	case "reports":
+		err = cmdReports(ctx, rdb, out, cargs)
+	case "ban":
+		err = cmdBan(ctx, rdb, out, cargs)
+	case "unban":
+		err = cmdUnban(ctx, rdb, out, cargs)
+	case "banned":
+		err = cmdBanned(ctx, rdb, out)
 	case "uploads":
 		err = withSource(func(src dataSource) error { return cmdUploads(ctx, src, in, out, errOut, cargs) })
 	case "help":

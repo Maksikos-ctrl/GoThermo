@@ -223,6 +223,10 @@ go run ./cmd/gothermo-admin locked           # emails blocked after failed login
 go run ./cmd/gothermo-admin unlock <email>   # unblock an email
 go run ./cmd/gothermo-admin sessions         # active sessions per user
 go run ./cmd/gothermo-admin revoke <user>    # log a user out everywhere
+go run ./cmd/gothermo-admin reports          # newest reports of messages
+go run ./cmd/gothermo-admin ban <user>       # block an account (no sign-in, sessions end)
+go run ./cmd/gothermo-admin unban <user>     # let it back in
+go run ./cmd/gothermo-admin banned           # list banned accounts
 go run ./cmd/gothermo-admin uploads          # find uploaded files no message uses (add -clean to delete)
 # accounts and uploads are read from Postgres when -database-url (or $DATABASE_URL) is given
 go run ./cmd/gothermo-admin -database-url "$DATABASE_URL" users

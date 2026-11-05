@@ -380,6 +380,15 @@ function App() {
     }
   }
 
+  async function handleReport(message: Message, reason: string) {
+    try {
+      await api.moderation.reportMessage(currentChannel, message.id, currentUser, reason);
+      showToast('Thanks, the report was sent to the admins', 'success');
+    } catch (error) {
+      showToast(`${error}`, 'error');
+    }
+  }
+
   function handleTogglePins() {
     if (showPins) {
       setShowPins(false);
@@ -1324,6 +1333,7 @@ function App() {
           onOpenThread={handleOpenThread}
           pinnedIds={pinnedIdSet(pins)}
           onTogglePin={handleTogglePin}
+          onReport={handleReport}
         />
 
         <TypingIndicator users={typingUsers(typingMap, currentChannel, Date.now(), currentUser)} />

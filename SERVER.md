@@ -72,6 +72,21 @@ If the copy fails or does not match, nothing is switched: fix the cause and run 
 | `GOTHERMO_WEB_DIR` | empty | folder with the browser version, its `app` subfolder holds the built interface. The Docker image sets it. Empty means the server only answers the apps |
 | `GOTHERMO_TRUST_PROXY` | empty | set to `1` behind a reverse proxy so wrong-code limits count each real client (the compose file sets it) |
 
+## Reports and bans
+
+Anyone can report another person's message (flag button on hover, then a reason).
+Reports are kept on the server; you read them and act with the admin tool that is
+inside the container:
+
+```
+sudo docker compose exec gothermo gothermo-admin -addr redis:6379 reports
+sudo docker compose exec gothermo gothermo-admin -addr redis:6379 ban some-username
+sudo docker compose exec gothermo gothermo-admin -addr redis:6379 unban some-username
+sudo docker compose exec gothermo gothermo-admin -addr redis:6379 banned
+```
+
+A banned account cannot sign in and its sessions stop working at once.
+
 ## Calls on mobile networks
 
 Calls go straight between two devices. On some phone networks and strict

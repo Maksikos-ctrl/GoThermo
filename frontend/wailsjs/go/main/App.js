@@ -90,16 +90,16 @@ export function GetFileData(arg1, arg2) {
   return window['go']['main']['App']['GetFileData'](arg1, arg2);
 }
 
+export function GetIceServers(arg1) {
+  return window['go']['main']['App']['GetIceServers'](arg1);
+}
+
 export function GetLinkPreview(arg1, arg2) {
   return window['go']['main']['App']['GetLinkPreview'](arg1, arg2);
 }
 
 export function GetMentionCounts(arg1, arg2) {
   return window['go']['main']['App']['GetMentionCounts'](arg1, arg2);
-}
-
-export function GetIceServers(arg1) {
-  return window['go']['main']['App']['GetIceServers'](arg1);
 }
 
 export function GetMessages(arg1, arg2) {
@@ -140,6 +140,18 @@ export function GetUsers(arg1) {
 
 export function GoogleAccessToken() {
   return window['go']['main']['App']['GoogleAccessToken']();
+}
+
+export function GoogleLoginPoll(arg1) {
+  return window['go']['main']['App']['GoogleLoginPoll'](arg1);
+}
+
+export function GoogleLoginStart(arg1) {
+  return window['go']['main']['App']['GoogleLoginStart'](arg1);
+}
+
+export function GoogleWebClientID() {
+  return window['go']['main']['App']['GoogleWebClientID']();
 }
 
 export function JoinChannel(arg1, arg2, arg3) {
@@ -184,6 +196,10 @@ export function PinMessage(arg1, arg2, arg3, arg4) {
 
 export function Register(arg1, arg2) {
   return window['go']['main']['App']['Register'](arg1, arg2);
+}
+
+export function ReportMessage(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['ReportMessage'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function RespondToEvent(arg1, arg2, arg3, arg4) {

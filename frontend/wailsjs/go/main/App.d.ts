@@ -46,11 +46,11 @@ export function GetEvents(arg1:string,arg2:string,arg3:string):Promise<Array<mai
 
 export function GetFileData(arg1:string,arg2:string):Promise<string>;
 
+export function GetIceServers(arg1:string):Promise<string>;
+
 export function GetLinkPreview(arg1:string,arg2:string):Promise<main.LinkPreview>;
 
 export function GetMentionCounts(arg1:string,arg2:string):Promise<Record<string, number>>;
-
-export function GetIceServers(arg1:string):Promise<string>;
 
 export function GetMessages(arg1:string,arg2:string):Promise<Array<main.Message>>;
 
@@ -71,6 +71,12 @@ export function GetUnreadCounts(arg1:string,arg2:string):Promise<Record<string, 
 export function GetUsers(arg1:string):Promise<Array<main.User>>;
 
 export function GoogleAccessToken():Promise<string>;
+
+export function GoogleLoginPoll(arg1:string):Promise<main.GooglePollResult>;
+
+export function GoogleLoginStart(arg1:boolean):Promise<main.GoogleStartResult>;
+
+export function GoogleWebClientID():Promise<string>;
 
 export function JoinChannel(arg1:string,arg2:string,arg3:string):Promise<void>;
 
@@ -93,6 +99,8 @@ export function MarkThreadRead(arg1:string,arg2:string,arg3:string):Promise<void
 export function PinMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function Register(arg1:string,arg2:string):Promise<main.User>;
+
+export function ReportMessage(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
 
 export function RespondToEvent(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.Event>;
 

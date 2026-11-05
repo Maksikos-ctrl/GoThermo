@@ -106,6 +106,82 @@ export namespace main {
 	        this.content = source["content"];
 	    }
 	}
+	export class User {
+	    id: string;
+	    username: string;
+	    email: string;
+	    isOnline: boolean;
+	    status: string;
+	    lastSeen?: string;
+	    token?: string;
+	    provider?: string;
+	    providerId?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new User(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.username = source["username"];
+	        this.email = source["email"];
+	        this.isOnline = source["isOnline"];
+	        this.status = source["status"];
+	        this.lastSeen = source["lastSeen"];
+	        this.token = source["token"];
+	        this.provider = source["provider"];
+	        this.providerId = source["providerId"];
+	    }
+	}
+	export class GooglePollResult {
+	    status: string;
+	    user?: User;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GooglePollResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.user = this.convertValues(source["user"], User);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class GoogleStartResult {
+	    url: string;
+	    ticket: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GoogleStartResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.ticket = source["ticket"];
+	    }
+	}
 	export class LinkPreview {
 	    url: string;
 	    title: string;
@@ -295,34 +371,6 @@ export namespace main {
 		    }
 		    return a;
 		}
-	}
-	export class User {
-	    id: string;
-	    username: string;
-	    email: string;
-	    isOnline: boolean;
-	    status: string;
-	    lastSeen?: string;
-	    token?: string;
-	    provider?: string;
-	    providerId?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new User(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.username = source["username"];
-	        this.email = source["email"];
-	        this.isOnline = source["isOnline"];
-	        this.status = source["status"];
-	        this.lastSeen = source["lastSeen"];
-	        this.token = source["token"];
-	        this.provider = source["provider"];
-	        this.providerId = source["providerId"];
-	    }
 	}
 
 }

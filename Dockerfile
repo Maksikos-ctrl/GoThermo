@@ -14,12 +14,14 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -tags server -o /gothermo-server .
+RUN go build -tags server -o /gothermo-server . \
+    && go build -o /gothermo-admin ./cmd/gothermo-admin
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /gothermo-server /usr/local/bin/gothermo-server
+COPY --from=build /gothermo-admin /usr/local/bin/gothermo-admin
 COPY --from=web /src/frontend/dist /srv/web/app
 # Uploaded files are saved relative to the working directory.
 WORKDIR /data

@@ -68,7 +68,7 @@ func (a *App) Register(email, password string) (User, error) {
 
 	token, err := CreateSession(username)
 	if err != nil {
-		return User{}, internalFailure("creating session", err)
+		return User{}, sessionFailure("creating session", err)
 	}
 
 	log.Printf("✅ User registered: %s (ID: %s)", username, user.ID)
@@ -123,7 +123,7 @@ func (a *App) Login(email, password string) (User, error) {
 
 	token, err := CreateSession(username)
 	if err != nil {
-		return User{}, internalFailure("creating session", err)
+		return User{}, sessionFailure("creating session", err)
 	}
 
 	log.Printf("✅ User logged in: %s", username)

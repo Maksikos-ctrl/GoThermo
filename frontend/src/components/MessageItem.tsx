@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquareReply, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { Flag, MessageSquareReply, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import { Message, EMOJI_LIST } from '../types';
 import { avatarColor } from './avatarColor';
 import { LinkPreview } from './LinkPreview';
 import { MessageText } from './MessageText';
+import { ReportMenu } from './ReportMenu';
 import { api } from '../services/api'; 
 import { formatLastReply, replyLabel } from './threadState';
 import { useThreadUnread } from './threadExtras';
@@ -24,6 +25,8 @@ interface MessageItemProps {
   // Pins: when given, the toolbar gets a Pin / Unpin button; a pinned message shows a small pin.
   isPinned?: boolean;
   onTogglePin?: (message: Message) => void;
+  // Reports: when given, other people's messages get a Report button.
+  onReport?: (message: Message, reason: string) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -37,7 +40,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onOpenThread,
   isPinned = false,
   onTogglePin,
+  onReport,
 }) => {
+  const [reportOpen, setReportOpen] = useState(false);
   const unreadReplies = useThreadUnread(message.id);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false); 
@@ -186,6 +191,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
 
+        {reportOpen && onReport && (
+          <ReportMenu
+            onPick={reason => {
+              setReportOpen(false);
+              onReport(message, reason);
+            }}
+            onClose={() => setReportOpen(false)}
+          />
+        )}
+
         {isHovered && !isEditing && (
           <div className="message-hover-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             <div className="quick-reactions">
@@ -209,6 +224,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 aria-label={isPinned ? 'Unpin message' : 'Pin message'}
               >
                 {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+              </button>
+            )}
+
+            {onReport && !isOwnMessage && !message.isCall && (
+              <button
+                className="quick-reaction-btn"
+                onClick={() => setReportOpen(true)}
+                title="Report message"
+                aria-label="Report message"
+              >
+                <Flag size={14} />
               </button>
             )}
 

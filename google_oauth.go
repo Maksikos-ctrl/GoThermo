@@ -302,7 +302,7 @@ func (a *App) finishGoogleLogin(info googleUserInfo, signUp bool) (User, error) 
 
 	token, err := CreateSession(user.Username)
 	if err != nil {
-		return User{}, internalFailure("creating Google session", err)
+		return User{}, sessionFailure("creating Google session", err)
 	}
 
 	if globalHub != nil {

@@ -185,3 +185,42 @@ func TestFileIDFromName(t *testing.T) {
 		}
 	}
 }
+
+func TestReportsBanAndUnban(t *testing.T) {
+	mr := miniredis.RunT(t)
+	mr.Set("session:aaa", "Bob")
+	mr.Set("session:bbb", "alice")
+	rep := `{"id":"1","reporter":"alice","author":"Bob","channel":"general","messageId":"m1","reason":"spam","snippet":"buy now","at":"2026-11-05T10:00:00Z"}`
+	if _, err := mr.Lpush("reports", rep); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, code := runCLI(t, mr, "", "reports")
+	if code != 0 || !strings.Contains(out, "Bob reported by alice") || !strings.Contains(out, "buy now") {
+		t.Fatalf("reports: %d %q", code, out)
+	}
+
+	out, _, code = runCLI(t, mr, "", "ban", "BOB")
+	if code != 0 || !strings.Contains(out, "Banned bob (1 sessions ended)") {
+		t.Fatalf("ban: %d %q", code, out)
+	}
+	if mr.Exists("session:aaa") || !mr.Exists("session:bbb") {
+		t.Fatal("ban must end only the banned user's sessions")
+	}
+	if ok, _ := mr.SIsMember("banned_users", "bob"); !ok {
+		t.Fatal("not in the ban list")
+	}
+	out, _, _ = runCLI(t, mr, "", "banned")
+	if !strings.Contains(out, "bob") {
+		t.Fatalf("banned: %q", out)
+	}
+
+	out, _, code = runCLI(t, mr, "", "unban", "bob")
+	if code != 0 || !strings.Contains(out, "Unbanned bob") {
+		t.Fatalf("unban: %d %q", code, out)
+	}
+	out, _, _ = runCLI(t, mr, "", "banned")
+	if !strings.Contains(out, "Nobody is banned") {
+		t.Fatalf("banned after unban: %q", out)
+	}
+}

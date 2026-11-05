@@ -20,6 +20,7 @@ interface MessagesListProps {
   // Pins: ids of the pinned messages and the pin / unpin action.
   pinnedIds?: Set<string>;
   onTogglePin?: (message: Message) => void;
+  onReport?: (message: Message, reason: string) => void;
 }
 
 // How close to the top (px) the user has to scroll to trigger loading.
@@ -52,6 +53,7 @@ export const MessagesList: React.FC<MessagesListProps> = ({
   onOpenThread,
   pinnedIds,
   onTogglePin,
+  onReport,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -183,6 +185,7 @@ export const MessagesList: React.FC<MessagesListProps> = ({
           onOpenThread={onOpenThread}
           isPinned={pinnedIds?.has(msg.id) ?? false}
           onTogglePin={onTogglePin}
+          onReport={onReport}
         />
       ))}
       <div ref={messagesEndRef} />

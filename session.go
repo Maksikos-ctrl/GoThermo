@@ -17,6 +17,9 @@ func newSessionToken() (string, error) {
 }
 
 func CreateSession(username string) (string, error) {
+	if isBanned(username) {
+		return "", errSuspended
+	}
 	token, err := newSessionToken()
 	if err != nil {
 		return "", err
@@ -33,6 +36,9 @@ func GetSessionUsername(token string) (string, bool) {
 	}
 	username, err := redisClient.Get(ctx, "session:"+token).Result()
 	if err != nil || username == "" {
+		return "", false
+	}
+	if isBanned(username) {
 		return "", false
 	}
 	return username, true

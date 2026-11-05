@@ -90,6 +90,7 @@ export const SaveFileToDisk = bind('SaveFileToDisk');
 export const LogCall = bind('LogCall');
 export const Logout = bind('Logout');
 export const GetIceServers = bind('GetIceServers');
+export const ReportMessage = bind('ReportMessage');
 // Google sign-in.
 //  - browser: Google's pop-up gives a token, the server verifies it;
 //  - app connected to a server: the server runs the sign-in (the system browser

@@ -872,3 +872,47 @@ button:focus-visible,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* report menu */
+.report-menu {
+  position: absolute;
+  right: 12px;
+  top: 16px;
+  z-index: 20;
+  min-width: 210px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--bg-secondary, #2b2d31);
+  border: 1px solid var(--border-color, #3f4147);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.report-menu-title {
+  padding: 4px 8px 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #8a8f98);
+}
+
+.report-menu-item,
+.report-menu-cancel {
+  text-align: left;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary, #f2f3f5);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.report-menu-cancel {
+  color: var(--text-secondary, #8a8f98);
+}
+
+.report-menu-item:hover,
+.report-menu-cancel:hover {
+  background: var(--hover-tint);
+}

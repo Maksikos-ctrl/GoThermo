@@ -46,6 +46,7 @@ import {
   DeleteReply,
   AddReplyReaction,
   PinMessage,
+  ReportMessage,
   UnpinMessage,
   GetPinnedMessages,
   GetThreadUnread,
@@ -127,6 +128,10 @@ export const api = {
     markRead: (channel: string, parentId: string) => MarkThreadRead(t(), channel, parentId),
     exportThread: (channel: string, parentId: string, format: string) =>
       ExportThread(t(), channel, parentId, format),
+  },
+  moderation: {
+    reportMessage: (channel: string, messageId: string, username: string, reason: string) =>
+      ReportMessage(t(), username, channel, messageId, reason),
   },
   pins: {
     get: (channel: string) => GetPinnedMessages(t(), channel),
