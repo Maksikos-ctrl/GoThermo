@@ -19,6 +19,7 @@ type User struct {
 	Status     string `json:"status"`
 	LastSeen   string `json:"lastSeen,omitempty"`
 	Avatar     string `json:"avatar,omitempty"`
+	IsAdmin    bool   `json:"isAdmin,omitempty"`
 	Token      string `json:"token,omitempty"`
 	Provider   string `json:"provider,omitempty"`
 	ProviderID string `json:"providerId,omitempty"`
@@ -97,7 +98,7 @@ func (um *UserManager) reserveUsername(base, email string, skip map[string]bool)
 	candidate := base
 	for i := 2; ; i++ {
 		existing, taken := um.users[candidate]
-		if !skip[candidate] {
+		if !skip[candidate] && !isAdminName(candidate) {
 			if !taken {
 				break
 			}
@@ -246,6 +247,10 @@ func (a *App) CheckAuth(token string) (string, error) {
 	username, ok := GetSessionUsername(token)
 	if !ok {
 		return "", nil
+	}
+	if isAdminName(username) {
+		b, err := json.Marshal(User{ID: "admin", Username: username, Status: "offline", IsAdmin: true})
+		return string(b), err
 	}
 	user, exists := userManager.GetUser(username)
 	if !exists {

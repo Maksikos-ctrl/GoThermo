@@ -38,7 +38,7 @@ var rpcAllowed = map[string]bool{
 	"SendFile": true, "GetFileData": true, "LogCall": true, "GetLinkPreview": true,
 	"CreateEvent": true, "GetEvents": true, "RespondToEvent": true, "UpdateEvent": true, "DeleteEvent": true, "GetDueReminders": true,
 	"PinMessage": true, "UnpinMessage": true, "GetPinnedMessages": true,
-	"LoginWithGoogleToken": true, "GoogleWebClientID": true, "GoogleLoginStart": true, "GoogleLoginPoll": true, "BuildChannelExport": true, "GetIceServers": true, "ReportMessage": true, "SetAvatar": true, "GifsEnabled": true, "SearchGifs": true, "RemoveAvatar": true, "MarkDecision": true, "GetDecisions": true, "SetDecisionDone": true, "RemoveDecision": true,
+	"LoginWithGoogleToken": true, "GoogleWebClientID": true, "GoogleLoginStart": true, "GoogleLoginPoll": true, "BuildChannelExport": true, "GetIceServers": true, "ReportMessage": true, "SetAvatar": true, "IsAdmin": true, "AdminOverview": true, "AdminUsers": true, "AdminReports": true, "AdminDismissReport": true, "AdminDeleteReportedMessage": true, "AdminBan": true, "AdminUnban": true, "GifsEnabled": true, "SearchGifs": true, "RemoveAvatar": true, "MarkDecision": true, "GetDecisions": true, "SetDecisionDone": true, "RemoveDecision": true,
 	"BuildThreadExport": true, "MarkThreadRead": true, "GetThreadUnread": true, "GetMentionCounts": true,
 	"SendReply": true, "GetThread": true, "EditReply": true, "DeleteReply": true, "AddReplyReaction": true,
 }

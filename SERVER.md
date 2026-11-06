@@ -126,3 +126,21 @@ PG-13 and each user gets 30 searches a minute. Without a key nothing changes.
 Pictures are re-encoded on the server (128x128 JPEG), so nothing a user uploads is
 served as-is. Notifications need no setup: the browser asks once when the toggle in
 Settings is switched on, and the desktop app uses the system notifier.
+
+## Admin panel
+
+Set a password in `.env` and restart:
+
+```
+ADMIN_PASSWORD=<a long password>
+# ADMIN_USER=admin   (optional, this is the default)
+```
+
+Then sign in on the normal login screen with `admin` (instead of an email) and the
+password. The admin sees a panel instead of the chat: counters, all users (search,
+ban, unban) and reported messages (delete the message, ban the author, dismiss).
+
+Notes: without `ADMIN_PASSWORD` there is no admin account. The name is reserved, so
+nobody can register as it. The password lives only in `.env`, not in the database or
+the repository. Five wrong passwords lock the admin login for 15 minutes; the
+`gothermo-admin` command-line tool keeps working in that case.

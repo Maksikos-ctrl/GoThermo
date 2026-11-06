@@ -136,6 +136,22 @@ export function SearchGifs(arg1:string,arg2:string):Promise<Array<any>>;
 
 export function Notify(arg1:string,arg2:string):Promise<boolean>;
 
+export function IsAdmin(arg1:string):Promise<boolean>;
+
+export function AdminOverview(arg1:string):Promise<any>;
+
+export function AdminUsers(arg1:string):Promise<Array<any>>;
+
+export function AdminReports(arg1:string):Promise<Array<any>>;
+
+export function AdminDismissReport(arg1:string,arg2:string):Promise<void>;
+
+export function AdminDeleteReportedMessage(arg1:string,arg2:string):Promise<void>;
+
+export function AdminBan(arg1:string,arg2:string):Promise<void>;
+
+export function AdminUnban(arg1:string,arg2:string):Promise<void>;
+
 export function SetAvatar(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function RemoveAvatar(arg1:string,arg2:string):Promise<void>;

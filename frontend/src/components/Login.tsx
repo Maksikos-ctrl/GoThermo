@@ -64,15 +64,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
     setSuccess('');
 
-    const emailError = validateEmail(email);
-    if (emailError) {
-      setError(emailError);
-      return;
-    }
+    // Without an "@" the server treats it as the admin's name, so the usual
+    // email and password-strength checks are left to the server.
+    const adminAttempt = !email.includes('@') && email.trim().length > 0;
+    if (!adminAttempt) {
+      const emailError = validateEmail(email);
+      if (emailError) {
+        setError(emailError);
+        return;
+      }
 
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      setError(passwordError);
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        setError(passwordError);
+        return;
+      }
+    } else if (!password) {
+      setError('Enter your password');
       return;
     }
 
@@ -270,7 +278,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         )}
 
         <input
-          type="email"
+          type="text"
+          inputMode="email"
           placeholder="Work Email"
           value={email}
           onChange={(e) => {

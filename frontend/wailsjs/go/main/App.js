@@ -270,6 +270,38 @@ export function Notify(arg1, arg2) {
   return window['go']['main']['App']['Notify'](arg1, arg2);
 }
 
+export function IsAdmin(arg1) {
+  return window['go']['main']['App']['IsAdmin'](arg1);
+}
+
+export function AdminOverview(arg1) {
+  return window['go']['main']['App']['AdminOverview'](arg1);
+}
+
+export function AdminUsers(arg1) {
+  return window['go']['main']['App']['AdminUsers'](arg1);
+}
+
+export function AdminReports(arg1) {
+  return window['go']['main']['App']['AdminReports'](arg1);
+}
+
+export function AdminDismissReport(arg1, arg2) {
+  return window['go']['main']['App']['AdminDismissReport'](arg1, arg2);
+}
+
+export function AdminDeleteReportedMessage(arg1, arg2) {
+  return window['go']['main']['App']['AdminDeleteReportedMessage'](arg1, arg2);
+}
+
+export function AdminBan(arg1, arg2) {
+  return window['go']['main']['App']['AdminBan'](arg1, arg2);
+}
+
+export function AdminUnban(arg1, arg2) {
+  return window['go']['main']['App']['AdminUnban'](arg1, arg2);
+}
+
 export function SetAvatar(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetAvatar'](arg1, arg2, arg3);
 }

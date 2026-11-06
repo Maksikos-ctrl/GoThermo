@@ -83,6 +83,11 @@ func (a *App) Register(email, password string) (User, error) {
 func (a *App) Login(email, password string) (User, error) {
 	log.Printf("🔐 Attempting login: %s", email)
 
+	// No "@": this can only be the admin account.
+	if !strings.Contains(email, "@") {
+		return adminLogin(email, password)
+	}
+
 	if err := ValidateEmail(email); err != nil {
 		return User{}, err
 	}

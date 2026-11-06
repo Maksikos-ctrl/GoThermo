@@ -42,6 +42,7 @@ import { GroupCallInviteModal } from './components/GroupCallInviteModal';
 import { StartGroupCallModal } from './components/StartGroupCallModal';
 import { GroupCallGrid } from './components/GroupCallGrid';
 import { useToast } from './hooks/useToast';
+import { AdminPanel } from './components/AdminPanel';
 import { gifUrlOf } from './components/gifUrl';
 import { setAvatar, setAvatarsFromUsers } from './components/avatarStore';
 import { addUnseen, clearUnseen, showNotice, windowIsAway } from './services/notify';
@@ -79,6 +80,7 @@ import { channelTag } from './components/channelName';
 function App() {
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
   const [currentUser, setCurrentUser] = useState('');
   const [currentUserStatus, setCurrentUserStatus] = useState<StatusType>('online');
 
@@ -924,9 +926,31 @@ function App() {
   }, []);
 
   const handleLogin = (username: string) => {
-    setCurrentUser(username);
-    setIsLoggedIn(true);
-    appliedDefaultStatusRef.current = false;
+    // Ask the server who this is before showing anything: the admin gets the
+    // admin panel instead of the chat (and never connects as a chat user).
+    Promise.resolve(api.admin.isAdmin())
+      .catch(() => false)
+      .then((admin) => {
+        if (admin) {
+          setCurrentUser(username);
+          setAdminMode(true);
+          return;
+        }
+        setCurrentUser(username);
+        setIsLoggedIn(true);
+        appliedDefaultStatusRef.current = false;
+      });
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      await api.auth.logout(getAuthToken());
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+    clearAuthToken();
+    setAdminMode(false);
+    setCurrentUser('');
   };
 
   const handleLogout = async () => {
@@ -1223,6 +1247,10 @@ function App() {
 
   if (restoring) {
     return <div className="restoring" aria-busy="true" />;
+  }
+
+  if (adminMode) {
+    return <AdminPanel onLogout={handleAdminLogout} />;
   }
 
   if (!isLoggedIn) {

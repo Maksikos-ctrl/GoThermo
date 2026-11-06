@@ -37,6 +37,9 @@ services:
       GOOGLE_WEB_CLIENT_SECRET: ${GOOGLE_WEB_CLIENT_SECRET:-}
       GOTHERMO_PUBLIC_URL: https://${DOMAIN}
       # Relay for calls on mobile networks. Empty unless TURN_SECRET is set in .env.
+      # Admin sign-in (login: admin). Empty password = no admin account.
+      GOTHERMO_ADMIN_USER: ${ADMIN_USER:-admin}
+      GOTHERMO_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       # GIF search (Giphy). Empty = no GIF button.
       GIPHY_API_KEY: ${GIPHY_API_KEY:-}
       GOTHERMO_TURN_SECRET: ${TURN_SECRET:-}
