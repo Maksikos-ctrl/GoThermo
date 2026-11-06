@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { iceServers, prefetchIceServers } from '../services/ice';
+import { isWeb } from '../services/platform';
 
 export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected';
 
@@ -35,7 +36,11 @@ export function mediaErrorMessage(err: unknown): string {
     return 'The microphone is busy in another app.';
   }
   if (!navigator.mediaDevices?.getUserMedia) {
-    return 'Calls need a secure (https) connection.';
+    // In the desktop app this means the system did not hand the microphone to
+    // the app (older builds had no permission entry); in a browser it is http.
+    return isWeb()
+      ? 'Calls need a secure (https) connection.'
+      : 'The microphone is not available in this version of the app. Install the latest GoThermo from the download page.';
   }
   return 'Could not start the call.';
 }

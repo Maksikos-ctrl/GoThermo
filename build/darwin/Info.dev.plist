@@ -59,6 +59,10 @@
           {{end}}
         </array>
         {{end}}
+        <key>NSMicrophoneUsageDescription</key>
+        <string>GoThermo uses the microphone for voice and video calls.</string>
+        <key>NSCameraUsageDescription</key>
+        <string>GoThermo uses the camera for video calls.</string>
         <key>NSAppTransportSecurity</key>
         <dict>
             <key>NSAllowsLocalNetworking</key>

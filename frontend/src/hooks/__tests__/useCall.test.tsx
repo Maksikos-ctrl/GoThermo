@@ -95,4 +95,16 @@ describe('mediaErrorMessage', () => {
     expect(mediaErrorMessage({ name: 'NotReadableError' })).toMatch(/busy/);
     expect(mediaErrorMessage({ name: 'Weird' })).toBe('Could not start the call.');
   });
+
+  it('explains a missing microphone API in the desktop app, not as an https problem', () => {
+    const saved = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+    Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
+    try {
+      // the tests run as the desktop build (VITE_WEB is not set)
+      expect(mediaErrorMessage(new Error('x'))).toMatch(/not available in this version of the app/);
+    } finally {
+      if (saved) Object.defineProperty(navigator, 'mediaDevices', saved);
+      else delete (navigator as unknown as Record<string, unknown>).mediaDevices;
+    }
+  });
 });
