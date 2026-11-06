@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Flag, ListChecks, MessageSquareReply, SmilePlus, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
-import { Message, EMOJI_LIST } from '../types';
+import { Message } from '../types';
 import { Avatar } from './Avatar';
 import { gifUrlOf } from './gifUrl';
 import { LinkPreview } from './LinkPreview';
@@ -231,19 +231,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
         {isHovered && !isEditing && (
           <div className="message-hover-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            <div className="quick-reactions">
-              {EMOJI_LIST.slice(0, 5).map(emoji => (
-                <button
-                  key={emoji}
-                  className="quick-reaction-btn"
-                  onClick={() => onAddReaction(message.id, emoji)}
-                  title={`React with ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-
             <button
               className="quick-reaction-btn"
               onClick={() => setReactOpen(true)}

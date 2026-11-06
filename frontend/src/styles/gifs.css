@@ -1,4 +1,4 @@
-.gif-picker{position:absolute;bottom:44px;right:0;width:340px;max-width:calc(100vw - 24px);background:var(--bg-secondary,#2b2d31);border:1px solid var(--border-color,#3f4147);border-radius:12px;padding:10px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.gif-picker{position:absolute;bottom:44px;left:-8px;width:340px;max-width:calc(100vw - 24px);background:var(--bg-secondary,#2b2d31);border:1px solid var(--border-color,#3f4147);border-radius:12px;padding:10px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .gif-search{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border-color,#3f4147);background:var(--bg-tertiary,#1e1f22);color:inherit;margin-bottom:8px}
 .gif-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;height:260px;overflow-y:auto;align-content:start}
 .gif-cell{border:0;padding:0;background:rgba(127,127,127,.15);border-radius:8px;overflow:hidden;cursor:pointer;height:90px}

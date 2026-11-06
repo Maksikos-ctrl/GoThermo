@@ -102,27 +102,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Theme */}
-        <div style={rowStyle}>
-          <div>
-            <div style={labelStyle}>Theme</div>
-            <div style={subLabelStyle}>
-              Only parts of the app follow this so far - more is on the way.
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {(['dark', 'light'] as Theme[]).map((t) => (
-              <button
-                key={t}
-                style={segmentButtonStyle(settings.theme === t)}
-                onClick={() => onUpdate({ theme: t })}
-              >
-                {t === 'dark' ? '🌙 Dark' : '☀️ Light'}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Message sound */}
         <div style={rowStyle}>
           <div>
