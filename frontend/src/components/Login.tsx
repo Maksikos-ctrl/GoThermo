@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { setAuthToken } from '../services/session';
 import { isWeb } from '../services/platform';
 import { hasGoogleWeb } from '../services/transport';
+import logoUrl from '../assets/logo.svg';
 import { getInviteCode, isRemote, setInviteCode, takeInviteFromUrl } from '../services/server';
 
 interface LoginProps {
@@ -186,6 +187,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   return (
     <div className="login-container">
       <div className="login-box">
+        <img className="login-logo" src={logoUrl} alt="" />
         <h1>GoThermo</h1>
         <p>Enterprise Team Chat</p>
 

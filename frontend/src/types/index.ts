@@ -41,6 +41,7 @@ export interface User {
   isOnline: boolean;
   lastSeen?: string;
   status?: 'online' | 'away' | 'offline';
+  avatar?: string;
 }
 
 export type StatusType = 'online' | 'away' | 'offline';

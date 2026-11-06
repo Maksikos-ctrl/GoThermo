@@ -1,6 +1,9 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { PenLine, Paperclip, Loader2, Smile, SendHorizontal, X, Pin, AlertTriangle } from 'lucide-react';
-import { EMOJI_LIST } from '../types';
+import { EmojiPicker } from './EmojiPicker';
+import { GifPicker } from './GifPicker';
+import { api } from '../services/api';
+import '../styles/gifs.css';
 import { channelTag } from './channelName';
 
 // Same limit as the backend (uploads.go). Checked here too so a huge file is
@@ -37,6 +40,7 @@ interface MessageComposerProps {
   mentionableUsers?: string[];
   currentUser?: string;
   onSendFile?: (fileName: string, mimeType: string, base64Data: string) => void | Promise<void>;
+  onSendGif?: (url: string) => void | Promise<void>;
   // Called on every keystroke that leaves text in the box; the caller throttles.
   onTyping?: () => void;
 }
@@ -51,9 +55,21 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   mentionableUsers = [],
   currentUser,
   onSendFile, 
+  onSendGif,
   onTyping,
 }) => {
   const [showEmojiPopup, setShowEmojiPopup] = useState(false);
+  const [showGifPopup, setShowGifPopup] = useState(false);
+  const [gifsOn, setGifsOn] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!onSendGif) return;
+    Promise.resolve(api.gifs.enabled())
+      .then(v => { if (alive) setGifsOn(!!v); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [onSendGif]);
   const [isUploading, setIsUploading] = useState(false); 
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -419,10 +435,29 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             </>
           )}
           
+          {onSendGif && gifsOn && (
+            <div className="gif-trigger">
+              <button
+                className="toolbar-icon-btn"
+                onClick={() => { setShowEmojiPopup(false); setShowGifPopup(v => !v); }}
+                title="GIF"
+                aria-label="GIF"
+              >
+                <span className="gif-btn-label">GIF</span>
+              </button>
+              {showGifPopup && (
+                <GifPicker
+                  onClose={() => setShowGifPopup(false)}
+                  onPick={url => { setShowGifPopup(false); void onSendGif(url); }}
+                />
+              )}
+            </div>
+          )}
+
           <div className="emoji-trigger" ref={emojiPopupRef}>
             <button 
               className="toolbar-icon-btn" 
-              onClick={() => setShowEmojiPopup(!showEmojiPopup)}
+              onClick={() => { setShowGifPopup(false); setShowEmojiPopup(!showEmojiPopup); }}
               title="Emoji"
               aria-label="Emoji"
             >
@@ -430,21 +465,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             </button>
             
             {showEmojiPopup && (
-              <div className="emoji-popup show">
-                {EMOJI_LIST.map(emoji => (
-                  <button
-                    key={emoji}
-                    className="emoji-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      insertEmoji(emoji);
-                    }}
-                    title={emoji}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+              <EmojiPicker onPick={insertEmoji} onClose={() => setShowEmojiPopup(false)} closeOnOutsideClick={false} />
             )}
           </div>
         </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Settings, Theme, DefaultStatus } from '../hooks/useSettings';
 import { playRingtonePreview } from '../hooks/notificationSound';
+import { askNotificationPermission } from '../services/notify';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -146,6 +147,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 position: 'absolute',
                 top: '2px',
                 left: settings.messageSoundEnabled ? '22px' : '2px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                background: 'white',
+                transition: 'left 0.15s',
+              }}
+            />
+          </button>
+        </div>
+
+        {/* Desktop / browser notifications */}
+        <div style={rowStyle}>
+          <div>
+            <div style={labelStyle}>Notifications</div>
+            <div style={subLabelStyle}>Show a notification for new messages when GoThermo is in the background</div>
+          </div>
+          <button
+            aria-label="Notifications"
+            aria-pressed={settings.notificationsEnabled}
+            onClick={async () => {
+              const next = !settings.notificationsEnabled;
+              if (next) await askNotificationPermission();
+              onUpdate({ notificationsEnabled: next });
+            }}
+            style={{
+              width: '44px',
+              height: '24px',
+              borderRadius: '12px',
+              border: 'none',
+              cursor: 'pointer',
+              background: settings.notificationsEnabled ? 'var(--success, #23a55a)' : 'var(--border-color, #3f4147)',
+              position: 'relative',
+              transition: 'background 0.15s',
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: '2px',
+                left: settings.notificationsEnabled ? '22px' : '2px',
                 width: '20px',
                 height: '20px',
                 borderRadius: '50%',

@@ -110,3 +110,19 @@ calls use STUN only, as before.
 - Google sign-in in the browser: in Google Cloud Console (APIs & Services, Credentials) create an OAuth client of type **Web application**. Under "Authorized JavaScript origins" add your address, for example `https://chat.example.com` (no path, no trailing slash). Put the client id in `.env` as `GOOGLE_WEB_CLIENT_ID=...apps.googleusercontent.com` and run `docker compose up -d`. The browser needs no client secret. For the desktop apps to sign in with Google through the server as well, add under "Authorized redirect URIs" the address `https://chat.example.com/auth/google/callback` and put the client's secret in `.env` as `GOOGLE_WEB_CLIENT_SECRET=...`: the app then opens Google in the system browser, Google returns to the server, and the app picks the login up by itself, so no `google_oauth.json` is needed on anyone's computer. While the consent screen is in "Testing", only the test users you list can sign in: add your teammates there, or press "Publish app" (the basic profile and email scopes need no review). The server accepts tokens from `GOOGLE_CLIENT_ID` (desktop) and `GOOGLE_WEB_CLIENT_ID` (browser); both can be set, and `GOOGLE_CLIENT_ID` may hold several ids separated by commas. A Google account is a separate account from an email+password one, even with the same address.
 - Channel export works over a server: the server builds the file and the app saves it on your computer. Saving received attachments works in the browser and, in the app, falls back to a normal download.
 - Never expose Redis (port 6379) to the internet. The compose file keeps it internal.
+
+## GIFs
+
+The GIF button appears when the server has a Giphy key.
+
+1. Create a free app at <https://developers.giphy.com> (type: API) and copy the key.
+2. Add `GIPHY_API_KEY=<key>` to `.env` and run `docker compose up -d`.
+
+The key stays on the server; browsers only talk to GoThermo. Results are limited to
+PG-13 and each user gets 30 searches a minute. Without a key nothing changes.
+
+## Avatars and notifications
+
+Pictures are re-encoded on the server (128x128 JPEG), so nothing a user uploads is
+served as-is. Notifications need no setup: the browser asks once when the toggle in
+Settings is switched on, and the desktop app uses the system notifier.

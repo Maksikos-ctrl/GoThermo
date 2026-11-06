@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#667eea"/>
+      <stop offset="1" stop-color="#764ba2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#g)"/>
+  <!-- speech bubble -->
+  <path fill="#fff" d="M512 196C706 196 846 322 846 494c0 172-140 298-334 298-44 0-86-6-122-18L252 856l36-142C226 662 178 584 178 494 178 322 318 196 512 196z"/>
+  <!-- thermometer -->
+  <rect x="470" y="318" width="84" height="270" rx="42" fill="url(#g)"/>
+  <circle cx="512" cy="606" r="92" fill="url(#g)"/>
+  <rect x="496" y="430" width="32" height="180" rx="16" fill="#fff"/>
+  <circle cx="512" cy="606" r="50" fill="#fff"/>
+  <rect x="580" y="368" width="44" height="14" rx="7" fill="url(#g)"/>
+  <rect x="580" y="424" width="30" height="14" rx="7" fill="url(#g)"/>
+  <rect x="580" y="480" width="44" height="14" rx="7" fill="url(#g)"/>
+</svg>

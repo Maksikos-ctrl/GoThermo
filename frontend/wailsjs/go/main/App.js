@@ -258,6 +258,26 @@ export function UpdateEvent(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['App']['UpdateEvent'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
+export function GifsEnabled(arg1) {
+  return window['go']['main']['App']['GifsEnabled'](arg1);
+}
+
+export function SearchGifs(arg1, arg2) {
+  return window['go']['main']['App']['SearchGifs'](arg1, arg2);
+}
+
+export function Notify(arg1, arg2) {
+  return window['go']['main']['App']['Notify'](arg1, arg2);
+}
+
+export function SetAvatar(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetAvatar'](arg1, arg2, arg3);
+}
+
+export function RemoveAvatar(arg1, arg2) {
+  return window['go']['main']['App']['RemoveAvatar'](arg1, arg2);
+}
+
 export function UpdateUserStatus(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateUserStatus'](arg1, arg2, arg3);
 }

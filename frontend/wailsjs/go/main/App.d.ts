@@ -130,4 +130,14 @@ export function UnpinMessage(arg1:string,arg2:string,arg3:string,arg4:string):Pr
 
 export function UpdateEvent(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number):Promise<main.Event>;
 
+export function GifsEnabled(arg1:string):Promise<boolean>;
+
+export function SearchGifs(arg1:string,arg2:string):Promise<Array<any>>;
+
+export function Notify(arg1:string,arg2:string):Promise<boolean>;
+
+export function SetAvatar(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function RemoveAvatar(arg1:string,arg2:string):Promise<void>;
+
 export function UpdateUserStatus(arg1:string,arg2:string,arg3:string):Promise<boolean>;

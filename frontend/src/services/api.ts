@@ -21,6 +21,10 @@ import {
   JoinChannel,
   GetUsers,
   UpdateUserStatus,
+  SetAvatar,
+  GifsEnabled,
+  SearchGifs,
+  RemoveAvatar,
   GetOrCreateDMChannel,
   GetOrCreateGroupChannel,
   GetDMChannels,
@@ -75,6 +79,8 @@ export const api = {
   users: {
     getAll: () => GetUsers(t()),
     updateStatus: (username: string, status: string) => UpdateUserStatus(t(), username, status),
+    setAvatar: (username: string, dataUrl: string) => SetAvatar(t(), username, dataUrl),
+    removeAvatar: (username: string) => RemoveAvatar(t(), username),
   },
   channels: {
     getAll: () => GetChannels(t()),
@@ -141,6 +147,10 @@ export const api = {
       SetDecisionDone(t(), username, channel, messageId, done),
     remove: (channel: string, messageId: string, username: string) =>
       RemoveDecision(t(), username, channel, messageId),
+  },
+  gifs: {
+    enabled: () => GifsEnabled(t()),
+    search: (query: string) => SearchGifs(t(), query),
   },
   moderation: {
     reportMessage: (channel: string, messageId: string, username: string, reason: string) =>

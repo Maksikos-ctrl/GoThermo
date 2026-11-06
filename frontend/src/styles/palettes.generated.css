@@ -448,6 +448,14 @@ html[data-palette="midnight"]:not([data-theme="light"]) {
   color: #b5b9c1;
 }
 
+:where(html[data-palette="midnight"]:not([data-theme="light"])) .avatar-edit button {
+  border: 1px solid var(--border-color,#2c3a5a);
+}
+
+:where(html[data-palette="midnight"]:not([data-theme="light"])) .avatar-edit button:hover {
+  background: rgba(104, 118, 150, .15);
+}
+
 :where(html[data-palette="midnight"]:not([data-theme="light"])) .server-chip {
   border: 1px solid var(--border-color, rgba(115, 126, 153, 0.35));
   background: var(--bg-secondary, rgba(23, 30, 47, 0.85));
@@ -1360,6 +1368,14 @@ html[data-palette="forest"]:not([data-theme="light"]) {
 
 :where(html[data-palette="forest"]:not([data-theme="light"])) .edit-cancel-btn {
   color: #b8bebb;
+}
+
+:where(html[data-palette="forest"]:not([data-theme="light"])) .avatar-edit button {
+  border: 1px solid var(--border-color,#365044);
+}
+
+:where(html[data-palette="forest"]:not([data-theme="light"])) .avatar-edit button:hover {
+  background: rgba(114, 140, 128, .15);
 }
 
 :where(html[data-palette="forest"]:not([data-theme="light"])) .server-chip {
@@ -2276,6 +2292,14 @@ html[data-palette="plum"]:not([data-theme="light"]) {
   color: #bdb7bf;
 }
 
+:where(html[data-palette="plum"]:not([data-theme="light"])) .avatar-edit button {
+  border: 1px solid var(--border-color,#493353);
+}
+
+:where(html[data-palette="plum"]:not([data-theme="light"])) .avatar-edit button:hover {
+  background: rgba(133, 111, 143, .15);
+}
+
 :where(html[data-palette="plum"]:not([data-theme="light"])) .server-chip {
   border: 1px solid var(--border-color, rgba(139, 121, 147, 0.35));
   background: var(--bg-secondary, rgba(38, 27, 43, 0.85));
@@ -3190,6 +3214,14 @@ html[data-palette="mocha"]:not([data-theme="light"]) {
   color: #bebbb8;
 }
 
+:where(html[data-palette="mocha"]:not([data-theme="light"])) .avatar-edit button {
+  border: 1px solid var(--border-color,#504236);
+}
+
+:where(html[data-palette="mocha"]:not([data-theme="light"])) .avatar-edit button:hover {
+  background: rgba(140, 126, 114, .15);
+}
+
 :where(html[data-palette="mocha"]:not([data-theme="light"])) .server-chip {
   border: 1px solid var(--border-color, rgba(145, 133, 123, 0.35));
   background: var(--bg-secondary, rgba(42, 35, 28, 0.85));
@@ -4102,6 +4134,14 @@ html[data-palette="amoled"]:not([data-theme="light"]) {
 
 :where(html[data-palette="amoled"]:not([data-theme="light"])) .edit-cancel-btn {
   color: #bbbbbb;
+}
+
+:where(html[data-palette="amoled"]:not([data-theme="light"])) .avatar-edit button {
+  border: 1px solid var(--border-color,#1e1e1e);
+}
+
+:where(html[data-palette="amoled"]:not([data-theme="light"])) .avatar-edit button:hover {
+  background: rgba(127, 127, 127, .15);
 }
 
 :where(html[data-palette="amoled"]:not([data-theme="light"])) .server-chip {

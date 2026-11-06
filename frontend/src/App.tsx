@@ -42,6 +42,9 @@ import { GroupCallInviteModal } from './components/GroupCallInviteModal';
 import { StartGroupCallModal } from './components/StartGroupCallModal';
 import { GroupCallGrid } from './components/GroupCallGrid';
 import { useToast } from './hooks/useToast';
+import { gifUrlOf } from './components/gifUrl';
+import { setAvatar, setAvatarsFromUsers } from './components/avatarStore';
+import { addUnseen, clearUnseen, showNotice, windowIsAway } from './services/notify';
 import { ToastContainer } from './components/ToastContainer';
 import { useSettings } from './hooks/useSettings';
 import { ThemeVariables } from './components/ThemeVariables';
@@ -129,6 +132,18 @@ function App() {
   const [typingMap, setTypingMap] = useState<TypingMap>({});
   const lastTypingSentRef = useRef({ channel: '', at: 0 });
   const notifiedMentionsRef = useRef<Set<string>>(new Set());
+  const notifiedMessagesRef = useRef<Set<string>>(new Set());
+
+  // Coming back to the window clears the unread count in its title.
+  useEffect(() => {
+    const back = () => { if (!windowIsAway()) clearUnseen(); };
+    window.addEventListener('focus', back);
+    document.addEventListener('visibilitychange', back);
+    return () => {
+      window.removeEventListener('focus', back);
+      document.removeEventListener('visibilitychange', back);
+    };
+  }, []);
   useEffect(() => {
     if (Object.keys(typingMap).length === 0) return;
     const id = setInterval(() => setTypingMap(m => pruneTyping(m, Date.now())), 1000);
@@ -178,7 +193,8 @@ function App() {
     handleThreadReplyEvent,
     handleThreadReplyDeleted,
     handlePinsChanged,
-    handleTyping
+    handleTyping,
+    (name, avatar) => setAvatar(name, avatar || undefined)
   );
 
   const call = useCall({
@@ -263,6 +279,17 @@ function App() {
     }
     if (message.user !== currentUser && settings.messageSoundEnabled) {
       playNotificationSound(0.5);
+    }
+    if (message.user !== currentUser && !message.isCall && settings.notificationsEnabled && windowIsAway()) {
+      // Edits and reactions arrive as the same event, so tell about a message once.
+      if (!notifiedMessagesRef.current.has(message.id)) {
+        if (notifiedMessagesRef.current.size > 500) notifiedMessagesRef.current.clear();
+        notifiedMessagesRef.current.add(message.id);
+        addUnseen();
+        const where = channelTag(channel, currentUser);
+        const text = gifUrlOf(message.text) ? 'sent a GIF' : message.text;
+        showNotice(`${message.user} · ${where}`, text, message.id);
+      }
     }
     if (channel === currentChannel) {
       // The user is looking at this channel, so the message is read at once.
@@ -778,7 +805,9 @@ function App() {
         uniqueUsersMap.set(user.username, typedUser);
       });
       
-      setUsers(Array.from(uniqueUsersMap.values()));
+      const loaded = Array.from(uniqueUsersMap.values());
+      setAvatarsFromUsers(loaded);
+      setUsers(loaded);
     } catch (error) {
       console.error('Error loading users:', error);
       setUsers([]);
@@ -953,6 +982,14 @@ function App() {
   };
 
    
+  const handleSendGif = async (url: string) => {
+    try {
+      await api.messages.send(currentUser, url, currentChannel);
+    } catch (error: any) {
+      showToast(`Failed to send GIF: ${error}`, 'error');
+    }
+  };
+
   const handleSendFile = async (fileName: string, mimeType: string, base64Data: string) => {
     try {
       await api.files.send(currentUser, currentChannel, fileName, mimeType, base64Data);
@@ -1297,6 +1334,7 @@ function App() {
         onOpenSettings={() => setShowSettingsModal(true)}
         onOpenThemes={() => setShowThemePicker(true)}
         onChangeStatusViaWS={changeStatus}
+        onAvatarError={(m) => showToast(m, 'error')}
       />
 
       <ChannelSidebar
@@ -1395,6 +1433,7 @@ function App() {
           mentionableUsers={allUsernames}
           currentUser={currentUser}
           onSendFile={handleSendFile}
+          onSendGif={handleSendGif}
           onTyping={handleComposerTyping}
         />
       </div>

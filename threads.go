@@ -197,6 +197,9 @@ func (a *App) AddReplyReaction(token, channel, parentID, replyID, emoji, usernam
 	if err := requireUser(token, username); err != nil {
 		return err
 	}
+	if !validReaction(emoji) {
+		return fmt.Errorf("that emoji cannot be used")
+	}
 	if err := requireChannelAccess(username, channel); err != nil {
 		return err
 	}

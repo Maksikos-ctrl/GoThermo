@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './Markdown.css';
 import { openExternal } from '../services/save';
+import { gifUrlOf } from './gifUrl';
 
 // Chat-style Markdown for message text. No dependencies and no HTML is ever
 // injected: everything is built from React elements, so a message can never
@@ -296,6 +297,14 @@ const withBreaks = (lines: string[], ctx: Ctx, prefix: string): React.ReactNode[
 
 export const MessageText: React.FC<MessageTextProps> = ({ text, knownUsernames = [], currentUser }) => {
   const ctx: Ctx = { known: new Set(knownUsernames.map(u => u.toLowerCase())), currentUser };
+  const gif = gifUrlOf(text);
+  if (gif) {
+    return (
+      <div className="md">
+        <img className="md-gif" src={gif} alt="GIF" loading="lazy" referrerPolicy="no-referrer" />
+      </div>
+    );
+  }
   const blocks = parseBlocks(text);
 
   return (

@@ -1,7 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { Video, Phone, Settings, Palette, ChevronDown, ChevronsLeft, ChevronsRight, Check } from 'lucide-react';
 import { User, STATUS_OPTIONS, StatusType } from '../types';
-import { avatarColor } from './avatarColor';
+import { Avatar } from './Avatar';
+import { useAvatar, setAvatar } from './avatarStore';
+import logoUrl from '../assets/logo.svg';
 import { api } from '../services/api';
 
 interface UserPanelProps {
@@ -18,6 +20,7 @@ interface UserPanelProps {
   onOpenThemes?: () => void;
   
   onChangeStatusViaWS?: (status: StatusType) => void;
+  onAvatarError?: (message: string) => void;
 }
 
 export const UserPanel: React.FC<UserPanelProps> = ({
@@ -33,9 +36,44 @@ export const UserPanel: React.FC<UserPanelProps> = ({
   onOpenSettings,
   onOpenThemes,
   onChangeStatusViaWS, 
+  onAvatarError,
 }) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const myAvatar = useAvatar(currentUser);
+
+  const pickAvatar = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      onAvatarError?.('Please choose an image file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      onAvatarError?.('Picture is too big (2 MB max)');
+      return;
+    }
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+      await api.users.setAvatar(currentUser, dataUrl);
+    } catch (e: any) {
+      onAvatarError?.(String(e?.message ?? e ?? 'Could not set picture'));
+    }
+  };
+
+  const dropAvatar = async () => {
+    try {
+      await api.users.removeAvatar(currentUser);
+      setAvatar(currentUser, undefined);
+    } catch (e: any) {
+      onAvatarError?.(String(e?.message ?? e ?? 'Could not remove picture'));
+    }
+  };
 
  
   const uniqueUsersMap = new Map<string, User>();
@@ -88,7 +126,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
     <div className="left-panel">
       <div className="panel-header">
         <div className="workspace-info">
-          <div className="workspace-logo">GT</div>
+          <img className="workspace-logo" src={logoUrl} alt="GoThermo" />
           <div>
             <h3>GoThermo</h3>
             <div className="workspace-status">
@@ -108,7 +146,26 @@ export const UserPanel: React.FC<UserPanelProps> = ({
       </div>
 
       <div className="current-user-card" ref={statusMenuRef}>
-        <div className="user-avatar large" style={{ background: avatarColor(currentUser) }}>{currentUser.charAt(0).toUpperCase()}</div>
+        <button
+          type="button"
+          className="avatar-upload"
+          title="Change picture"
+          aria-label="Change picture"
+          onClick={() => fileRef.current?.click()}
+        >
+          <Avatar username={currentUser} className="user-avatar large" />
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          data-testid="avatar-input"
+          onChange={e => {
+            void pickAvatar(e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
         <div className="user-details">
           <div className="user-name">{currentUser}</div>
           <div 
@@ -124,6 +181,11 @@ export const UserPanel: React.FC<UserPanelProps> = ({
         
         {showStatusMenu && (
           <div className="status-menu">
+            {myAvatar && (
+              <div className="status-option" onClick={() => { setShowStatusMenu(false); void dropAvatar(); }}>
+                <span>Remove picture</span>
+              </div>
+            )}
             {STATUS_OPTIONS.map(status => (
               <div 
                 key={status.value}
@@ -152,7 +214,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
                 className="user-item"
                 onClick={() => onStartDirectMessage(user.username)}
               >
-                <div className="user-avatar small" style={{ background: avatarColor(user.username) }}>{user.username.charAt(0).toUpperCase()}</div>
+                <Avatar username={user.username} className="user-avatar small" />
                 <div className="user-name">{user.username}</div>
                 <span className="status-icon">{getStatusIcon(user.status || 'online')}</span>
               </div>
@@ -174,7 +236,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
                 className="user-item"
                 onClick={() => onStartDirectMessage(user.username)}
               >
-                <div className="user-avatar small" style={{ background: avatarColor(user.username) }}>{user.username.charAt(0).toUpperCase()}</div>
+                <Avatar username={user.username} className="user-avatar small" />
                 <div className="user-name">{user.username}</div>
                 <span className="status-icon">{getStatusIcon(user.status || 'away')}</span>
               </div>
@@ -196,7 +258,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
                 className="user-item offline"
                 onClick={() => onStartDirectMessage(user.username)}
               >
-                <div className="user-avatar small" style={{ background: avatarColor(user.username) }}>{user.username.charAt(0).toUpperCase()}</div>
+                <Avatar username={user.username} className="user-avatar small" />
                 <div className="user-name">{user.username}</div>
                 <span className="status-icon">{getStatusIcon(user.status || 'offline')}</span>
               </div>

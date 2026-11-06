@@ -6,6 +6,7 @@ export type DefaultStatus = 'online' | 'away';
 export interface Settings {
   theme: Theme;
   messageSoundEnabled: boolean;
+  notificationsEnabled: boolean;
   ringtoneVolume: number; // 0 to 1
   defaultStatus: DefaultStatus;
 }
@@ -13,6 +14,7 @@ export interface Settings {
 const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   messageSoundEnabled: true,
+  notificationsEnabled: true,
   ringtoneVolume: 0.5,
   defaultStatus: 'online',
 };

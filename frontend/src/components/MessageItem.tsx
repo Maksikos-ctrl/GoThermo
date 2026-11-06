@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Flag, ListChecks, MessageSquareReply, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { Flag, ListChecks, MessageSquareReply, SmilePlus, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import { Message, EMOJI_LIST } from '../types';
-import { avatarColor } from './avatarColor';
+import { Avatar } from './Avatar';
+import { gifUrlOf } from './gifUrl';
 import { LinkPreview } from './LinkPreview';
 import { MessageText } from './MessageText';
 import { ReportMenu } from './ReportMenu';
 import { DecisionMenu } from './DecisionMenu';
+import { EmojiPicker } from './EmojiPicker';
 import { api } from '../services/api'; 
 import { formatLastReply, replyLabel } from './threadState';
 import { useThreadUnread } from './threadExtras';
@@ -48,6 +50,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 }) => {
   const [reportOpen, setReportOpen] = useState(false);
   const [markOpen, setMarkOpen] = useState(false);
+  const [reactOpen, setReactOpen] = useState(false);
   const unreadReplies = useThreadUnread(message.id);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false); 
@@ -121,9 +124,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             {formatTime(message.timestamp).replace(/\s?[AP]M$/i, '')}
           </div>
         ) : (
-          <div className="msg-avatar" style={{ background: avatarColor(message.user) }}>
-            {message.user.charAt(0).toUpperCase()}
-          </div>
+          <Avatar username={message.user} className="msg-avatar" />
         )
       )}
       <div className={`msg-main${isPinned && grouped ? ' pin-host' : ''}`}>
@@ -173,7 +174,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       ) : (
         <>
           <div className="message-text"><MessageText text={message.text} knownUsernames={knownUsernames} currentUser={currentUser} /></div>
-          <LinkPreview text={message.text} />
+          {!gifUrlOf(message.text) && <LinkPreview text={message.text} />}
         </>
       )}
       
@@ -193,6 +194,18 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 </button>
               )
             ))}
+          </div>
+        )}
+
+        {reactOpen && (
+          <div className="react-picker-host">
+            <EmojiPicker
+              onPick={emoji => {
+                setReactOpen(false);
+                onAddReaction(message.id, emoji);
+              }}
+              onClose={() => setReactOpen(false)}
+            />
           </div>
         )}
 
@@ -230,6 +243,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 </button>
               ))}
             </div>
+
+            <button
+              className="quick-reaction-btn"
+              onClick={() => setReactOpen(true)}
+              title="More reactions"
+              aria-label="More reactions"
+            >
+              <SmilePlus size={14} />
+            </button>
 
             {onTogglePin && !message.isCall && (
               <button
@@ -309,9 +331,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         >
           <span className="thread-summary-avatars">
             {(message.replyUsers ?? []).map(u => (
-              <span key={u} className="thread-summary-avatar" style={{ background: avatarColor(u) }} title={u}>
-                {u.charAt(0).toUpperCase()}
-              </span>
+              <Avatar key={u} username={u} className="thread-summary-avatar" title={u} />
             ))}
           </span>
           <span className="thread-summary-count">{replyLabel(message.replyCount ?? 0)}</span>
