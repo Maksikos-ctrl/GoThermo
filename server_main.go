@@ -20,10 +20,19 @@ import (
 //
 //	gothermo-server migrate -dry-run
 //	gothermo-server migrate
+//
+// Encrypt the text of messages written before GOTHERMO_DATA_KEY was set (or
+// undo it with -decrypt), see crypt.go:
+//
+//	gothermo-server encrypt -dry-run
+//	gothermo-server encrypt
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		initRedis()
 		os.Exit(runMigrateCommand(os.Args[2:], os.Stdin, os.Stdout))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "encrypt" {
+		os.Exit(runEncryptCommand(os.Args[2:], os.Stdout))
 	}
 	addr := os.Getenv("GOTHERMO_ADDR")
 	if addr == "" {

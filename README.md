@@ -292,7 +292,7 @@ Moving existing data from Redis to Postgres is one command, see [SERVER.md](SERV
 
 - Run on its own, the WebSocket hub listens on `127.0.0.1` with plain `ws://`, which is fine for one machine. A shared server must sit behind HTTPS (`wss://`); the Docker setup does that with Caddy and a free certificate.
 - Set an invite code on a shared server, otherwise anyone who finds the address can register. A link that carries the code lets whoever has the link register, so send it only to your team.
-- Messages are not end-to-end encrypted.
+- Message text can be encrypted in the database (`DATA_KEY`, AES-256-GCM), and `deploy/backup.sh` makes encrypted backups; see [SERVER.md](SERVER.md#encryption-at-rest). This protects a stolen database copy or disk, not an attacker who controls the running server. Messages are **not** end-to-end encrypted.
 - Keep `google_oauth.json`, `.env` files and `uploads/` out of git.
 
 ## Roadmap

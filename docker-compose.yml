@@ -37,6 +37,8 @@ services:
       GOOGLE_WEB_CLIENT_SECRET: ${GOOGLE_WEB_CLIENT_SECRET:-}
       GOTHERMO_PUBLIC_URL: https://${DOMAIN}
       # Relay for calls on mobile networks. Empty unless TURN_SECRET is set in .env.
+      # Encrypts message text in the database (AES-256-GCM). Empty = off. See SERVER.md "Encryption at rest".
+      GOTHERMO_DATA_KEY: ${DATA_KEY:-}
       # Admin sign-in (login: admin). Empty password = no admin account.
       GOTHERMO_ADMIN_USER: ${ADMIN_USER:-admin}
       GOTHERMO_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}

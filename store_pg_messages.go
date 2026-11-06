@@ -56,6 +56,7 @@ func scanMessage(row pgx.Row) (Message, error) {
 		&m.ThreadID, &m.ReplyCount, &last, &users); err != nil {
 		return Message{}, err
 	}
+	m.Text = openText(m.Text)
 	m.IsEdited = edited
 	m.IsFile = m.FileID != ""
 	if last != nil {
@@ -143,7 +144,7 @@ func (p pgStore) AppendMessage(m Message) error {
 		SELECT $2, c.id, $3, $4, $5, $6::timestamptz, CASE WHEN $7::boolean THEN $6::timestamptz END, $8,
 		       $9, $10, $11, $12, $13, $14, $15, $16
 		FROM channels c WHERE c.name = $1`,
-		m.Channel, m.ID, nullIfEmpty(m.ThreadID), m.User, m.Text, ts, m.IsEdited, m.IsPost,
+		m.Channel, m.ID, nullIfEmpty(m.ThreadID), m.User, sealText(m.Text), ts, m.IsEdited, m.IsPost,
 		nullIfEmpty(m.FileID), nullIfEmpty(m.FileName), nullIfZero64(m.FileSize), nullIfEmpty(m.MimeType),
 		m.IsCall, nullIfEmpty(m.CallStatus), nullIfZero(m.CallDuration), nullIfEmpty(m.CallInitiator))
 	if err != nil {
@@ -177,7 +178,7 @@ func (p pgStore) updateRow(channel, parentID string, m Message) error {
 		WHERE id = $1
 		  AND channel_id = (SELECT id FROM channels WHERE name = $2)
 		  AND thread_id IS NOT DISTINCT FROM $3::text`,
-		m.ID, channel, nullIfEmpty(parentID), m.Text, m.IsEdited, time.Now(), m.IsPost,
+		m.ID, channel, nullIfEmpty(parentID), sealText(m.Text), m.IsEdited, time.Now(), m.IsPost,
 		nullIfEmpty(m.FileID), nullIfEmpty(m.FileName), nullIfZero64(m.FileSize), nullIfEmpty(m.MimeType),
 		m.IsCall, nullIfEmpty(m.CallStatus), nullIfZero(m.CallDuration), nullIfEmpty(m.CallInitiator))
 	if err != nil {

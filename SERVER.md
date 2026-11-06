@@ -144,3 +144,59 @@ Notes: without `ADMIN_PASSWORD` there is no admin account. The name is reserved,
 nobody can register as it. The password lives only in `.env`, not in the database or
 the repository. Five wrong passwords lock the admin login for 15 minutes; the
 `gothermo-admin` command-line tool keeps working in that case.
+
+## Encryption at rest
+
+What it protects: someone who gets a copy of the database, a backup or a disk snapshot sees no message text. What it does not protect: anyone who controls the running server (the server holds the key, and reads messages to show them), and files in `uploads`. Messages are not end-to-end encrypted.
+
+**Turn it on**
+
+1. Make a key and put it in `.env`. **Keep a second copy of the key somewhere safe (a password manager).** Without it the encrypted messages cannot be read, ever.
+   ```
+   cd /opt/gothermo
+   echo "DATA_KEY=$(openssl rand -base64 32)" >> .env
+   sudo docker compose up -d --build
+   ```
+   From now on new messages, replies and edits are stored encrypted. The server log says "message text is encrypted in the database".
+2. Encrypt what is already in the database (safe to repeat, it only touches rows that need it):
+   ```
+   sudo docker compose exec gothermo gothermo-server encrypt -dry-run   # counts only
+   sudo docker compose exec gothermo gothermo-server encrypt
+   ```
+3. To switch it off for good, keep `DATA_KEY` set and run `gothermo-server encrypt -decrypt`, then remove the line.
+
+If the key is missing or wrong the server shows a "🔒 encrypted message" placeholder instead of the text; it never shows garbage. A malformed `DATA_KEY` stops the server at start, so a typo cannot silently turn encryption off.
+
+Search, export, threads and link previews keep working because the server decrypts before using the text.
+
+## Backups
+
+`deploy/backup.sh` dumps Postgres, compresses it and encrypts it with a passphrase (AES-256).
+
+```
+openssl rand -base64 32 | sudo tee /opt/gothermo-backup.pass >/dev/null
+sudo chmod 600 /opt/gothermo-backup.pass      # keep a COPY of this passphrase elsewhere
+sudo ./deploy/backup.sh                       # one backup, stored in /opt/gothermo-backups
+```
+
+Every night at 03:30 (add with `sudo crontab -e`):
+
+```
+30 3 * * * cd /opt/gothermo && ./deploy/backup.sh >> /var/log/gothermo-backup.log 2>&1
+```
+
+The last 14 days are kept (`KEEP_DAYS`). Copy the folder off the server now and then (for example to an S3 bucket or your own computer), otherwise a lost disk takes the backups with it.
+
+Restore into an empty database:
+
+```
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass file:/opt/gothermo-backup.pass -in <backup file> \
+  | gunzip | sudo docker compose exec -T postgres psql -U gothermo -d gothermo
+```
+
+Backups of an encrypted database stay encrypted twice; restoring them also needs `DATA_KEY`.
+
+## Locking down the server
+
+- In the AWS Security Group allow only: 22 (SSH, better only from your own IP), 80 and 443 (the site) and, if you use calls over mobile networks, 3478 (TCP and UDP) plus the TURN relay range. Postgres (5432) and Redis (6379) must **not** be open; the compose file does not publish them.
+- Encrypting the disk (EBS) protects against a stolen snapshot. An existing unencrypted volume cannot be encrypted in place: make a snapshot, copy it with encryption on, create a volume from the copy, then stop the instance and swap the root volume. **Stopping the instance changes its public IP unless it has an Elastic IP**, so the DuckDNS address and `TURN_EXTERNAL_IP` would need updating. Do it only after a backup, and ideally with an Elastic IP attached first. Turning on "EBS encryption by default" in EC2 settings only affects volumes created afterwards.

@@ -37,6 +37,12 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if err := loadDataKey(); err != nil {
+		log.Fatalf("❌ %v", err)
+	}
+	if encryptionOn() {
+		log.Println("🔒 message text is encrypted in the database")
+	}
 	a.initDefaultChannels()
 	log.Println("✓ GoThermo application started successfully")
 }
