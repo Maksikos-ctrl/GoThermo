@@ -9,6 +9,7 @@ import {
   normalizeHex,
   saveAccent,
 } from './themeAccent';
+import { PALETTES, applyPalette, loadPalette, savePalette } from './palette';
 import '../styles/theme-picker.css';
 
 interface ThemePickerProps {
@@ -19,10 +20,12 @@ interface ThemePickerProps {
 export const ThemePicker: React.FC<ThemePickerProps> = ({ isOpen, onClose }) => {
   const [current, setCurrent] = useState<string>(() => loadAccent() ?? DEFAULT_ACCENT);
   const [custom, setCustom] = useState('');
+  const [palette, setPalette] = useState<string>(() => loadPalette());
 
   useEffect(() => {
     if (!isOpen) return;
     setCurrent(loadAccent() ?? DEFAULT_ACCENT);
+    setPalette(loadPalette());
     setCustom('');
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -39,20 +42,52 @@ export const ThemePicker: React.FC<ThemePickerProps> = ({ isOpen, onClose }) => 
     saveAccent(hex);
   };
 
+  const choosePalette = (id: string) => {
+    setPalette(id);
+    applyPalette(id);
+    savePalette(id);
+  };
+
   const customHex = normalizeHex(custom);
   const customError =
     custom.trim() === '' ? null : !customHex ? 'Use a colour like #2b8a3e' : !isReadableAccent(customHex) ? 'Too light: white text would be hard to read' : null;
 
   return (
     <div className="theme-overlay" onMouseDown={e => e.target === e.currentTarget && onClose()}>
-      <div className="theme-modal" role="dialog" aria-label="Accent colour">
+      <div className="theme-modal" role="dialog" aria-label="Appearance">
         <header className="theme-header">
-          <strong>Accent colour</strong>
+          <strong>Appearance</strong>
           <button type="button" className="theme-x" onClick={onClose} aria-label="Close">
             <X size={16} />
           </button>
         </header>
 
+        <div className="theme-section-title">Background</div>
+        <div className="palette-grid" role="radiogroup" aria-label="Background">
+          {PALETTES.map(p => {
+            const on = p.id === palette;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                aria-label={`${p.name} background`}
+                className={'palette-chip' + (on ? ' is-on' : '')}
+                onClick={() => choosePalette(p.id)}
+              >
+                <span className="palette-sample" style={{ background: p.bg, borderColor: p.line }}>
+                  <span className="palette-sample-panel" style={{ background: p.panel }} />
+                  <span className="palette-sample-line" style={{ background: p.line }} />
+                </span>
+                <span className="theme-name">{p.name}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="theme-note palette-note">Backgrounds apply to the dark theme.</div>
+
+        <div className="theme-section-title">Accent colour</div>
         <div className="theme-grid" role="radiogroup" aria-label="Presets">
           {ACCENT_PRESETS.map(p => {
             const on = p.color === current;

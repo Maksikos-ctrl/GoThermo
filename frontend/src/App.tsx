@@ -49,6 +49,7 @@ import { ThemePicker } from './components/ThemePicker';
 import { DecisionsPanel } from './components/DecisionsPanel';
 import { normalizeDecisions, openTaskCount } from './components/decisionState';
 import { applySavedAccent } from './components/themeAccent';
+import { applySavedPalette } from './components/palette';
 import { SettingsModal } from './components/SettingsModal';
 import { playNotificationSound } from './hooks/notificationSound';
 import { useIdleStatus } from './hooks/useIdleStatus';
@@ -152,6 +153,7 @@ function App() {
   // The saved accent colour is applied once, before anything is drawn in it.
   useEffect(() => {
     applySavedAccent();
+    applySavedPalette();
   }, []);
   const appliedDefaultStatusRef = useRef(false);
 

@@ -215,7 +215,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
           <span>Audio</span>
         </button>
         {onOpenThemes && (
-          <button className="footer-btn" title="Accent colour" aria-label="Accent colour" onClick={onOpenThemes}>
+          <button className="footer-btn" title="Appearance" aria-label="Appearance" onClick={onOpenThemes}>
             <Palette size={16} className="icon" />
           </button>
         )}

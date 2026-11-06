@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen:palettes": "node scripts/gen-palettes.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",
