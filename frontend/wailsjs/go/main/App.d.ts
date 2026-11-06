@@ -52,6 +52,14 @@ export function GetLinkPreview(arg1:string,arg2:string):Promise<main.LinkPreview
 
 export function GetMentionCounts(arg1:string,arg2:string):Promise<Record<string, number>>;
 
+export function MarkDecision(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
+
+export function GetDecisions(arg1:string,arg2:string):Promise<any>;
+
+export function SetDecisionDone(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<void>;
+
+export function RemoveDecision(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
 export function GetMessages(arg1:string,arg2:string):Promise<Array<main.Message>>;
 
 export function GetMessagesPage(arg1:string,arg2:string,arg3:string,arg4:number):Promise<main.MessagePage>;

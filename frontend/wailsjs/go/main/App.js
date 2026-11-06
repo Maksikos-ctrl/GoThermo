@@ -102,6 +102,22 @@ export function GetMentionCounts(arg1, arg2) {
   return window['go']['main']['App']['GetMentionCounts'](arg1, arg2);
 }
 
+export function MarkDecision(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['MarkDecision'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function GetDecisions(arg1, arg2) {
+  return window['go']['main']['App']['GetDecisions'](arg1, arg2);
+}
+
+export function SetDecisionDone(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SetDecisionDone'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function RemoveDecision(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['RemoveDecision'](arg1, arg2, arg3, arg4);
+}
+
 export function GetMessages(arg1, arg2) {
   return window['go']['main']['App']['GetMessages'](arg1, arg2);
 }

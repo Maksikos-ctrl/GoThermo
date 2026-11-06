@@ -46,6 +46,8 @@ import { ToastContainer } from './components/ToastContainer';
 import { useSettings } from './hooks/useSettings';
 import { ThemeVariables } from './components/ThemeVariables';
 import { ThemePicker } from './components/ThemePicker';
+import { DecisionsPanel } from './components/DecisionsPanel';
+import { normalizeDecisions, openTaskCount } from './components/decisionState';
 import { applySavedAccent } from './components/themeAccent';
 import { SettingsModal } from './components/SettingsModal';
 import { playNotificationSound } from './hooks/notificationSound';
@@ -108,6 +110,9 @@ function App() {
   const [showPins, setShowPins] = useState(false);
   const [pinsLoading, setPinsLoading] = useState(false);
   const [pinsError, setPinsError] = useState<string | null>(null);
+  const [showDecisions, setShowDecisions] = useState(false);
+  const [decisionsTick, setDecisionsTick] = useState(0);
+  const [openTasks, setOpenTasks] = useState(0);
 
 
   const [isDragging, setIsDragging] = useState<string | null>(null);
@@ -395,7 +400,38 @@ function App() {
       return;
     }
     closeThread(); // one side panel at a time
+    setShowDecisions(false);
     setShowPins(true);
+  }
+
+  async function refreshDecisionCount(channel: string) {
+    try {
+      const list = normalizeDecisions(await api.decisions.get(channel));
+      if (channel === currentChannelRef.current) setOpenTasks(openTaskCount(list));
+    } catch {
+      /* the badge is a convenience */
+    }
+  }
+
+  function handleToggleDecisions() {
+    if (showDecisions) {
+      setShowDecisions(false);
+      return;
+    }
+    closeThread(); // one side panel at a time
+    setShowPins(false);
+    setShowDecisions(true);
+  }
+
+  async function handleMarkDecision(message: Message, kind: 'decision' | 'task') {
+    try {
+      await api.decisions.mark(currentChannel, message.id, currentUser, kind);
+      showToast(kind === 'task' ? 'Added as a task' : 'Added as a decision', 'success');
+      setDecisionsTick(n => n + 1);
+      void refreshDecisionCount(currentChannel);
+    } catch (error) {
+      showToast(`${error}`, 'error');
+    }
   }
 
   // A new channel has its own pins; the panel closes when you leave.
@@ -403,7 +439,9 @@ function App() {
     setPins([]);
     setPinsError(null);
     setShowPins(false);
+    setOpenTasks(0);
     if (isLoggedIn) void loadPins(currentChannel);
+    if (isLoggedIn) void refreshDecisionCount(currentChannel);
   }, [currentChannel, isLoggedIn]);
 
   // After a dropped connection pins may have changed: load them again.
@@ -478,6 +516,7 @@ function App() {
     openThreadRef.current = target; // the async load below checks it before React re-renders
     setOpenThread(target);
     setShowPins(false); // one side panel at a time
+    setShowDecisions(false);
     threadUnread.clear(message.id);
     void api.threads.markRead(target.channel, target.parentId).catch(() => {});
     setThreadData({ parent: message, replies: [] }); // the parent shows at once
@@ -881,6 +920,8 @@ function App() {
     closeThread();
     setPins([]);
     setShowPins(false);
+    setShowDecisions(false);
+    setOpenTasks(0);
     setHasMoreOlder(false);
     loadedChannelRef.current = null;
     setChannels([]);
@@ -1315,6 +1356,9 @@ function App() {
           pinnedCount={pins.length}
           pinsOpen={showPins}
           onTogglePins={handleTogglePins}
+          openTasks={openTasks}
+          decisionsOpen={showDecisions}
+          onToggleDecisions={handleToggleDecisions}
           onOpenNav={() => setNavOpen(true)}
         />
 
@@ -1334,6 +1378,7 @@ function App() {
           pinnedIds={pinnedIdSet(pins)}
           onTogglePin={handleTogglePin}
           onReport={handleReport}
+          onMarkDecision={handleMarkDecision}
         />
 
         <TypingIndicator users={typingUsers(typingMap, currentChannel, Date.now(), currentUser)} />
@@ -1383,6 +1428,17 @@ function App() {
           onAddReaction={handleAddReaction}
           onEditMessage={handleEditMessage}
           onDeleteMessage={handleDeleteMessage}
+        />
+      )}
+
+      {showDecisions && (
+        <DecisionsPanel
+          channel={currentChannel}
+          channelTag={channelTag(currentChannel, currentUser)}
+          currentUser={currentUser}
+          refreshKey={decisionsTick}
+          onClose={() => setShowDecisions(false)}
+          onCountChange={(open) => setOpenTasks(open)}
         />
       )}
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Channel } from '../types';
-import { Menu, Pin, Search, CalendarDays, Users, UsersRound, Phone, Video, Lock, Hash, AtSign } from 'lucide-react';
+import { ListChecks, Menu, Pin, Search, CalendarDays, Users, UsersRound, Phone, Video, Lock, Hash, AtSign } from 'lucide-react';
 import { ExportMenu } from './ExportMenu';
 import { channelLabel } from './channelName';
 
@@ -19,6 +19,10 @@ interface ChatHeaderProps {
   pinnedCount?: number;
   pinsOpen?: boolean;
   onTogglePins?: () => void;
+  // Decisions: shows the Decisions button with the number of open tasks.
+  openTasks?: number;
+  decisionsOpen?: boolean;
+  onToggleDecisions?: () => void;
   // Phones: opens the channel drawer.
   onOpenNav?: () => void;
 }
@@ -37,6 +41,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   pinnedCount = 0,
   pinsOpen = false,
   onTogglePins,
+  openTasks = 0,
+  decisionsOpen = false,
+  onToggleDecisions,
   onOpenNav,
 }) => {
   const channel = channels.find(ch => ch.name === currentChannel);
@@ -87,6 +94,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             <Pin size={18} />
             {pinnedCount > 0 && <span className="pins-btn-badge">{pinnedCount}</span>}
+          </button>
+        )}
+        {onToggleDecisions && (
+          <button
+            className={`search-btn hdr-btn pins-btn ${decisionsOpen ? 'active-icon' : ''}`}
+            onClick={onToggleDecisions}
+            title={openTasks > 0 ? `Decisions and tasks (${openTasks} open)` : 'Decisions and tasks'}
+            aria-label="Decisions and tasks"
+            aria-pressed={decisionsOpen}
+          >
+            <ListChecks size={18} />
+            {openTasks > 0 && <span className="pins-btn-badge">{openTasks}</span>}
           </button>
         )}
         {onOpenCalendar && (

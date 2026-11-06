@@ -749,6 +749,7 @@ func (a *App) DeleteChannel(token, name, username string) error {
 	removeUploads(fileIDs)
 	deleteChannelEvents(name)
 	deleteChannelPins(name)
+	deleteChannelDecisions(name)
 	log.Printf("🗑️ Channel #%s deleted by %s", name, username)
 	if channel.IsPrivate {
 		a.hub.BroadcastChannelDeleted(name, channel.Members...)

@@ -273,7 +273,7 @@ Done:
 
 Also done: Markdown and code blocks, infinite scroll for history, leaving a private channel, threads, frontend tests (Vitest), landing page and release builds.
 
-Also done since: server mode with an invite code, **the browser version**, a one-command server setup (`deploy/setup-server.sh`), channel and thread export, pinned messages, accent colors, unread markers in threads, and the move of users, channels and messages to Postgres.
+Also done since: server mode with an invite code, **the browser version**, a one-command server setup (`deploy/setup-server.sh`), channel and thread export, pinned messages, a per-channel **Decisions and tasks** list (mark any message from its toolbar, tick tasks off), message reports and bans, accent colors, unread markers in threads, and the move of users, channels and messages to Postgres.
 
 Next up:
 - [x] Sign in with Google in the browser

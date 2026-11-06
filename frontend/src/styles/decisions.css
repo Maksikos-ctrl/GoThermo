@@ -1,0 +1,101 @@
+/* Decisions panel: reuses the thread panel layout (thread.css). */
+
+.decisions-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color, #3f4147);
+}
+
+.decisions-filter {
+  padding: 4px 10px;
+  border: 1px solid var(--border-color, #3f4147);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary, #8a8f98);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.decisions-filter.active {
+  background: var(--accent, #5865f2);
+  border-color: var(--accent, #5865f2);
+  color: #fff;
+}
+
+.decision-item {
+  margin: 0 8px 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #3f4147);
+  border-radius: 10px;
+  background: var(--bg-secondary, #2b2d31);
+}
+
+.decision-item.done .decision-text {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.decision-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.decision-kind {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary, #313338);
+  color: var(--text-secondary, #8a8f98);
+}
+
+.decision-kind.decision {
+  color: var(--success, #23a55a);
+}
+
+.decision-kind.task {
+  color: var(--accent, #5865f2);
+}
+
+.decision-check,
+.decision-remove {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #8a8f98);
+  cursor: pointer;
+}
+
+.decision-check:hover {
+  color: var(--accent, #5865f2);
+}
+
+.decision-remove {
+  margin-left: auto;
+}
+
+.decision-remove:hover {
+  color: var(--danger, #da373c);
+}
+
+.decision-text {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-primary, #f2f3f5);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.decision-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #8a8f98);
+}

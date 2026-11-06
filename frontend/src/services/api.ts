@@ -47,6 +47,10 @@ import {
   AddReplyReaction,
   PinMessage,
   ReportMessage,
+  MarkDecision,
+  GetDecisions,
+  SetDecisionDone,
+  RemoveDecision,
   UnpinMessage,
   GetPinnedMessages,
   GetThreadUnread,
@@ -128,6 +132,15 @@ export const api = {
     markRead: (channel: string, parentId: string) => MarkThreadRead(t(), channel, parentId),
     exportThread: (channel: string, parentId: string, format: string) =>
       ExportThread(t(), channel, parentId, format),
+  },
+  decisions: {
+    get: (channel: string) => GetDecisions(t(), channel),
+    mark: (channel: string, messageId: string, username: string, kind: string) =>
+      MarkDecision(t(), username, channel, messageId, kind),
+    setDone: (channel: string, messageId: string, username: string, done: boolean) =>
+      SetDecisionDone(t(), username, channel, messageId, done),
+    remove: (channel: string, messageId: string, username: string) =>
+      RemoveDecision(t(), username, channel, messageId),
   },
   moderation: {
     reportMessage: (channel: string, messageId: string, username: string, reason: string) =>

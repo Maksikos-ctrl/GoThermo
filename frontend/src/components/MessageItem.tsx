@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Flag, MessageSquareReply, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { Flag, ListChecks, MessageSquareReply, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import { Message, EMOJI_LIST } from '../types';
 import { avatarColor } from './avatarColor';
 import { LinkPreview } from './LinkPreview';
 import { MessageText } from './MessageText';
 import { ReportMenu } from './ReportMenu';
+import { DecisionMenu } from './DecisionMenu';
 import { api } from '../services/api'; 
 import { formatLastReply, replyLabel } from './threadState';
 import { useThreadUnread } from './threadExtras';
@@ -27,6 +28,8 @@ interface MessageItemProps {
   onTogglePin?: (message: Message) => void;
   // Reports: when given, other people's messages get a Report button.
   onReport?: (message: Message, reason: string) => void;
+  // Decisions: when given, the toolbar gets a button that adds the message to the Decisions list.
+  onMarkDecision?: (message: Message, kind: 'decision' | 'task') => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -41,8 +44,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   isPinned = false,
   onTogglePin,
   onReport,
+  onMarkDecision,
 }) => {
   const [reportOpen, setReportOpen] = useState(false);
+  const [markOpen, setMarkOpen] = useState(false);
   const unreadReplies = useThreadUnread(message.id);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false); 
@@ -191,6 +196,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
 
+        {markOpen && onMarkDecision && (
+          <DecisionMenu
+            onPick={kind => {
+              setMarkOpen(false);
+              onMarkDecision(message, kind);
+            }}
+            onClose={() => setMarkOpen(false)}
+          />
+        )}
+
         {reportOpen && onReport && (
           <ReportMenu
             onPick={reason => {
@@ -224,6 +239,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 aria-label={isPinned ? 'Unpin message' : 'Pin message'}
               >
                 {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+              </button>
+            )}
+
+            {onMarkDecision && !message.isCall && (
+              <button
+                className="quick-reaction-btn"
+                onClick={() => setMarkOpen(true)}
+                title="Add to decisions"
+                aria-label="Add to decisions"
+              >
+                <ListChecks size={14} />
               </button>
             )}
 
