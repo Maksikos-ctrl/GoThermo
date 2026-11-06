@@ -41,7 +41,12 @@ Things to know before you run it:
 - Real-time delivery over WebSocket, typing indicators, online / away presence (auto-away after 10 minutes without activity)
 - **Threads**: reply to any message in a side panel; the parent shows the reply count, avatars and the time of the last reply, and everything updates live
 - Markdown and code blocks (with a copy button), @mentions
-- Edit and delete your messages, emoji reactions, "Post" messages, unread badges per channel
+- Edit and delete your messages, "Post" messages, unread badges per channel
+- **Emoji picker** with search and recent emoji, reactions with any emoji, and **GIFs** (Giphy, searched through your server so the key stays private)
+- **Avatars**: upload your own picture; it is re-encoded on the server and updates for everyone live
+- **Notifications**: system notifications in the desktop app and browser notifications on the web, plus an unread count in the window title
+- **Decisions and tasks**: mark any message as a decision or a task and keep a list per channel
+- **Themes**: five backgrounds (Midnight, Forest, Plum, Mocha, AMOLED black) and any accent colour
 - Message search, link previews, export of a channel to JSON / CSV / TXT
 - File sharing: file picker, **drag & drop** and **paste from clipboard** (screenshots and images from other apps), 25 MB limit
 
@@ -56,6 +61,11 @@ Things to know before you run it:
 - Reminder 15 minutes before the start for everyone who answered Going or Maybe
 - Month view, edit and delete (creator only), a chat message is posted when an event is created
 
+**Moderation and admin**
+- Members can report a message (spam, NSFW, harassment, malicious, other); reports are rate-limited
+- An **admin panel**: sign in as `admin` and you get overview numbers, all users (search, ban, unban) and the reported messages (delete the message, ban the author, dismiss). See [Admin panel](#admin-panel)
+- Banned accounts cannot sign in and their sessions stop working at once
+
 **Accounts and security**
 - Email + password registration (the email domain is checked via DNS) and **Sign in with Google** (OAuth 2.0 with PKCE)
 - Passwords are hashed with bcrypt, sessions are random 256-bit tokens that expire after 30 days
@@ -63,6 +73,8 @@ Things to know before you run it:
 - Brute-force protection: 5 wrong passwords lock the email for 15 minutes
 - Private channel events are delivered only to members, never by subscription alone
 - Upload limits and content-type sniffing, SSRF protection in link previews
+- Avatars are decoded and re-encoded on the server (128x128 JPEG), so nothing a user uploads is served as it came
+- Calls work on mobile networks through an optional TURN relay (coturn), see [SERVER.md](SERVER.md)
 
 ## Server mode
 
@@ -71,6 +83,25 @@ One backend on a server, many clients connected to it. The same Go code runs hea
 **Desktop app:** on the sign-in screen click **Server: this computer, Change**, type your server address and press **Connect**. Leave it empty to keep using the local mode.
 
 **Browser:** open the server address. The Docker image contains the interface (`VITE_WEB=1 npm run build`), the server serves it at `/app/` and the page uses its own address as the server. Registering needs the invite code; send people a link like `https://chat.example.com/app/?invite=CODE` and it is filled in automatically (the browser has no code field). Sign in with Google also works in the browser when the server has `GOOGLE_WEB_CLIENT_ID` set (see [SERVER.md](SERVER.md)).
+
+## Admin panel
+
+Set a password on the server and restart (see [SERVER.md](SERVER.md#admin-panel)):
+
+```
+ADMIN_PASSWORD=<a long password>
+```
+
+Then sign in on the normal login screen with `admin` instead of an email. The admin account is not stored in the database, the name is reserved, and every admin call is checked against the session on the server. Without `ADMIN_PASSWORD` there is no admin.
+
+## Optional server features
+
+| Variable (in `.env`) | What it turns on |
+| --- | --- |
+| `ADMIN_PASSWORD`, `ADMIN_USER` | the admin panel |
+| `GIPHY_API_KEY` | the GIF button (free key from developers.giphy.com) |
+| `TURN_SECRET`, `TURN_EXTERNAL_IP`, `COMPOSE_PROFILES=turn` | a call relay for mobile networks |
+| `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_WEB_CLIENT_SECRET` | Sign in with Google |
 
 ## Tech stack
 
@@ -95,6 +126,12 @@ GoThermo/
 ├── auth.go                  # Register, login, logout
 ├── sessions.go              # Session tokens in Redis
 ├── authz.go                 # Token → user, private channel access checks
+├── admin.go                 # Admin sign-in and the admin panel's methods
+├── moderation.go            # Reports and bans
+├── decisions.go             # Decisions and tasks per channel
+├── avatars.go, gifs.go      # Profile pictures, GIF search
+├── notify.go                # Desktop notifications
+├── ice.go                   # TURN credentials for calls
 ├── ratelimit.go             # Login brute-force protection
 ├── google_oauth.go          # Sign in with Google
 ├── emailcheck.go            # Email DNS validation
@@ -275,14 +312,16 @@ Also done: Markdown and code blocks, infinite scroll for history, leaving a priv
 
 Also done since: server mode with an invite code, **the browser version**, a one-command server setup (`deploy/setup-server.sh`), channel and thread export, pinned messages, a per-channel **Decisions and tasks** list (mark any message from its toolbar, tick tasks off), message reports and bans, accent colors, unread markers in threads, and the move of users, channels and messages to Postgres.
 
+Also done recently: a TURN relay for calls on mobile networks, background themes, a full emoji picker, avatars, GIFs, desktop and browser notifications, the new logo, and an admin panel.
+
 Next up:
 - [x] Sign in with Google in the browser
-- [ ] Keep the session after a page reload in the browser
+- [x] Keep the session after a page reload in the browser
 - [ ] Thread search
 - [ ] Integrations (GitHub first, then Jira, ...)
 - [ ] Screen sharing in group calls
 - [ ] Code signing for Windows and macOS builds
-- [ ] Mobile companion app
+- [ ] Mobile companion app (iOS and Android, in its own repository)
 
 ## Contributing
 
